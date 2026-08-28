@@ -47,3 +47,7 @@ object EditRequestRoute {
 object NotificationsRoute {
     const val route = "notifications"
 }
+
+object SavedItemsRoute {
+    const val route = "saved_items"
+}

@@ -27,6 +27,8 @@ import com.sharebite.app.ui.navigation.EditRequestRoute
 import com.sharebite.app.ui.charity.ProfileScreen
 import com.sharebite.app.ui.charity.NotificationsScreen
 import com.sharebite.app.ui.navigation.NotificationsRoute
+import com.sharebite.app.ui.charity.SavedItemsScreen
+import com.sharebite.app.ui.navigation.SavedItemsRoute
 
 
 @Composable
@@ -45,6 +47,7 @@ fun AppNavHost() {
         currentRoute.startsWith("edit_request") -> "Edit Request"
         currentRoute == PostRequestRoute.route -> "Post a Food Request"
         currentRoute == NotificationsRoute.route -> "Notifications"
+        currentRoute == SavedItemsRoute.route -> "Saved Items"
         else -> "ShareBite"
     }
 
@@ -52,7 +55,8 @@ fun AppNavHost() {
             currentRoute.startsWith("apply_for_food") ||
             currentRoute.startsWith("edit_request") ||
             currentRoute == PostRequestRoute.route ||
-            currentRoute == NotificationsRoute.route
+            currentRoute == NotificationsRoute.route ||
+            currentRoute == SavedItemsRoute.route
 
     AppScaffold(
         currentRoute = currentRoute,
@@ -116,7 +120,16 @@ fun AppNavHost() {
                 )
             }
             composable(Screen.Profile.route) {
-                ProfileScreen(paddingValues = paddingValues)
+                ProfileScreen(
+                    paddingValues = paddingValues,
+                    onSavedItemsClick = { navController.navigate(SavedItemsRoute.route) }
+                )
+            }
+            composable(SavedItemsRoute.route) {
+                SavedItemsScreen(
+                    paddingValues = paddingValues,
+                    onItemClick = { id -> navController.navigate(FoodDetailRoute.createRoute(id)) }
+                )
             }
             composable(PostRequestRoute.route) {
                 PostRequestScreen(
