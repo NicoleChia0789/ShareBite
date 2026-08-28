@@ -2,12 +2,10 @@ package com.sharebite.app.ui.charity
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,16 +24,15 @@ import androidx.compose.runtime.setValue
 import com.sharebite.app.data.model.CharityRequest
 import com.sharebite.app.data.repository.CharityRepository
 
-
-// 颜色定义（跟设计稿对应）
-private val BgCream = Color(0xFFFFF8EE)
-private val OrangeAccent = Color(0xFFFF7A45)
-private val GreenConfirmed = Color(0xFF2E7D32)
-private val GreyCompleted = Color(0xFF506169)
-private val RedCancelled = Color(0xFFBA1A1A)
-private val TextGrey = Color(0xFF8B7168)
-private val TextDark = Color(0xFF1E1B16)
-private val CardCream = Color(0xFFFAF3E9)
+// Color
+import com.sharebite.app.ui.theme.BgCream
+import com.sharebite.app.ui.theme.OrangeAccent
+import com.sharebite.app.ui.theme.GreenConfirmed
+import com.sharebite.app.ui.theme.GreyCompleted
+import com.sharebite.app.ui.theme.RedCancelled
+import com.sharebite.app.ui.theme.TextGrey
+import com.sharebite.app.ui.theme.TextDark
+import com.sharebite.app.ui.theme.CardCream
 
 // 假的数据模型，之后会换成从 Supabase 拿真实数据
 data class ActivityItem(
@@ -44,9 +41,11 @@ data class ActivityItem(
     val status: String // "Confirmed", "Pending", etc
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CharityDashboardScreen() {
+fun CharityDashboardScreen(
+    paddingValues: PaddingValues,
+    onCreateRequest: () -> Unit  // 新增
+) {
     val repository = remember { CharityRepository() }
 
     var allRequests by remember { mutableStateOf<List<CharityRequest>>(emptyList()) }
@@ -74,54 +73,26 @@ fun CharityDashboardScreen() {
         .take(3)
         .map { ActivityItem(it.organisationName.ifBlank { it.foodName }, "${it.pickupDate}, ${it.pickupTime}", it.status) }
 
-    Scaffold(
-        containerColor = BgCream,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "ShareBite",
-                        color = OrangeAccent,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { /* TODO: open menu */ }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menu")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { /* TODO: notifications */ }) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Notifications")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgCream)
-            )
-        }
-    ) { paddingValues ->
         if (isLoading) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
+                modifier = Modifier.fillMaxSize().padding(paddingValues),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(color = OrangeAccent)
             }
-            return@Scaffold
+            return
         }
 
         if (errorMessage != null) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
+                modifier = Modifier.fillMaxSize().padding(paddingValues),
                 contentAlignment = Alignment.Center
             ) {
                 Text("Error: $errorMessage", color = RedCancelled)
             }
-            return@Scaffold
+            return
         }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -145,8 +116,9 @@ fun CharityDashboardScreen() {
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
-                    onClick = { /* TODO: navigate to Post Request */ },
-                    colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent)
+                    onClick = onCreateRequest,
+                    colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                    shape = RoundedCornerShape(8.dp)  // 可选的，保持一致风格
                 ) {
                     Text("+ Create Food Request", color = Color.White)
                 }
@@ -251,7 +223,7 @@ fun CharityDashboardScreen() {
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
-}
+
 
 @Composable
 private fun StatCard(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
@@ -322,5 +294,8 @@ private fun ActivityCard(activity: ActivityItem) {
 @Preview(showBackground = true)
 @Composable
 fun CharityDashboardScreenPreview() {
-    CharityDashboardScreen()
+    CharityDashboardScreen(
+        paddingValues = PaddingValues(),
+        onCreateRequest = {}  // ← 改成正确的参数名
+    )
 }
