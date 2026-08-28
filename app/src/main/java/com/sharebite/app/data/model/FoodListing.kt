@@ -41,6 +41,11 @@ data class FoodListing(
     val notes: String? = null,
     val status: String = "available",
 
+    @SerialName("portion_info")
+    val portionInfo: String? = null,
+
     @SerialName("created_at")
     val createdAt: String = ""
+
+
 )

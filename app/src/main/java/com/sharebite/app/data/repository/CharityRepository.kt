@@ -101,5 +101,39 @@ class CharityRepository {
         SupabaseClient.client.postgrest["charity_requests"].insert(newRequest)
     }
 
+    // 更新一笔申请（只允许更新 Pending 状态的申请）
+    suspend fun updateRequest(
+        requestId: Long,
+        quantity: Int,
+        pickupDate: String,
+        pickupTime: String,
+        peopleServed: Int,
+        note: String?
+    ) {
+        SupabaseClient.client.postgrest["charity_requests"].update(
+            {
+                set("quantity", quantity)
+                set("pickup_date", pickupDate)
+                set("pickup_time", pickupTime)
+                set("people_served", peopleServed)
+                set("note", note)
+            }
+        ) {
+            filter {
+                eq("id", requestId)
+                eq("status", "Pending")
+            }
+        }
+    }
+
+    // 撤回申请（软删除：把状态改成 Cancelled，保留记录）
+    suspend fun withdrawRequest(requestId: Long) {
+        SupabaseClient.client.postgrest["charity_requests"].update(
+            { set("status", "Cancelled") }
+        ) {
+            filter { eq("id", requestId) }
+        }
+    }
+
 
 }

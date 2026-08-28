@@ -33,6 +33,8 @@ import com.sharebite.app.ui.theme.RedCancelled
 import com.sharebite.app.ui.theme.TextGrey
 import com.sharebite.app.ui.theme.TextDark
 import com.sharebite.app.ui.theme.CardCream
+import androidx.compose.foundation.clickable
+import com.sharebite.app.data.repository.FoodListingRepository
 
 // 假的数据模型，之后会换成从 Supabase 拿真实数据
 data class ActivityItem(
@@ -44,9 +46,13 @@ data class ActivityItem(
 @Composable
 fun CharityDashboardScreen(
     paddingValues: PaddingValues,
-    onCreateRequest: () -> Unit  // 新增
+    onCreateRequest: () -> Unit,
+    onViewAllClick: () -> Unit
 ) {
     val repository = remember { CharityRepository() }
+    val listingRepository = remember { FoodListingRepository() }
+
+    var availableCount by remember { mutableStateOf(0) }
 
     var allRequests by remember { mutableStateOf<List<CharityRequest>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -55,6 +61,7 @@ fun CharityDashboardScreen(
     LaunchedEffect(Unit) {
         try {
             allRequests = repository.getAllRequests()
+            availableCount = listingRepository.getAvailableCount()
         } catch (e: Exception) {
             errorMessage = e.message
         } finally {
@@ -164,7 +171,8 @@ fun CharityDashboardScreen(
                         "View All",
                         color = OrangeAccent,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
+                        fontSize = 13.sp,
+                        modifier = Modifier.clickable { onViewAllClick() }
                     )
                 }
 
@@ -195,7 +203,7 @@ fun CharityDashboardScreen(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        "Area demand is 15% higher than usual today.",
+                        "$availableCount donations are available near you right now.",
                         fontSize = 13.sp,
                         color = TextGrey
                     )
@@ -296,6 +304,7 @@ private fun ActivityCard(activity: ActivityItem) {
 fun CharityDashboardScreenPreview() {
     CharityDashboardScreen(
         paddingValues = PaddingValues(),
-        onCreateRequest = {}  // ← 改成正确的参数名
+        onCreateRequest = {},
+        onViewAllClick = {}
     )
 }

@@ -21,7 +21,14 @@ import com.sharebite.app.data.repository.CharityRepository
 import com.sharebite.app.ui.theme.*
 import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.Refresh
-
+import com.sharebite.app.ui.components.WithdrawConfirmDialog
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import com.sharebite.app.data.repository.FoodListingRepository
 private val statusTabs = listOf("All", "Pending", "Confirmed", "Cancelled")
 
 @Composable
@@ -29,16 +36,23 @@ fun MyRequestsScreen(
     paddingValues: PaddingValues,
     onViewClick: (Long) -> Unit,        // 点击 View → 跳转详情
     onEditClick: (Long) -> Unit,        // 点击 Edit → 跳转编辑（仅 Pending）
-    onWithdrawClick: (Long) -> Unit     // 点击 Withdraw → 弹出确认（仅 Pending）
+    onWithdrawClick: (Long) -> Unit,     // 点击 Withdraw → 弹出确认（仅 Pending）
+    onRequestAgain: (CharityRequest) -> Unit
 ) {
     val repository = remember { CharityRepository() }
+    val listingRepository = remember { FoodListingRepository() }
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     var allRequests by remember { mutableStateOf<List<CharityRequest>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var selectedStatus by remember { mutableStateOf("All") }
 
-    LaunchedEffect(Unit) {
+    // 新增：控制 Withdraw 弹窗的显示，记录目前要撤回哪一笔（null 代表不显示）
+    var withdrawTargetId by remember { mutableStateOf<Long?>(null) }
+
+    suspend fun loadRequests() {
         try {
             allRequests = repository.getRequests()
         } catch (e: Exception) {
@@ -46,6 +60,10 @@ fun MyRequestsScreen(
         } finally {
             isLoading = false
         }
+    }
+
+    LaunchedEffect(Unit) {
+        loadRequests()
     }
 
     val filteredRequests = if (selectedStatus == "All") {
@@ -116,19 +134,57 @@ fun MyRequestsScreen(
                             request = request,
                             onViewClick = { onViewClick(request.id) },
                             onEditClick = { onEditClick(request.id) },
-                            onWithdrawClick = { onWithdrawClick(request.id) },
+                            onWithdrawClick = { withdrawTargetId = request.id },
                             onGetDirections = {
-                                // TODO: 打开地图（可用 Intent 调起 Google Maps）
-                                // 例如：val uri = "geo:0,0?q=${request.organisationName}"
+                                val listingId = request.listingId?.toLongOrNull()
+                                if (listingId == null) {
+                                    Toast.makeText(context, "No location info available for this request.", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    coroutineScope.launch {
+                                        try {
+                                            val listing = listingRepository.getListingById(listingId)
+                                            val lat = listing.latitude
+                                            val lng = listing.longitude
+                                            val uri = if (lat != null && lng != null) {
+                                                Uri.parse("geo:$lat,$lng?q=$lat,$lng(${Uri.encode(listing.merchantName)})")
+                                            } else {
+                                                Uri.parse("geo:0,0?q=${Uri.encode(listing.address)}")
+                                            }
+                                            val intent = Intent(Intent.ACTION_VIEW, uri)
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Could not open directions: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
                             },
                             onRequestAgain = {
-                                // TODO: 跳转到 Post Request 页面并预填数据
+                                onRequestAgain(request)
                             }
                         )
                     }
                 }
             }
         }
+    }
+
+    // ---------- WITHDRAW 确认弹窗 ----------
+    withdrawTargetId?.let { targetId ->
+        WithdrawConfirmDialog(
+            onKeep = { withdrawTargetId = null },
+            onWithdraw = {
+                coroutineScope.launch {
+                    try {
+                        repository.withdrawRequest(targetId)
+                        withdrawTargetId = null
+                        loadRequests() // 撤回成功后重新载入列表，立刻反映最新状态
+                    } catch (e: Exception) {
+                        errorMessage = e.message
+                        withdrawTargetId = null
+                    }
+                }
+            }
+        )
     }
 }
 

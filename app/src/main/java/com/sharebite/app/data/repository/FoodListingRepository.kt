@@ -25,4 +25,9 @@ class FoodListingRepository {
             }
             .decodeSingle<FoodListing>()
     }
+
+    suspend fun getAvailableCount(): Int {
+        return getAvailableListings().size
+    }
+
 }
