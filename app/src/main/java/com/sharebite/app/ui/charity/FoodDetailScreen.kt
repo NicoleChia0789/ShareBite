@@ -47,6 +47,9 @@ fun FoodDetailScreen(
 ) {
     val repository = remember { FoodListingRepository() }
 
+    // ⚠️ 临时 userId，后续替换为真实 Charity 用户 ID
+    val userId = "charity-temp-id"
+
     var listing by remember { mutableStateOf<FoodListing?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -90,9 +93,10 @@ fun FoodDetailScreen(
                 val coroutineScope = rememberCoroutineScope()
                 var isSaved by remember { mutableStateOf(false) }
 
+                // ✅ 改为传递 userId 和 listingId
                 LaunchedEffect(data.id) {
                     try {
-                        isSaved = savedRepository.isSaved(data.id)
+                        isSaved = savedRepository.isSaved(userId, data.id)
                     } catch (e: Exception) {
                         // 静默失败即可，不影响主要功能
                     }
@@ -334,11 +338,13 @@ fun FoodDetailScreen(
                                 coroutineScope.launch {
                                     try {
                                         if (isSaved) {
-                                            savedRepository.unsaveListing(data.id)
+                                            // ✅ 传入 userId 和 listingId
+                                            savedRepository.unsaveListing(userId, data.id)
                                             isSaved = false
                                             Toast.makeText(context, "Removed from saved.", Toast.LENGTH_SHORT).show()
                                         } else {
-                                            savedRepository.saveListing(data.id)
+                                            // ✅ 传入 userId 和 listingId
+                                            savedRepository.saveListing(userId, data.id)
                                             isSaved = true
                                             Toast.makeText(context, "Saved to your list!", Toast.LENGTH_SHORT).show()
                                         }

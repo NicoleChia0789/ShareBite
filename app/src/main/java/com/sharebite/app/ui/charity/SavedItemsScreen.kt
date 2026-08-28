@@ -28,6 +28,9 @@ fun SavedItemsScreen(
     paddingValues: PaddingValues,
     onItemClick: (Long) -> Unit
 ) {
+    // ⚠️ 临时 userId，后续替换为真实 Charity 用户 ID
+    val userId = "charity-temp-id"
+
     val savedRepository = remember { SavedListingRepository() }
     val listingRepository = remember { FoodListingRepository() }
 
@@ -37,7 +40,8 @@ fun SavedItemsScreen(
 
     LaunchedEffect(Unit) {
         try {
-            val savedIds = savedRepository.getSavedListingIds()
+            // ✅ 传入 userId
+            val savedIds = savedRepository.getSavedListingIds(userId)
             savedListings = savedIds.mapNotNull { id ->
                 try {
                     listingRepository.getListingById(id)

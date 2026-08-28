@@ -7,9 +7,9 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.ui.graphics.vector.ImageVector
 
-// 每个 Screen 都对应底部导航的一个选项
-// 之后加新页面（比如 Food Detail）不用加在这里，
-// 只有会出现在底部导航栏的 4 个主页面才需要放在这
+// ──────────────────────────────────────────────
+// 1. 底部导航路由（4 个主页面）
+// ──────────────────────────────────────────────
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Home : Screen("home", "Home", Icons.Default.Home)
     object Browse : Screen("browse", "Browse", Icons.Default.Search)
@@ -19,15 +19,43 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 
 val bottomNavItems = listOf(Screen.Home, Screen.Browse, Screen.Requests, Screen.Profile)
 
-// 不属于底部导航栏的页面，用一般的 object 定义路由字符串
+// ──────────────────────────────────────────────
+// 2. User 特有路由
+// ──────────────────────────────────────────────
+object UserFoodDetailRoute {
+    const val route = "user_food_detail/{listingId}"
+    fun createRoute(id: Long) = "user_food_detail/$id"
+}
+
+object UserMakeReservationRoute {
+    const val route = "user_make_reservation/{listingId}"
+    fun createRoute(id: Long) = "user_make_reservation/$id"
+}
+
+object UserReservationDetailRoute {
+    const val route = "user_reservation_detail/{reservationId}"
+    fun createRoute(id: Long) = "user_reservation_detail/$id"
+}
+
+object UserSavedFoodRoute {
+    const val route = "user_saved_food"
+}
+
+object UserEditProfileRoute {
+    const val route = "user_edit_profile"
+}
+
+// ──────────────────────────────────────────────
+// 3. Charity 特有路由
+// ──────────────────────────────────────────────
 object FoodDetailRoute {
     const val route = "food_detail/{listingId}"
-    fun createRoute(listingId: Long) = "food_detail/$listingId"
+    fun createRoute(id: Long) = "food_detail/$id"
 }
 
 object RequestDetailRoute {
     const val route = "request_detail/{requestId}"
-    fun createRoute(requestId: Long) = "request_detail/$requestId"
+    fun createRoute(id: Long) = "request_detail/$id"
 }
 
 object PostRequestRoute {
@@ -36,14 +64,17 @@ object PostRequestRoute {
 
 object ApplyForFoodRoute {
     const val route = "apply_for_food/{listingId}"
-    fun createRoute(listingId: Long) = "apply_for_food/$listingId"
+    fun createRoute(id: Long) = "apply_for_food/$id"
 }
 
 object EditRequestRoute {
     const val route = "edit_request/{requestId}"
-    fun createRoute(requestId: Long) = "edit_request/$requestId"
+    fun createRoute(id: Long) = "edit_request/$id"
 }
 
+// ──────────────────────────────────────────────
+// 4. 共用路由
+// ──────────────────────────────────────────────
 object NotificationsRoute {
     const val route = "notifications"
 }
