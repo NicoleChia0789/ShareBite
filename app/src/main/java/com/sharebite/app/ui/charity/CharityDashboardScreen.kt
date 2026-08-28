@@ -38,16 +38,18 @@ import com.sharebite.app.data.repository.FoodListingRepository
 
 // 假的数据模型，之后会换成从 Supabase 拿真实数据
 data class ActivityItem(
+    val requestId: Long,
     val merchantName: String,
     val pickupTime: String,
-    val status: String // "Confirmed", "Pending", etc
+    val status: String
 )
 
 @Composable
 fun CharityDashboardScreen(
     paddingValues: PaddingValues,
     onCreateRequest: () -> Unit,
-    onViewAllClick: () -> Unit
+    onViewAllClick: () -> Unit,
+    onActivityClick: (Long) -> Unit
 ) {
     val repository = remember { CharityRepository() }
     val listingRepository = remember { FoodListingRepository() }
@@ -74,11 +76,14 @@ fun CharityDashboardScreen(
     val completed = allRequests.count { it.status == "Completed" }
     val cancelled = allRequests.count { it.status == "Cancelled" }
     val goalPercent = ((confirmed.toFloat() / 10f) * 100).coerceAtMost(100f).toInt()
+    val totalPortionsThisMonth = allRequests
+        .filter { it.status == "Confirmed" || it.status == "Completed" }
+        .sumOf { it.quantity }
 
     val recentActivities = allRequests
         .filter { it.status == "Confirmed" }
         .take(3)
-        .map { ActivityItem(it.organisationName.ifBlank { it.foodName }, "${it.pickupDate}, ${it.pickupTime}", it.status) }
+        .map { ActivityItem(it.id, it.foodName, "${it.pickupDate}, ${it.pickupTime}", it.status) }
 
         if (isLoading) {
             Box(
@@ -110,16 +115,17 @@ fun CharityDashboardScreen(
             // ---------- HERO SECTION ----------
             Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                 Text(
-                    "Together, we can end hunger.",
-                    fontSize = 28.sp,
+                    "Hi, Hope Charity Home 👋",
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextDark
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "Your efforts have helped provide over 1,200 meals this month. Every request matters.",
+                    "Welcome back! Browse fresh surplus food nearby, or post a request to let donors know what your community needs.",
                     fontSize = 14.sp,
-                    color = TextGrey
+                    color = TextGrey,
+                    lineHeight = 20.sp
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
@@ -179,14 +185,14 @@ fun CharityDashboardScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 recentActivities.forEach { activity ->
-                    ActivityCard(activity)
+                    ActivityCard(activity, onClick = { onActivityClick(activity.requestId) })
                     Spacer(modifier = Modifier.height(10.dp))
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // ---------- COMMUNITY PULSE ----------
+            // ---------- YOUR IMPACT THIS MONTH ----------
             Card(
                 modifier = Modifier
                     .padding(horizontal = 20.dp)
@@ -196,34 +202,38 @@ fun CharityDashboardScreen(
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Text(
-                        "Community Pulse",
+                        "Your Impact This Month",
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
                         color = OrangeAccent
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "$availableCount donations are available near you right now.",
-                        fontSize = 13.sp,
+                        "Based on confirmed and completed requests",
+                        fontSize = 11.sp,
                         color = TextGrey
                     )
                     Spacer(modifier = Modifier.height(14.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Daily Goal", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = OrangeAccent)
-                        Text("$goalPercent%", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = OrangeAccent)
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            "$totalPortionsThisMonth",
+                            fontSize = 36.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GreenConfirmed
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            "portions rescued",
+                            fontSize = 14.sp,
+                            color = TextDark,
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    LinearProgressIndicator(
-                        progress = { goalPercent / 100f },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(8.dp)
-                            .clip(RoundedCornerShape(4.dp)),
-                        color = GreenConfirmed,
-                        trackColor = Color(0xFFE8E2D8)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        "$availableCount more donations are available near you right now.",
+                        fontSize = 12.sp,
+                        color = TextGrey
                     )
                 }
             }
@@ -254,8 +264,9 @@ private fun StatCard(label: String, value: String, color: Color, modifier: Modif
 }
 
 @Composable
-private fun ActivityCard(activity: ActivityItem) {
+private fun ActivityCard(activity: ActivityItem, onClick: () -> Unit) {
     Card(
+        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -305,6 +316,7 @@ fun CharityDashboardScreenPreview() {
     CharityDashboardScreen(
         paddingValues = PaddingValues(),
         onCreateRequest = {},
-        onViewAllClick = {}
+        onViewAllClick = {},
+        onActivityClick = {}
     )
 }

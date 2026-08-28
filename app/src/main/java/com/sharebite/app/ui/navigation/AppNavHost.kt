@@ -76,6 +76,16 @@ fun AppNavHost(
             currentRoute == NotificationsRoute.route ||
             currentRoute == SavedItemsRoute.route
 
+    val navigateToTab: (String) -> Unit = { route ->
+        navController.navigate(route) {
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
     AppScaffold(
         currentRoute = currentRoute,
         onNavigate = { route ->
@@ -111,7 +121,9 @@ fun AppNavHost(
                     "charity" -> CharityDashboardScreen(
                         paddingValues = paddingValues,
                         onCreateRequest = { navController.navigate(PostRequestRoute.route) },
-                        onViewAllClick = { navController.navigate(Screen.Requests.route) }
+                        onViewAllClick = { navigateToTab(Screen.Requests.route) } ,
+                        onActivityClick = { requestId -> navController.navigate(RequestDetailRoute.createRoute(requestId)) }
+
                     )
                     else -> Text("Unknown role: $role")
                 }
@@ -166,8 +178,7 @@ fun AppNavHost(
                     "charity" -> ProfileScreen(
                         paddingValues = paddingValues,
                         onSavedItemsClick = {
-                            // TODO: 实现导航到 SavedItemsScreen
-                            // navController.navigate(SavedItemsRoute.route)
+                            navController.navigate(SavedItemsRoute.route)
                         }
                     )
                     else -> Text("Unknown role: $role")
@@ -205,18 +216,6 @@ fun AppNavHost(
                     }
                 )
             }
-<<<<<<< HEAD
-            composable(Screen.Profile.route) {
-                ProfileScreen(
-                    paddingValues = paddingValues,
-                    onSavedItemsClick = { navController.navigate(SavedItemsRoute.route) }
-                )
-            }
-            composable(SavedItemsRoute.route) {
-                SavedItemsScreen(
-                    paddingValues = paddingValues,
-                    onItemClick = { id -> navController.navigate(FoodDetailRoute.createRoute(id)) }
-=======
 
             composable(
                 route = UserReservationDetailRoute.route,
@@ -228,7 +227,6 @@ fun AppNavHost(
                     paddingValues = paddingValues,
                     onEditClick = { listingId -> navController.navigate(UserMakeReservationRoute.createRoute(listingId)) },
                     onBack = { navController.popBackStack() }
->>>>>>> 52c54505144bccaeea5d784929e3e2bac39c55ab
                 )
             }
 
@@ -320,6 +318,12 @@ fun AppNavHost(
                 NotificationsScreen(paddingValues = paddingValues)
             }
 
+            composable(SavedItemsRoute.route) {
+                SavedItemsScreen(
+                    paddingValues = paddingValues,
+                    onItemClick = { id -> navController.navigate(FoodDetailRoute.createRoute(id)) }
+                )
+            }
         }
     }
 }
