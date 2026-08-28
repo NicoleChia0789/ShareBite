@@ -93,3 +93,7 @@ object MerchantAddDonationRoute {
 object MerchantReservationsRoute {
     const val route = "merchant_reservations"
 }
+
+object SavedItemsRoute {
+    const val route = "saved_items"
+}
