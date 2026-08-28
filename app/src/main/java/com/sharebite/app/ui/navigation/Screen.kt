@@ -78,3 +78,18 @@ object EditRequestRoute {
 object NotificationsRoute {
     const val route = "notifications"
 }
+
+// ──────────────────────────────────────────────
+// 5. Merchant 特有路由 (请添加到 Screen.kt 最底部)
+// ──────────────────────────────────────────────
+object MerchantDashboardRoute {
+    const val route = "merchant_dashboard"
+}
+
+object MerchantAddDonationRoute {
+    const val route = "merchant_add_donation"
+}
+
+object MerchantReservationsRoute {
+    const val route = "merchant_reservations"
+}

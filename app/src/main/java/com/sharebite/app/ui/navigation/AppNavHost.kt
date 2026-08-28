@@ -1,8 +1,10 @@
 package com.sharebite.app.ui.navigation
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -13,6 +15,7 @@ import androidx.navigation.navArgument
 import com.sharebite.app.ui.charity.*
 import com.sharebite.app.ui.components.AppScaffold
 import com.sharebite.app.ui.user.*
+import com.sharebite.app.ui.merchant.*
 
 import com.sharebite.app.ui.navigation.Screen
 import com.sharebite.app.ui.navigation.UserFoodDetailRoute
@@ -108,6 +111,10 @@ fun AppNavHost(
                         paddingValues = paddingValues,
                         onCreateRequest = { navController.navigate(PostRequestRoute.route) },
                         onViewAllClick = { navController.navigate(Screen.Requests.route) }
+                    )
+                    "merchant" -> MerchantDashboardScreen(
+                        paddingValues = paddingValues,
+                        onAddDonationClick = { navController.navigate(MerchantAddDonationRoute.route) }
                     )
                     else -> Text("Unknown role: $role")
                 }
@@ -302,7 +309,14 @@ fun AppNavHost(
             composable(NotificationsRoute.route) {
                 NotificationsScreen(paddingValues = paddingValues)
             }
+            // ══════════════════════════════════════
+            // Merchant 特有详情路由
+            // ══════════════════════════════════════
 
+            composable(MerchantAddDonationRoute.route) {
+                Text("Add Donation Screen Here", modifier = Modifier.padding(paddingValues))
+            }
         }
+
     }
 }
