@@ -4,53 +4,78 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.sharebite.app.ui.components.AppScaffold
-import com.sharebite.app.ui.charity.CharityDashboardScreen
-import com.sharebite.app.ui.charity.BrowseDonationsScreen
-import androidx.navigation.NavType
 import androidx.navigation.navArgument
-import com.sharebite.app.ui.charity.FoodDetailScreen
+import com.sharebite.app.ui.charity.*
+import com.sharebite.app.ui.components.AppScaffold
+import com.sharebite.app.ui.user.*
+
+// ✅ 所有路由定义都从 Screen.kt 导入
+import com.sharebite.app.ui.navigation.Screen
+import com.sharebite.app.ui.navigation.UserFoodDetailRoute
+import com.sharebite.app.ui.navigation.UserMakeReservationRoute
+import com.sharebite.app.ui.navigation.UserReservationDetailRoute
+import com.sharebite.app.ui.navigation.UserSavedFoodRoute
+import com.sharebite.app.ui.navigation.UserEditProfileRoute
 import com.sharebite.app.ui.navigation.FoodDetailRoute
-import com.sharebite.app.ui.charity.MyRequestsScreen
-import com.sharebite.app.ui.charity.RequestDetailScreen
 import com.sharebite.app.ui.navigation.RequestDetailRoute
-import com.sharebite.app.ui.charity.PostRequestScreen
 import com.sharebite.app.ui.navigation.PostRequestRoute
-import com.sharebite.app.ui.charity.ApplyForFoodScreen
 import com.sharebite.app.ui.navigation.ApplyForFoodRoute
-import com.sharebite.app.ui.charity.EditRequestScreen
 import com.sharebite.app.ui.navigation.EditRequestRoute
-import com.sharebite.app.ui.charity.ProfileScreen
-import com.sharebite.app.ui.charity.NotificationsScreen
 import com.sharebite.app.ui.navigation.NotificationsRoute
 
+// ❌ 这里不再定义任何 object，全部从 Screen.kt 导入
 
 @Composable
-fun AppNavHost() {
+fun AppNavHost(
+    role: String // 由外部传入，例如 "user", "charity", "merchant"
+) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: Screen.Home.route
 
+    // ── 顶部栏标题 ──
     val titleForRoute = when {
         currentRoute == Screen.Home.route -> "ShareBite"
-        currentRoute == Screen.Browse.route -> "Browse Donations"
-        currentRoute == Screen.Requests.route -> "My Requests"
+        currentRoute == Screen.Browse.route -> when (role) {
+            "user" -> "Browse Food"
+            "charity" -> "Browse Donations"
+            else -> "Browse"
+        }
+        currentRoute == Screen.Requests.route -> when (role) {
+            "user" -> "My Reservations"
+            "charity" -> "My Requests"
+            else -> "Requests"
+        }
         currentRoute == Screen.Profile.route -> "Profile"
-        currentRoute.startsWith("food_detail") -> "Food Detail"
-        currentRoute.startsWith("apply_for_food") -> "Apply for Food"
-        currentRoute.startsWith("edit_request") -> "Edit Request"
+        // User 路由
+        currentRoute.startsWith("user_food_detail/") -> "Food Detail"
+        currentRoute.startsWith("user_make_reservation/") -> "Make Reservation"
+        currentRoute.startsWith("user_reservation_detail/") -> "Reservation Detail"
+        currentRoute == UserSavedFoodRoute.route -> "Saved Food"
+        currentRoute == UserEditProfileRoute.route -> "Edit Profile"
+        // Charity 路由
+        currentRoute.startsWith("food_detail/") -> "Food Detail"
+        currentRoute.startsWith("apply_for_food/") -> "Apply for Food"
+        currentRoute.startsWith("edit_request/") -> "Edit Request"
         currentRoute == PostRequestRoute.route -> "Post a Food Request"
         currentRoute == NotificationsRoute.route -> "Notifications"
         else -> "ShareBite"
     }
 
-    val isDetailScreen = currentRoute.startsWith("food_detail") ||
-            currentRoute.startsWith("apply_for_food") ||
-            currentRoute.startsWith("edit_request") ||
+    // ── 需要返回按钮的页面 ──
+    val isDetailScreen = currentRoute.startsWith("user_food_detail/") ||
+            currentRoute.startsWith("user_make_reservation/") ||
+            currentRoute.startsWith("user_reservation_detail/") ||
+            currentRoute == UserSavedFoodRoute.route ||
+            currentRoute == UserEditProfileRoute.route ||
+            currentRoute.startsWith("food_detail/") ||
+            currentRoute.startsWith("apply_for_food/") ||
+            currentRoute.startsWith("edit_request/") ||
             currentRoute == PostRequestRoute.route ||
             currentRoute == NotificationsRoute.route
 
@@ -74,62 +99,149 @@ fun AppNavHost() {
             navController = navController,
             startDestination = Screen.Home.route
         ) {
+            // ══════════════════════════════════════
+            // 底部导航路由（根据角色渲染不同内容）
+            // ══════════════════════════════════════
+
             composable(Screen.Home.route) {
-                CharityDashboardScreen(
-                    paddingValues = paddingValues,
-                    onCreateRequest = {
-                        navController.navigate(PostRequestRoute.route)
-                    },
-                    onViewAllClick = {
-                        navController.navigate(Screen.Requests.route)
-                    }
-                )
+                when (role) {
+                    "user" -> UserDashboardScreen(
+                        paddingValues = paddingValues,
+                        onBrowseClick = { navController.navigate(Screen.Browse.route) },
+                        onFoodClick = { id -> navController.navigate(UserFoodDetailRoute.createRoute(id)) },
+                        onViewAllReservations = { navController.navigate(Screen.Requests.route) }
+                    )
+                    "charity" -> CharityDashboardScreen(
+                        paddingValues = paddingValues,
+                        onCreateRequest = { navController.navigate(PostRequestRoute.route) },
+                        onViewAllClick = { navController.navigate(Screen.Requests.route) }
+                    )
+                    else -> Text("Unknown role: $role")
+                }
             }
+
             composable(Screen.Browse.route) {
-                BrowseDonationsScreen(
+                when (role) {
+                    "user" -> UserBrowseScreen(
+                        paddingValues = paddingValues,
+                        onFoodClick = { id -> navController.navigate(UserFoodDetailRoute.createRoute(id)) }
+                    )
+                    "charity" -> BrowseDonationsScreen(
+                        paddingValues = paddingValues,
+                        onFoodClick = { id -> navController.navigate(FoodDetailRoute.createRoute(id)) }
+                    )
+                    else -> Text("Unknown role: $role")
+                }
+            }
+
+            composable(Screen.Requests.route) {
+                when (role) {
+                    "user" -> UserMyReservationsScreen(
+                        paddingValues = paddingValues,
+                        onViewClick = { id -> navController.navigate(UserReservationDetailRoute.createRoute(id)) }
+                    )
+                    "charity" -> MyRequestsScreen(
+                        paddingValues = paddingValues,
+                        onViewClick = { requestId -> navController.navigate(RequestDetailRoute.createRoute(requestId)) },
+                        onEditClick = { requestId -> navController.navigate(EditRequestRoute.createRoute(requestId)) },
+                        onWithdrawClick = { /* 内部弹窗处理，此处留空 */ },
+                        onRequestAgain = { request ->
+                            val listingId = request.listingId?.toLongOrNull()
+                            if (listingId != null) {
+                                navController.navigate(ApplyForFoodRoute.createRoute(listingId))
+                            } else {
+                                navController.navigate(PostRequestRoute.route)
+                            }
+                        }
+                    )
+                    else -> Text("Unknown role: $role")
+                }
+            }
+
+            composable(Screen.Profile.route) {
+                when (role) {
+                    "user" -> UserProfileScreen(
+                        paddingValues = paddingValues,
+                        onEditProfile = { navController.navigate(UserEditProfileRoute.route) },
+                        onSavedFood = { navController.navigate(UserSavedFoodRoute.route) },
+                        onLogout = { /* 待 Auth 实现 */ }
+                    )
+                    "charity" -> ProfileScreen(paddingValues = paddingValues)
+                    else -> Text("Unknown role: $role")
+                }
+            }
+
+            // ══════════════════════════════════════
+            // User 特有详情路由
+            // ══════════════════════════════════════
+
+            composable(
+                route = UserFoodDetailRoute.route,
+                arguments = listOf(navArgument("listingId") { type = NavType.LongType })
+            ) { backStackEntry ->
+                val listingId = backStackEntry.arguments?.getLong("listingId") ?: 0L
+                UserFoodDetailScreen(
+                    listingId = listingId,
                     paddingValues = paddingValues,
-                    onFoodClick = { id -> navController.navigate(FoodDetailRoute.createRoute(id)) }
+                    onReserveClick = { id -> navController.navigate(UserMakeReservationRoute.createRoute(id)) }
                 )
             }
-            composable(Screen.Requests.route) {
-                MyRequestsScreen(
+
+            composable(
+                route = UserMakeReservationRoute.route,
+                arguments = listOf(navArgument("listingId") { type = NavType.LongType })
+            ) { backStackEntry ->
+                val listingId = backStackEntry.arguments?.getLong("listingId") ?: 0L
+                UserMakeReservationScreen(
+                    listingId = listingId,
                     paddingValues = paddingValues,
-                    onViewClick = { requestId ->
-                        navController.navigate(RequestDetailRoute.createRoute(requestId))
-                    },
-                    onEditClick = { requestId ->
-                        navController.navigate(EditRequestRoute.createRoute(requestId))
-                    },
-                    onWithdrawClick = { requestId ->
-                        // Withdraw 弹窗现在是在 MyRequestsScreen 内部处理的，这里不用做事
-                    },
-                    onRequestAgain = { request ->
-                        val listingId = request.listingId?.toLongOrNull()
-                        if (listingId != null) {
-                            // 当初是针对具体食物申请的，直接带回 Apply For Food 页面重新申请
-                            navController.navigate(ApplyForFoodRoute.createRoute(listingId))
-                        } else {
-                            // 当初是自己发起的需求（没有对应食物），带去 Post Request 页面重新发起
-                            navController.navigate(PostRequestRoute.route)
+                    onSuccess = {
+                        navController.navigate(Screen.Requests.route) {
+                            popUpTo(Screen.Home.route) { inclusive = true }
                         }
                     }
                 )
             }
-            composable(Screen.Profile.route) {
-                ProfileScreen(paddingValues = paddingValues)
+
+            composable(
+                route = UserReservationDetailRoute.route,
+                arguments = listOf(navArgument("reservationId") { type = NavType.LongType })
+            ) { backStackEntry ->
+                val reservationId = backStackEntry.arguments?.getLong("reservationId") ?: 0L
+                UserReservationDetailScreen(
+                    reservationId = reservationId,
+                    paddingValues = paddingValues,
+                    onEditClick = { listingId -> navController.navigate(UserMakeReservationRoute.createRoute(listingId)) },
+                    onBack = { navController.popBackStack() }
+                )
             }
+
+            composable(UserSavedFoodRoute.route) {
+                UserSavedFoodScreen(
+                    paddingValues = paddingValues,
+                    onFoodClick = { id -> navController.navigate(UserFoodDetailRoute.createRoute(id)) }
+                )
+            }
+
+            composable(UserEditProfileRoute.route) {
+                UserEditProfileScreen(
+                    paddingValues = paddingValues,
+                    onSaveSuccess = { navController.popBackStack() }
+                )
+            }
+
+            // ══════════════════════════════════════
+            // Charity 特有详情路由
+            // ══════════════════════════════════════
+
             composable(PostRequestRoute.route) {
                 PostRequestScreen(
                     paddingValues = paddingValues,
-                    onPostSuccess = {
-                        // 提交成功后返回上一页（Dashboard）
-                        navController.popBackStack()
-                    },
-                    onBack = {
-                        navController.popBackStack()
-                    }
+                    onPostSuccess = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() }
                 )
             }
+
             composable(
                 route = RequestDetailRoute.route,
                 arguments = listOf(navArgument("requestId") { type = NavType.LongType })
@@ -138,14 +250,11 @@ fun AppNavHost() {
                 RequestDetailScreen(
                     requestId = requestId,
                     paddingValues = paddingValues,
-                    onEditClick = {
-                        navController.navigate(EditRequestRoute.createRoute(requestId))
-                    },
-                    onWithdrawClick = {
-                        // TODO: 之后接 Withdraw 确认弹窗
-                    }
+                    onEditClick = { navController.navigate(EditRequestRoute.createRoute(requestId)) },
+                    onWithdrawClick = { /* 后续接弹窗 */ }
                 )
             }
+
             composable(
                 route = FoodDetailRoute.route,
                 arguments = listOf(navArgument("listingId") { type = NavType.LongType })
@@ -187,10 +296,13 @@ fun AppNavHost() {
                 )
             }
 
+            // ══════════════════════════════════════
+            // 共用路由
+            // ══════════════════════════════════════
+
             composable(NotificationsRoute.route) {
                 NotificationsScreen(paddingValues = paddingValues)
             }
-
         }
     }
 }
