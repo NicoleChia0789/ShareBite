@@ -1,0 +1,114 @@
+[33mcommit 5208a6dd1d15c7724b4a09cb90a4bc79814a4881[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m
+Author: NicoleChia0789 <nicolechia0809@gmail.com>
+Date:   Fri Aug 28 16:31:19 2026 +0800
+
+    Chia KS blablabla
+
+ .../com/sharebite/app/data/model/FoodListing.kt    |   5 [32m+[m
+ .../app/data/repository/CharityRepository.kt       |  34 [32m++[m
+ .../app/data/repository/FoodListingRepository.kt   |   5 [32m+[m
+ .../app/ui/charity/CharityDashboardScreen.kt       |  17 [32m+[m[31m-[m
+ .../sharebite/app/ui/charity/EditRequestScreen.kt  | 416 [32m+++++++++++++++++++++[m
+ .../sharebite/app/ui/charity/MyRequestsScreen.kt   |  70 [32m+++[m[31m-[m
+ .../app/ui/charity/NotificationsScreen.kt          | 192 [32m++++++++++[m
+ .../com/sharebite/app/ui/charity/ProfileScreen.kt  | 145 [32m+++++++[m
+ .../app/ui/components/WithdrawConfirmDialog.kt     |  97 [32m+++++[m
+ 9 files changed, 970 insertions(+), 11 deletions(-)
+
+[33mcommit dbb153605dc549526297f18eb60ee8c2b0cc7750[m
+Author: NicoleChia0789 <nicolechia0809@gmail.com>
+Date:   Fri Aug 28 10:17:03 2026 +0800
+
+    hii
+
+ .idea/misc.xml                                     |   2 [32m+[m[31m-[m
+ app/build.gradle.kts                               |   6 [32m+[m
+ .../main/java/com/sharebite/app/MainActivity.kt    |   4 [32m+[m[31m-[m
+ .../com/sharebite/app/data/model/FoodListing.kt    |  46 [32m++[m
+ .../app/data/repository/CharityRepository.kt       |  79 [32m++++[m
+ .../app/data/repository/FoodListingRepository.kt   |  28 [32m++[m
+ .../sharebite/app/ui/charity/ApplyForFoodScreen.kt | 291 [32m++++++++++++[m
+ .../app/ui/charity/CharityDashboardScreen.kt       |  79 [32m++[m[31m--[m
+ .../sharebite/app/ui/charity/MyRequestsScreen.kt   | 363 [32m+++++++++++++++[m
+ .../sharebite/app/ui/charity/PostRequestScreen.kt  | 501 [32m+++++++++++++++++++++[m
+ .../sharebite/app/ui/components/SimpleMapView.kt   |  61 [32m+++[m
+ 11 files changed, 1405 insertions(+), 55 deletions(-)
+
+[33mcommit 47b40b0217d3ec3f9a522a99fb0860fdc4a16958[m
+Author: lemettttt <soohx1026@gmail.com>
+Date:   Mon Aug 24 11:32:42 2026 +0800
+
+    testing2
+
+ app/src/main/java/com/sharebite/app/MainActivity.kt | 2 [32m+[m[31m-[m
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+[33mcommit 07da1d57124071802c8991fc3c12731c3633a9e4[m
+Author: lemettttt <soohx1026@gmail.com>
+Date:   Mon Aug 24 11:30:26 2026 +0800
+
+    testing
+
+ .idea/misc.xml            | 2 [32m+[m[31m-[m
+ gradle/libs.versions.toml | 2 [32m+[m[31m-[m
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+[33mcommit 8d446f78ae78b64270cbce78fc41b366b2cfe9bf[m
+Author: NicoleChia0789 <nicolechia0809@gmail.com>
+Date:   Mon Aug 24 03:28:25 2026 +0800
+
+    Initial commit
+
+ .gitignore                                         |  15 [32m+[m
+ .idea/.gitignore                                   |   3 [32m+[m
+ .idea/AndroidProjectSystem.xml                     |   6 [32m+[m
+ .idea/compiler.xml                                 |   6 [32m+[m
+ .idea/deploymentTargetSelector.xml                 |  11 [32m+[m
+ .idea/gradle.xml                                   |  18 [32m++[m
+ .idea/inspectionProfiles/Project_Default.xml       |  61 [32m++++[m
+ .idea/misc.xml                                     |  10 [32m+[m
+ .idea/runConfigurations.xml                        |  17 [32m++[m
+ .idea/vcs.xml                                      |   6 [32m+[m
+ app/.gitignore                                     |   1 [32m+[m
+ app/build.gradle.kts                               |  71 [32m+++++[m
+ .../com/sharebite/app/ExampleInstrumentedTest.kt   |  24 [32m++[m
+ app/src/main/AndroidManifest.xml                   |  29 [32m++[m
+ .../main/java/com/sharebite/app/MainActivity.kt    |  47 [32m+++[m
+ .../com/sharebite/app/data/model/CharityRequest.kt |  42 [32m+++[m
+ .../sharebite/app/data/remote/SupabaseClient.kt    |  18 [32m++[m
+ .../app/data/repository/CharityRepository.kt       |  26 [32m++[m
+ .../app/ui/charity/CharityDashboardScreen.kt       | 326 [32m+++++++++++++++++++++[m
+ .../main/java/com/sharebite/app/ui/theme/Color.kt  |  11 [32m+[m
+ .../main/java/com/sharebite/app/ui/theme/Theme.kt  |  58 [32m++++[m
+ .../main/java/com/sharebite/app/ui/theme/Type.kt   |  34 [32m+++[m
+ app/src/main/keepRules/rules.keep                  |  12 [32m+[m
+ .../main/res/drawable/ic_launcher_background.xml   | 170 [32m+++++++++++[m
+ .../main/res/drawable/ic_launcher_foreground.xml   |  30 [32m++[m
+ app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml |   6 [32m+[m
+ .../res/mipmap-anydpi-v26/ic_launcher_round.xml    |   6 [32m+[m
+ app/src/main/res/mipmap-hdpi/ic_launcher.webp      | Bin [31m0[m -> [32m1404[m bytes
+ .../main/res/mipmap-hdpi/ic_launcher_round.webp    | Bin [31m0[m -> [32m2898[m bytes
+ app/src/main/res/mipmap-mdpi/ic_launcher.webp      | Bin [31m0[m -> [32m982[m bytes
+ .../main/res/mipmap-mdpi/ic_launcher_round.webp    | Bin [31m0[m -> [32m1772[m bytes
+ app/src/main/res/mipmap-xhdpi/ic_launcher.webp     | Bin [31m0[m -> [32m1900[m bytes
+ .../main/res/mipmap-xhdpi/ic_launcher_round.webp   | Bin [31m0[m -> [32m3918[m bytes
+ app/src/main/res/mipmap-xxhdpi/ic_launcher.webp    | Bin [31m0[m -> [32m2884[m bytes
+ .../main/res/mipmap-xxhdpi/ic_launcher_round.webp  | Bin [31m0[m -> [32m5914[m bytes
+ app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp   | Bin [31m0[m -> [32m3844[m bytes
+ .../main/res/mipmap-xxxhdpi/ic_launcher_round.webp | Bin [31m0[m -> [32m7778[m bytes
+ app/src/main/res/values/colors.xml                 |  10 [32m+[m
+ app/src/main/res/values/strings.xml                |   3 [32m+[m
+ app/src/main/res/values/themes.xml                 |   5 [32m+[m
+ app/src/main/res/xml/backup_rules.xml              |  13 [32m+[m
+ app/src/main/res/xml/data_extraction_rules.xml     |  19 [32m++[m
+ .../test/java/com/sharebite/app/ExampleUnitTest.kt |  17 [32m++[m
+ build.gradle.kts                                   |   5 [32m+[m
+ gradle.properties                                  |  19 [32m++[m
+ gradle/gradle-daemon-jvm.properties                |  12 [32m+[m
+ gradle/libs.versions.toml                          |  31 [32m++[m
+ gradle/wrapper/gradle-wrapper.jar                  | Bin [31m0[m -> [32m45457[m bytes
+ gradle/wrapper/gradle-wrapper.properties           |   9 [32m+[m
+ gradlew                                            | 251 [32m++++++++++++++++[m
+ gradlew.bat                                        |  94 [32m++++++[m
+ settings.gradle.kts                                |  27 [32m++[m
+ 52 files changed, 1579 insertions(+)
