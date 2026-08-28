@@ -14,7 +14,6 @@ import com.sharebite.app.ui.charity.*
 import com.sharebite.app.ui.components.AppScaffold
 import com.sharebite.app.ui.user.*
 
-// ✅ 所有路由定义都从 Screen.kt 导入
 import com.sharebite.app.ui.navigation.Screen
 import com.sharebite.app.ui.navigation.UserFoodDetailRoute
 import com.sharebite.app.ui.navigation.UserMakeReservationRoute
@@ -28,17 +27,14 @@ import com.sharebite.app.ui.navigation.ApplyForFoodRoute
 import com.sharebite.app.ui.navigation.EditRequestRoute
 import com.sharebite.app.ui.navigation.NotificationsRoute
 
-// ❌ 这里不再定义任何 object，全部从 Screen.kt 导入
-
 @Composable
 fun AppNavHost(
-    role: String // 由外部传入，例如 "user", "charity", "merchant"
+    role: String
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: Screen.Home.route
 
-    // ── 顶部栏标题 ──
     val titleForRoute = when {
         currentRoute == Screen.Home.route -> "ShareBite"
         currentRoute == Screen.Browse.route -> when (role) {
@@ -52,13 +48,11 @@ fun AppNavHost(
             else -> "Requests"
         }
         currentRoute == Screen.Profile.route -> "Profile"
-        // User 路由
         currentRoute.startsWith("user_food_detail/") -> "Food Detail"
         currentRoute.startsWith("user_make_reservation/") -> "Make Reservation"
         currentRoute.startsWith("user_reservation_detail/") -> "Reservation Detail"
         currentRoute == UserSavedFoodRoute.route -> "Saved Food"
         currentRoute == UserEditProfileRoute.route -> "Edit Profile"
-        // Charity 路由
         currentRoute.startsWith("food_detail/") -> "Food Detail"
         currentRoute.startsWith("apply_for_food/") -> "Apply for Food"
         currentRoute.startsWith("edit_request/") -> "Edit Request"
@@ -67,7 +61,6 @@ fun AppNavHost(
         else -> "ShareBite"
     }
 
-    // ── 需要返回按钮的页面 ──
     val isDetailScreen = currentRoute.startsWith("user_food_detail/") ||
             currentRoute.startsWith("user_make_reservation/") ||
             currentRoute.startsWith("user_reservation_detail/") ||
@@ -100,7 +93,7 @@ fun AppNavHost(
             startDestination = Screen.Home.route
         ) {
             // ══════════════════════════════════════
-            // 底部导航路由（根据角色渲染不同内容）
+            // 底部导航路由
             // ══════════════════════════════════════
 
             composable(Screen.Home.route) {
@@ -144,7 +137,7 @@ fun AppNavHost(
                         paddingValues = paddingValues,
                         onViewClick = { requestId -> navController.navigate(RequestDetailRoute.createRoute(requestId)) },
                         onEditClick = { requestId -> navController.navigate(EditRequestRoute.createRoute(requestId)) },
-                        onWithdrawClick = { /* 内部弹窗处理，此处留空 */ },
+                        onWithdrawClick = { /* 内部弹窗处理 */ },
                         onRequestAgain = { request ->
                             val listingId = request.listingId?.toLongOrNull()
                             if (listingId != null) {
@@ -166,7 +159,13 @@ fun AppNavHost(
                         onSavedFood = { navController.navigate(UserSavedFoodRoute.route) },
                         onLogout = { /* 待 Auth 实现 */ }
                     )
-                    "charity" -> ProfileScreen(paddingValues = paddingValues)
+                    "charity" -> ProfileScreen(
+                        paddingValues = paddingValues,
+                        onSavedItemsClick = {
+                            // TODO: 实现导航到 SavedItemsScreen
+                            // navController.navigate(SavedItemsRoute.route)
+                        }
+                    )
                     else -> Text("Unknown role: $role")
                 }
             }
@@ -303,6 +302,7 @@ fun AppNavHost(
             composable(NotificationsRoute.route) {
                 NotificationsScreen(paddingValues = paddingValues)
             }
+
         }
     }
 }
