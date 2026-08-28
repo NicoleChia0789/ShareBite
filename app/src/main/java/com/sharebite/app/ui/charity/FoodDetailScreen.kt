@@ -35,6 +35,9 @@ import androidx.compose.material.icons.filled.Favorite
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.clickable
+import com.sharebite.app.data.repository.SavedListingRepository
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 fun FoodDetailScreen(
@@ -83,7 +86,17 @@ fun FoodDetailScreen(
                 val data = listing!!
 
                 val context = LocalContext.current
+                val savedRepository = remember { SavedListingRepository() }
+                val coroutineScope = rememberCoroutineScope()
                 var isSaved by remember { mutableStateOf(false) }
+
+                LaunchedEffect(data.id) {
+                    try {
+                        isSaved = savedRepository.isSaved(data.id)
+                    } catch (e: Exception) {
+                        // 静默失败即可，不影响主要功能
+                    }
+                }
 
                 Column(
                     modifier = Modifier
@@ -139,6 +152,13 @@ fun FoodDetailScreen(
                                 .fillMaxWidth()
                                 .height(240.dp)
                                 .clip(RoundedCornerShape(16.dp))
+                                .clickable {
+                                    val lat = data.latitude ?: 3.1390
+                                    val lng = data.longitude ?: 101.6869
+                                    val uri = Uri.parse("geo:$lat,$lng?q=$lat,$lng(${Uri.encode(data.merchantName)})")
+                                    val intent = Intent(Intent.ACTION_VIEW, uri)
+                                    context.startActivity(intent)
+                                }
                         ) {
                             SimpleMapView(
                                 latitude = data.latitude ?: 3.1390,
@@ -146,6 +166,21 @@ fun FoodDetailScreen(
                                 markerTitle = data.merchantName,
                                 modifier = Modifier.fillMaxSize()
                             )
+                            Surface(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(8.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                color = OrangeAccent
+                            ) {
+                                Text(
+                                    "Tap to navigate",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                    fontSize = 10.sp,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                             Surface(
                                 modifier = Modifier
                                     .align(Alignment.BottomStart)
@@ -296,12 +331,21 @@ fun FoodDetailScreen(
 
                         OutlinedButton(
                             onClick = {
-                                isSaved = !isSaved
-                                Toast.makeText(
-                                    context,
-                                    if (isSaved) "Saved to your list!" else "Removed from saved.",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                coroutineScope.launch {
+                                    try {
+                                        if (isSaved) {
+                                            savedRepository.unsaveListing(data.id)
+                                            isSaved = false
+                                            Toast.makeText(context, "Removed from saved.", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            savedRepository.saveListing(data.id)
+                                            isSaved = true
+                                            Toast.makeText(context, "Saved to your list!", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
                             },
                             modifier = Modifier
                                 .fillMaxWidth()

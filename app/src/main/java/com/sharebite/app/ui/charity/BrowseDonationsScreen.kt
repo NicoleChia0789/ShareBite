@@ -29,7 +29,7 @@ import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.text.BasicTextField
 
-private val categoryTabs = listOf("All Items", "Vegetables", "Bakery", "Prepared", "Dairy")
+private val categoryTabs = listOf("All Items") + foodCategoryOptions
 
 @Composable
 fun BrowseDonationsScreen(paddingValues: PaddingValues, onFoodClick: (Long) -> Unit) {
@@ -258,7 +258,10 @@ private fun FoodListingCard(listing: FoodListing, onCardClick: () -> Unit) {
 private fun categoryColor(category: String): Color = when (category.lowercase()) {
     "bakery" -> Color(0xFF2E7D32)
     "vegetables" -> Color(0xFFF57C00)
-    "prepared" -> Color(0xFF1565C0)
+    "fruits" -> Color(0xFFE64A19)
     "dairy" -> Color(0xFF6D4C41)
+    "canned goods" -> Color(0xFF8D6E63)
+    "prepared meals" -> Color(0xFF1565C0)
+    "other" -> Color(0xFF757575)
     else -> Color(0xFF757575)
 }

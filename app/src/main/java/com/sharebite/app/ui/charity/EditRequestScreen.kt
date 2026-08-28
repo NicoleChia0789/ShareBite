@@ -26,6 +26,8 @@ import com.sharebite.app.ui.theme.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.material3.SelectableDates
+import androidx.compose.ui.window.DialogProperties
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,6 +79,9 @@ fun EditRequestScreen(
         }
         if (pickupDate.isBlank()) errors.add("Collection date")
         if (pickupTime.isBlank()) errors.add("Collection time")
+        if (pickupDate.isNotBlank() && pickupTime.isNotBlank() && isDateTimeInPast(pickupDate, pickupTime)) {
+            errors.add("Collection date/time cannot be in the past")
+        }
         return errors
     }
 
@@ -330,19 +335,41 @@ fun EditRequestScreen(
 
     // ----- Date Picker -----
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
-        Dialog(onDismissRequest = { showDatePicker = false }) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = System.currentTimeMillis(),
+            selectableDates = FutureOnlySelectableDates
+        )
+        Dialog(
+            onDismissRequest = { showDatePicker = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
             Card(
                 shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                modifier = Modifier
+                    .fillMaxWidth(0.96f)
+                    .padding(vertical = 24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text("Select Date", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    DatePicker(state = datePickerState)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Column(modifier = Modifier.padding(vertical = 12.dp)) {
+                    Text(
+                        "Select Date",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextDark,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    DatePicker(
+                        state = datePickerState,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
                         TextButton(onClick = { showDatePicker = false }) { Text("Cancel", color = TextGrey) }
                         Button(
                             onClick = {
@@ -364,19 +391,30 @@ fun EditRequestScreen(
     // ----- Time Picker -----
     if (showTimePicker) {
         val timePickerState = rememberTimePickerState(initialHour = 17, initialMinute = 0, is24Hour = false)
-        Dialog(onDismissRequest = { showTimePicker = false }) {
+        Dialog(
+            onDismissRequest = { showTimePicker = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
             Card(
                 shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .padding(vertical = 24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(
-                    modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp, vertical = 20.dp)
+                        .fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text("Select Time", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    TimePicker(state = timePickerState, modifier = Modifier.fillMaxWidth())
+                    Spacer(modifier = Modifier.height(12.dp))
+                    TimePicker(
+                        state = timePickerState,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         TextButton(onClick = { showTimePicker = false }) { Text("Cancel", color = TextGrey) }

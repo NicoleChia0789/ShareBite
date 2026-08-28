@@ -24,11 +24,8 @@ import com.sharebite.app.ui.theme.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
-
-private val categoryOptions = listOf(
-    "Vegetables", "Fruits", "Dairy", "Bakery",
-    "Canned Goods", "Prepared Meals", "Other"
-)
+import androidx.compose.material3.SelectableDates
+import androidx.compose.ui.window.DialogProperties
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("UNUSED_PARAMETER")
@@ -77,6 +74,9 @@ fun PostRequestScreen(
         }
         if (pickupDate.isBlank()) errors.add("Preferred collection date")
         if (pickupTime.isBlank()) errors.add("Collection time")
+        if (pickupDate.isNotBlank() && pickupTime.isNotBlank() && isDateTimeInPast(pickupDate, pickupTime)) {
+            errors.add("Collection date/time cannot be in the past")
+        }
         return errors
     }
 
@@ -144,7 +144,7 @@ fun PostRequestScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            categoryOptions.forEach { category ->
+            foodCategoryOptions.forEach { category ->
                 FilterChip(
                     selected = selectedCategories.contains(category),
                     onClick = { toggleCategory(category) },
@@ -360,24 +360,39 @@ fun PostRequestScreen(
     // ----- Date Picker Dialog -----
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = System.currentTimeMillis()
+            initialSelectedDateMillis = System.currentTimeMillis(),
+            selectableDates = FutureOnlySelectableDates
         )
 
-        Dialog(onDismissRequest = { showDatePicker = false }) {
+        Dialog(
+            onDismissRequest = { showDatePicker = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
             Card(
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
+                    .fillMaxWidth(0.96f)
+                    .padding(vertical = 24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text("Select Date", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    DatePicker(state = datePickerState)
-                    Spacer(modifier = Modifier.height(8.dp))
+                Column(modifier = Modifier.padding(vertical = 12.dp)) {
+                    Text(
+                        "Select Date",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextDark,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    DatePicker(
+                        state = datePickerState,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.End
                     ) {
                         TextButton(onClick = { showDatePicker = false }) {
@@ -409,23 +424,25 @@ fun PostRequestScreen(
             initialMinute = 0,
             is24Hour = false
         )
-
-        Dialog(onDismissRequest = { showTimePicker = false }) {
+        Dialog(
+            onDismissRequest = { showTimePicker = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
             Card(
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
+                    .fillMaxWidth(0.92f)
+                    .padding(vertical = 24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(
                     modifier = Modifier
-                        .padding(20.dp)
+                        .padding(horizontal = 20.dp, vertical = 20.dp)
                         .fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text("Select Time", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     TimePicker(
                         state = timePickerState,
                         modifier = Modifier.fillMaxWidth()
