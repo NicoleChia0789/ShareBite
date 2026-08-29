@@ -24,7 +24,11 @@ import com.sharebite.app.ui.theme.*
 import androidx.compose.foundation.clickable
 
 @Composable
-fun ProfileScreen(paddingValues: PaddingValues, onSavedItemsClick: () -> Unit) {
+fun ProfileScreen(
+    paddingValues: PaddingValues,
+    onSavedItemsClick: () -> Unit,
+    onAboutClick: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -69,11 +73,9 @@ fun ProfileScreen(paddingValues: PaddingValues, onSavedItemsClick: () -> Unit) {
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column {
-                ProfileInfoRow(icon = Icons.Default.Home, label = "Address", value = "Not set yet")
+                ProfileMenuRow(label = "Saved Items", onClick = onSavedItemsClick)
                 HorizontalDivider(color = Color(0xFFEFE6D9))
-                ProfileInfoRow(icon = Icons.Default.Phone, label = "Phone", value = "Not set yet")
-                HorizontalDivider(color = Color(0xFFEFE6D9))
-                ProfileInfoRow(icon = Icons.Default.Info, label = "Role", value = "Charity")
+                ProfileMenuRow(label = "About ShareBite", onClick = onAboutClick)
             }
         }
 

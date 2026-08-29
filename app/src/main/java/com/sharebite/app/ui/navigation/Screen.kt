@@ -72,6 +72,11 @@ object EditRequestRoute {
     fun createRoute(id: Long) = "edit_request/$id"
 }
 
+object AboutRoute {
+    const val route = "about"
+}
+
+
 // ──────────────────────────────────────────────
 // 4. 共用路由
 // ──────────────────────────────────────────────

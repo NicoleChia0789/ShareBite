@@ -24,6 +24,7 @@ import com.sharebite.app.ui.theme.*
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import com.sharebite.app.ui.components.WithdrawConfirmDialog
+import androidx.compose.material.icons.filled.Cancel
 
 @Composable
 fun RequestDetailScreen(
@@ -266,7 +267,8 @@ private fun TimelineCard(status: String, createdAt: String) {
                     time = item.time,
                     description = item.description,
                     isCompleted = item.isCompleted,
-                    isLast = index == timelineItems.size - 1
+                    isLast = index == timelineItems.size - 1,
+                    isNegative = item.isNegative
                 )
             }
         }
@@ -280,19 +282,19 @@ private fun TimelineStep(
     time: String,
     description: String,
     isCompleted: Boolean,
-    isLast: Boolean
+    isLast: Boolean,
+    isNegative: Boolean = false
 ) {
     Row(modifier = Modifier.fillMaxWidth()) {
-        // 左侧：图标 + 连线
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.width(32.dp)
         ) {
             if (isCompleted) {
                 Icon(
-                    Icons.Default.CheckCircle,
+                    if (isNegative) Icons.Default.Cancel else Icons.Default.CheckCircle,
                     contentDescription = null,
-                    tint = GreenConfirmed,
+                    tint = if (isNegative) RedCancelled else GreenConfirmed,
                     modifier = Modifier.size(22.dp)
                 )
             } else {
@@ -308,14 +310,19 @@ private fun TimelineStep(
                     modifier = Modifier
                         .width(2.dp)
                         .height(32.dp)
-                        .background(if (isCompleted) GreenConfirmed else Color(0xFFE0E0E0))
+                        .background(
+                            when {
+                                isNegative -> RedCancelled
+                                isCompleted -> GreenConfirmed
+                                else -> Color(0xFFE0E0E0)
+                            }
+                        )
                 )
             }
         }
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        // 右侧：内容
         Column(modifier = Modifier.padding(bottom = if (isLast) 0.dp else 8.dp)) {
             Text(
                 title,
@@ -323,31 +330,39 @@ private fun TimelineStep(
                 fontWeight = FontWeight.Bold,
                 color = if (isCompleted) TextDark else TextGrey
             )
-            Text(
-                time,
-                fontSize = 12.sp,
-                color = TextGrey
-            )
-            Text(
-                description,
-                fontSize = 12.sp,
-                color = TextGrey,
-                modifier = Modifier.padding(top = 2.dp)
-            )
+            Text(time, fontSize = 12.sp, color = TextGrey)
+            Text(description, fontSize = 12.sp, color = TextGrey, modifier = Modifier.padding(top = 2.dp))
         }
     }
 }
 
 // ---------- 生成时间线数据 ----------
 private fun generateTimeline(status: String, createdAt: String): List<TimelineItem> {
-    // 根据状态决定哪些步骤已完成
+    val createdShort = createdAt.take(16).replace("T", " · ")
+
+    // Cancelled 是特殊情况，不走正常的四步流程
+    if (status == "Cancelled") {
+        return listOf(
+            TimelineItem(
+                title = "Submitted",
+                time = createdShort,
+                description = "Request has been successfully logged into our system.",
+                isCompleted = true
+            ),
+            TimelineItem(
+                title = "Withdrawn",
+                time = createdShort,
+                description = "This request was withdrawn and will not proceed further.",
+                isCompleted = true,
+                isNegative = true
+            )
+        )
+    }
+
     val isSubmitted = true
-    val isViewed = status != "Pending"  // 只要不是 Pending，就表示已查看
+    val isViewed = status == "Confirmed" || status == "Completed"
     val isApproved = status == "Confirmed" || status == "Completed"
     val isCollected = status == "Completed"
-
-    // 格式化时间（简单处理，去掉毫秒部分）
-    val createdShort = createdAt.take(16).replace("T", " · ")
 
     return listOf(
         TimelineItem(
@@ -382,9 +397,9 @@ private data class TimelineItem(
     val title: String,
     val time: String,
     val description: String,
-    val isCompleted: Boolean
+    val isCompleted: Boolean,
+    val isNegative: Boolean = false
 )
-
 // ---------- 简单日期格式化 ----------
 private fun formatDate(dateStr: String): String {
     return dateStr.take(16).replace("T", " · ")

@@ -29,15 +29,19 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import com.sharebite.app.data.repository.FoodListingRepository
-private val statusTabs = listOf("All", "Pending", "Confirmed", "Cancelled")
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material.icons.filled.Add
+
+private val statusTabs = listOf("All", "Pending", "Confirmed", "Completed", "Cancelled")
 
 @Composable
 fun MyRequestsScreen(
     paddingValues: PaddingValues,
-    onViewClick: (Long) -> Unit,        // 点击 View → 跳转详情
-    onEditClick: (Long) -> Unit,        // 点击 Edit → 跳转编辑（仅 Pending）
-    onWithdrawClick: (Long) -> Unit,     // 点击 Withdraw → 弹出确认（仅 Pending）
-    onRequestAgain: (CharityRequest) -> Unit
+    onViewClick: (Long) -> Unit,
+    onEditClick: (Long) -> Unit,
+    onWithdrawClick: (Long) -> Unit,
+    onRequestAgain: (CharityRequest) -> Unit,
+    onCreateRequest: () -> Unit
 ) {
     val repository = remember { CharityRepository() }
     val listingRepository = remember { FoodListingRepository() }
@@ -72,100 +76,133 @@ fun MyRequestsScreen(
         allRequests.filter { it.status == selectedStatus }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BgCream)
-            .padding(paddingValues)
-    ) {
-        // 标题
-        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-            Text("My Requests", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextDark)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text("Track and manage your community food requests.", fontSize = 13.sp, color = TextGrey)
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // 状态筛选标签
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BgCream)
+                .padding(paddingValues)
         ) {
-            items(statusTabs) { status ->
-                FilterChip(
-                    selected = selectedStatus == status,
-                    onClick = { selectedStatus = status },
-                    label = { Text(status) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = OrangeAccent,
-                        selectedLabelColor = Color.White
+            // 标题
+            Text(
+                "Track and manage your community food requests.",
+                fontSize = 13.sp,
+                color = TextGrey,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 状态筛选标签
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(statusTabs) { status ->
+                    FilterChip(
+                        selected = selectedStatus == status,
+                        onClick = { selectedStatus = status },
+                        label = { Text(status) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = OrangeAccent,
+                            selectedLabelColor = Color.White
+                        )
                     )
-                )
+                }
             }
-        }
 
-        Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-        // 列表内容
-        when {
-            isLoading -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = OrangeAccent)
+            // 列表内容
+            when {
+                isLoading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = OrangeAccent)
+                    }
                 }
-            }
-            errorMessage != null -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Error: $errorMessage", color = RedCancelled)
+
+                errorMessage != null -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Error: $errorMessage", color = RedCancelled)
+                    }
                 }
-            }
-            filteredRequests.isEmpty() -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No requests found.", color = TextGrey)
+
+                filteredRequests.isEmpty() -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("No requests found.", color = TextGrey)
+                    }
                 }
-            }
-            else -> {
-                LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(filteredRequests) { request ->
-                        RequestCard(
-                            request = request,
-                            onViewClick = { onViewClick(request.id) },
-                            onEditClick = { onEditClick(request.id) },
-                            onWithdrawClick = { withdrawTargetId = request.id },
-                            onGetDirections = {
-                                val listingId = request.listingId?.toLongOrNull()
-                                if (listingId == null) {
-                                    Toast.makeText(context, "No location info available for this request.", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    coroutineScope.launch {
-                                        try {
-                                            val listing = listingRepository.getListingById(listingId)
-                                            val lat = listing.latitude
-                                            val lng = listing.longitude
-                                            val uri = if (lat != null && lng != null) {
-                                                Uri.parse("geo:$lat,$lng?q=$lat,$lng(${Uri.encode(listing.merchantName)})")
-                                            } else {
-                                                Uri.parse("geo:0,0?q=${Uri.encode(listing.address)}")
+
+                else -> {
+                    LazyColumn(
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(filteredRequests) { request ->
+                            RequestCard(
+                                request = request,
+                                onViewClick = { onViewClick(request.id) },
+                                onEditClick = { onEditClick(request.id) },
+                                onWithdrawClick = { withdrawTargetId = request.id },
+                                onGetDirections = {
+                                    val listingId = request.listingId?.toLongOrNull()
+                                    if (listingId == null) {
+                                        Toast.makeText(
+                                            context,
+                                            "No location info available for this request.",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    } else {
+                                        coroutineScope.launch {
+                                            try {
+                                                val listing =
+                                                    listingRepository.getListingById(listingId)
+                                                val lat = listing.latitude
+                                                val lng = listing.longitude
+                                                val uri = if (lat != null && lng != null) {
+                                                    Uri.parse(
+                                                        "geo:$lat,$lng?q=$lat,$lng(${
+                                                            Uri.encode(
+                                                                listing.merchantName
+                                                            )
+                                                        })"
+                                                    )
+                                                } else {
+                                                    Uri.parse("geo:0,0?q=${Uri.encode(listing.address)}")
+                                                }
+                                                val intent = Intent(Intent.ACTION_VIEW, uri)
+                                                context.startActivity(intent)
+                                            } catch (e: Exception) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Could not open directions: ${e.message}",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
                                             }
-                                            val intent = Intent(Intent.ACTION_VIEW, uri)
-                                            context.startActivity(intent)
-                                        } catch (e: Exception) {
-                                            Toast.makeText(context, "Could not open directions: ${e.message}", Toast.LENGTH_SHORT).show()
                                         }
                                     }
+                                },
+                                onRequestAgain = {
+                                    onRequestAgain(request)
                                 }
-                            },
-                            onRequestAgain = {
-                                onRequestAgain(request)
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
         }
+        FloatingActionButton(
+            onClick = onCreateRequest,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(20.dp)
+                .padding(bottom = paddingValues.calculateBottomPadding()),
+            containerColor = OrangeAccent,
+            contentColor = Color.White
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Create Food Request")
+        }
+
     }
 
     // ---------- WITHDRAW 确认弹窗 ----------
@@ -205,10 +242,15 @@ private fun RequestCard(
 
     // 顶部状态描述文字（完全照搬图片里的）
     val statusHeadline = when (request.status) {
-        "Pending" -> "PICK UP TODAY"
-        "Confirmed" -> "REQUESTED 2H AGO"
-        "Completed" -> "DELIVERED YESTERDAY"
-        "Cancelled" -> "LAST WEEK"
+        "Pending", "Confirmed" -> {
+            if (request.pickupDate == getTodayDateString()) {
+                "PICK UP TODAY"
+            } else {
+                "PICK UP ON ${formatShortDate(request.pickupDate).uppercase()}"
+            }
+        }
+        "Completed" -> "COLLECTED ON ${formatShortDate(request.pickupDate).uppercase()}"
+        "Cancelled" -> "CANCELLED"
         else -> ""
     }
 
@@ -307,113 +349,100 @@ private fun RequestCard(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 左边：View（图标 + 文字）
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Start
-                        ) {
-                            IconButton(
-                                onClick = onViewClick,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Visibility,
-                                    contentDescription = "View",
-                                    tint = OrangeAccent
-                                )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = onViewClick, modifier = Modifier.size(40.dp)) {
+                                Icon(Icons.Default.Visibility, contentDescription = "View", tint = OrangeAccent)
                             }
-                            Text(
-                                text = "View",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = OrangeAccent
-                            )
+                            Text("View", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = OrangeAccent)
                         }
-
-                        // 右边：Edit + Withdraw
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            IconButton(
-                                onClick = onEditClick,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Edit,
-                                    contentDescription = "Edit",
-                                    tint = GreenConfirmed
-                                )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = onEditClick, modifier = Modifier.size(40.dp)) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = GreenConfirmed)
                             }
-                            IconButton(
-                                onClick = onWithdrawClick,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Withdraw",
-                                    tint = RedCancelled
-                                )
+                            IconButton(onClick = onWithdrawClick, modifier = Modifier.size(40.dp)) {
+                                Icon(Icons.Default.Delete, contentDescription = "Withdraw", tint = RedCancelled)
                             }
                         }
                     }
                 }
                 isConfirmed -> {
-                    // Confirmed：显示 "Get Directions" 按钮
-                    Button(
-                        onClick = onGetDirections,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = OrangeAccent,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(8.dp)
+                    // Confirmed：View（左）+ Get Directions（右）
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Default.Directions,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Get Directions", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = onViewClick, modifier = Modifier.size(40.dp)) {
+                                Icon(Icons.Default.Visibility, contentDescription = "View", tint = OrangeAccent)
+                            }
+                            Text("View", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = OrangeAccent)
+                        }
+                        Button(
+                            onClick = onGetDirections,
+                            colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent, contentColor = Color.White),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(Icons.Default.Directions, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Directions", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
                 isCompleted -> {
-                    // Completed：显示 "Request Again" 按钮
-                    OutlinedButton(
-                        onClick = onRequestAgain,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = GreenConfirmed
-                        ),
-                        shape = RoundedCornerShape(8.dp)
+                    // Completed：View（左）+ Request Again（右）
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Request Again", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = onViewClick, modifier = Modifier.size(40.dp)) {
+                                Icon(Icons.Default.Visibility, contentDescription = "View", tint = OrangeAccent)
+                            }
+                            Text("View", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = OrangeAccent)
+                        }
+                        OutlinedButton(
+                            onClick = onRequestAgain,
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = GreenConfirmed),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Request Again", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
                 isCancelled -> {
-                    // Cancelled：显示灰色提示
-                    Text(
-                        text = "This request was cancelled.",
-                        fontSize = 13.sp,
-                        color = TextGrey,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    // Cancelled：View（左）+ 灰色提示（右）
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = onViewClick, modifier = Modifier.size(40.dp)) {
+                                Icon(Icons.Default.Visibility, contentDescription = "View", tint = OrangeAccent)
+                            }
+                            Text("View", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = OrangeAccent)
+                        }
+                        Text("Cancelled", fontSize = 12.sp, color = TextGrey)
+                    }
                 }
-                else -> {
-                    // 其他状态：不显示
-                }
+                else -> {}
             }
+
         }
+    }
+}
+
+private fun formatShortDate(dateStr: String): String {
+    return try {
+        val inputFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        val outputFormat = java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.getDefault())
+        val date = inputFormat.parse(dateStr)
+        if (date != null) outputFormat.format(date) else dateStr
+    } catch (e: Exception) {
+        dateStr
     }
 }

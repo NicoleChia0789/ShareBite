@@ -68,11 +68,12 @@ fun BrowseDonationsScreen(paddingValues: PaddingValues, onFoodClick: (Long) -> U
             .padding(paddingValues)
     ) {
         // ---------- TITLE ----------
-        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-            Text("Browse Donations", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextDark)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text("Find fresh surplus food from merchants near you.", fontSize = 13.sp, color = TextGrey)
-        }
+        Text(
+            "Find fresh surplus food from merchants near you.",
+            fontSize = 13.sp,
+            color = TextGrey,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+        )
 
         // ---------- SEARCH BAR ----------
         Surface(

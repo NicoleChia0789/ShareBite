@@ -31,7 +31,8 @@ import com.sharebite.app.ui.navigation.EditRequestRoute
 import com.sharebite.app.ui.navigation.NotificationsRoute
 import com.sharebite.app.ui.charity.SavedItemsScreen
 import com.sharebite.app.ui.navigation.SavedItemsRoute
-
+import com.sharebite.app.ui.charity.AboutScreen
+import com.sharebite.app.ui.navigation.AboutRoute
 @Composable
 fun AppNavHost(
     role: String
@@ -61,9 +62,11 @@ fun AppNavHost(
         currentRoute.startsWith("food_detail/") -> "Food Detail"
         currentRoute.startsWith("apply_for_food/") -> "Apply for Food"
         currentRoute.startsWith("edit_request/") -> "Edit Request"
+        currentRoute.startsWith("request_detail") -> "Request Detail"
         currentRoute == PostRequestRoute.route -> "Post a Food Request"
         currentRoute == NotificationsRoute.route -> "Notifications"
         currentRoute == SavedItemsRoute.route -> "Saved Items"
+        currentRoute == AboutRoute.route -> "About ShareBite"
         else -> "ShareBite"
     }
 
@@ -75,9 +78,11 @@ fun AppNavHost(
             currentRoute.startsWith("food_detail/") ||
             currentRoute.startsWith("apply_for_food/") ||
             currentRoute.startsWith("edit_request/") ||
+            currentRoute.startsWith("request_detail") ||
             currentRoute == PostRequestRoute.route ||
             currentRoute == NotificationsRoute.route ||
-            currentRoute == SavedItemsRoute.route
+            currentRoute == SavedItemsRoute.route||
+            currentRoute == AboutRoute.route
 
     val navigateToTab: (String) -> Unit = { route ->
         navController.navigate(route) {
@@ -168,7 +173,8 @@ fun AppNavHost(
                             } else {
                                 navController.navigate(PostRequestRoute.route)
                             }
-                        }
+                        },
+                        onCreateRequest = { navController.navigate(PostRequestRoute.route) }
                     )
                     else -> Text("Unknown role: $role")
                 }
@@ -184,12 +190,15 @@ fun AppNavHost(
                     )
                     "charity" -> ProfileScreen(
                         paddingValues = paddingValues,
-                        onSavedItemsClick = {
-                            navController.navigate(SavedItemsRoute.route)
-                        }
+                        onSavedItemsClick = { navController.navigate(SavedItemsRoute.route) },
+                        onAboutClick = { navController.navigate(AboutRoute.route) }
                     )
                     else -> Text("Unknown role: $role")
                 }
+            }
+
+            composable(AboutRoute.route) {
+                AboutScreen(paddingValues = paddingValues)
             }
 
             // ══════════════════════════════════════
