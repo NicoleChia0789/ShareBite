@@ -45,6 +45,10 @@ object UserEditProfileRoute {
     const val route = "user_edit_profile"
 }
 
+object UserHelpRoute {
+    const val route = "help"
+}
+
 // ──────────────────────────────────────────────
 // 3. Charity 特有路由
 // ──────────────────────────────────────────────

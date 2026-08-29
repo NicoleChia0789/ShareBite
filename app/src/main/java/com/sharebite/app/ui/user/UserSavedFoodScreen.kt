@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,7 +29,7 @@ fun UserSavedFoodScreen(
     paddingValues: PaddingValues,
     onFoodClick: (Long) -> Unit
 ) {
-    val userId = "test-user-id" // 临时
+    val userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3"
     val savedRepo = remember { SavedListingRepository() }
     val foodRepo = remember { FoodListingRepository() }
 
@@ -39,11 +41,7 @@ fun UserSavedFoodScreen(
         try {
             val savedIds = savedRepo.getSavedListingIds(userId)
             savedListings = savedIds.mapNotNull { id ->
-                try {
-                    foodRepo.getListingById(id)
-                } catch (e: Exception) {
-                    null
-                }
+                try { foodRepo.getListingById(id) } catch (e: Exception) { null }
             }
         } catch (e: Exception) {
             errorMessage = e.message
@@ -58,48 +56,44 @@ fun UserSavedFoodScreen(
             .background(BgCream)
             .padding(paddingValues)
     ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text("Saved Food", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextDark)
+            Text("You have ${savedListings.size} items saved for later.", fontSize = 13.sp, color = TextGrey)
+        }
+
         when {
-            isLoading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = OrangeAccent)
+            isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                CircularProgressIndicator(color = OrangeAccent)
+            }
+
+            errorMessage != null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                Text("Error: $errorMessage", color = RedCancelled)
+            }
+
+            savedListings.isEmpty() -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = TextGrey
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("No saved food", fontSize = 16.sp, color = TextGrey)
+                    Text("Start saving your favorite food!", fontSize = 14.sp, color = TextGrey)
                 }
             }
-            errorMessage != null -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Error: $errorMessage", color = RedCancelled)
-                }
-            }
-            savedListings.isEmpty() -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("❤️", fontSize = 48.sp)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("No saved food", fontSize = 16.sp, color = TextGrey)
-                        Text("Start saving your favorite food!", fontSize = 14.sp, color = TextGrey)
-                    }
-                }
-            }
-            else -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(savedListings) { listing ->
-                        SavedFoodCard(
-                            listing = listing,
-                            onClick = { onFoodClick(listing.id) }
-                        )
-                    }
+
+            else -> LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(savedListings) { listing ->
+                    SavedFoodCard(
+                        listing = listing,
+                        onClick = { onFoodClick(listing.id) }
+                    )
                 }
             }
         }
@@ -115,9 +109,10 @@ private fun SavedFoodCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
     ) {
         Row(
             modifier = Modifier
@@ -131,58 +126,65 @@ private fun SavedFoodCard(
                     contentDescription = listing.foodName,
                     modifier = Modifier
                         .size(80.dp)
-                        .clip(RoundedCornerShape(8.dp)),
+                        .clip(RoundedCornerShape(10.dp)),
                     contentScale = ContentScale.Crop
                 )
             } else {
                 Box(
                     modifier = Modifier
                         .size(80.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(Color(0xFFEFE6D9)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("❤️", fontSize = 32.sp)
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = "Favorite",
+                        modifier = Modifier.size(32.dp),
+                        tint = Color(0xFFD8C4A8)
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    listing.foodName,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextDark
-                )
-                Text(
-                    listing.merchantName,
-                    fontSize = 13.sp,
-                    color = TextGrey
-                )
+                Text(listing.foodName, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                Text(listing.merchantName, fontSize = 13.sp, color = TextGrey)
                 Spacer(modifier = Modifier.height(4.dp))
+
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = NavSelectedBg
-                    ) {
+                    Surface(shape = RoundedCornerShape(50), color = NavSelectedBg) {
                         Text(
                             listing.category,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                             fontSize = 10.sp,
                             color = OrangeAccent,
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    Text(
-                        "Ends: ${listing.deadline}",
-                        fontSize = 11.sp,
-                        color = RedCancelled
-                    )
+                    Text("Ends: ${listing.deadline}", fontSize = 11.sp, color = RedCancelled)
+                    if (listing.distanceKm > 0) {
+                        Text("· ${listing.distanceKm} km", fontSize = 11.sp, color = TextGrey)
+                    }
                 }
             }
 
-            Text("›", fontSize = 24.sp, color = TextGrey)
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = Color.White.copy(alpha = 0.9f),
+                modifier = Modifier.size(36.dp),
+                shadowElevation = 4.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = "Saved",
+                        modifier = Modifier.size(20.dp),
+                        tint = OrangeAccent
+                    )
+                }
+            }
         }
     }
 }

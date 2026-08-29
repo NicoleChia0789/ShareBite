@@ -1,5 +1,6 @@
 package com.sharebite.app.ui.navigation
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,6 +21,7 @@ import com.sharebite.app.ui.navigation.UserMakeReservationRoute
 import com.sharebite.app.ui.navigation.UserReservationDetailRoute
 import com.sharebite.app.ui.navigation.UserSavedFoodRoute
 import com.sharebite.app.ui.navigation.UserEditProfileRoute
+import com.sharebite.app.ui.navigation.UserHelpRoute
 import com.sharebite.app.ui.navigation.FoodDetailRoute
 import com.sharebite.app.ui.navigation.RequestDetailRoute
 import com.sharebite.app.ui.navigation.PostRequestRoute
@@ -28,6 +30,9 @@ import com.sharebite.app.ui.navigation.EditRequestRoute
 import com.sharebite.app.ui.navigation.NotificationsRoute
 import com.sharebite.app.ui.navigation.SavedItemsRoute
 import com.sharebite.app.ui.navigation.AboutRoute
+
+// ✅ 确保导入你的独立 UserHelpScreen
+// import com.sharebite.app.ui.user.UserHelpScreen  // 已通过 import com.sharebite.app.ui.user.* 包含
 
 @Composable
 fun AppNavHost(
@@ -55,6 +60,7 @@ fun AppNavHost(
         currentRoute.startsWith("user_reservation_detail/") -> "Reservation Detail"
         currentRoute == UserSavedFoodRoute.route -> "Saved Food"
         currentRoute == UserEditProfileRoute.route -> "Edit Profile"
+        currentRoute == UserHelpRoute.route -> "Help & Support"
         currentRoute.startsWith("food_detail/") -> "Food Detail"
         currentRoute.startsWith("apply_for_food/") -> "Apply for Food"
         currentRoute.startsWith("edit_request/") -> "Edit Request"
@@ -71,6 +77,7 @@ fun AppNavHost(
             currentRoute.startsWith("user_reservation_detail/") ||
             currentRoute == UserSavedFoodRoute.route ||
             currentRoute == UserEditProfileRoute.route ||
+            currentRoute == UserHelpRoute.route ||
             currentRoute.startsWith("food_detail/") ||
             currentRoute.startsWith("apply_for_food/") ||
             currentRoute.startsWith("edit_request/") ||
@@ -94,7 +101,15 @@ fun AppNavHost(
         topBarTitle = titleForRoute,
         showBackButton = isDetailScreen,
         onBackClick = { navController.popBackStack() },
-        onNotificationClick = { navController.navigate(NotificationsRoute.route) }
+        onNotificationClick = { navController.navigate(NotificationsRoute.route) },
+        showSavedButton = role == "user" || role == "charity",  // ✅ User + Charity
+        onSavedFoodClick = {
+            when (role) {
+                "user" -> navController.navigate(UserSavedFoodRoute.route)      // User 跳自己的 Saved Food
+                "charity" -> navController.navigate(SavedItemsRoute.route)      // Charity 跳自己的 Saved Items
+                else -> {}
+            }
+        }
     ) { paddingValues ->
         NavHost(
             navController = navController,
@@ -168,19 +183,20 @@ fun AppNavHost(
                 when (role) {
                     "user" -> UserProfileScreen(
                         paddingValues = paddingValues,
-                        onEditProfile = { navController.navigate(UserEditProfileRoute.route) },
                         onSavedFood = { navController.navigate(UserSavedFoodRoute.route) },
+                        onHelpClick = { navController.navigate(UserHelpRoute.route) },
+                        onAboutClick = { navController.navigate(AboutRoute.route) },
                         onLogout = { /* 待 Auth 实现 */ }
                     )
                     "charity" -> ProfileScreen(
-                            paddingValues = paddingValues,
-                    onSavedItemsClick = {
-                        navController.navigate(SavedItemsRoute.route)
-                    },
-                    onAboutClick = {
-                        navController.navigate(AboutRoute.route)
-                    }
-                        )
+                        paddingValues = paddingValues,
+                        onSavedItemsClick = {
+                            navController.navigate(SavedItemsRoute.route)
+                        },
+                        onAboutClick = {
+                            navController.navigate(AboutRoute.route)
+                        }
+                    )
                     else -> Text("Unknown role: $role")
                 }
             }
@@ -242,6 +258,14 @@ fun AppNavHost(
                     paddingValues = paddingValues,
                     onSaveSuccess = { navController.popBackStack() }
                 )
+            }
+
+            // ══════════════════════════════════════
+            // User Help 路由（调用你的独立文件）
+            // ══════════════════════════════════════
+
+            composable(UserHelpRoute.route) {
+                UserHelpScreen(paddingValues = paddingValues)
             }
 
             // ══════════════════════════════════════

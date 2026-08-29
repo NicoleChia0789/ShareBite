@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -29,6 +30,8 @@ fun AppScaffold(
     onNavigate: (String) -> Unit,
     topBarTitle: String = "ShareBite",
     onNotificationClick: () -> Unit = {},
+    showSavedButton: Boolean = false,
+    onSavedFoodClick: () -> Unit = {},
     showBackButton: Boolean = false,
     onBackClick: () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit
@@ -49,6 +52,9 @@ fun AppScaffold(
             },
             actions = {
                 if (!showBackButton) {
+                    IconButton(onClick = onSavedFoodClick) {
+                        Icon(Icons.Default.Favorite, contentDescription = "Saved Food")
+                    }
                     IconButton(onClick = onNotificationClick) {
                         Icon(Icons.Default.Notifications, contentDescription = "Notifications")
                     }
