@@ -74,8 +74,8 @@ fun EditRequestScreen(
 
     fun validateForm(): List<String> {
         val errors = mutableListOf<String>()
-        if (quantity.isBlank() || quantity.toIntOrNull() == null || quantity.toInt() <= 0) {
-            errors.add("Valid quantity")
+        if (!isQuantityValid(quantity)) {
+            errors.add("Quantity must be between 1 and ${formatWithThousandSeparator(MAX_QUANTITY)}")
         }
         if (pickupDate.isBlank()) errors.add("Collection date")
         if (pickupTime.isBlank()) errors.add("Collection time")
@@ -163,9 +163,14 @@ fun EditRequestScreen(
                     // ----- Quantity needed -----
                     OutlinedTextField(
                         value = quantity,
-                        onValueChange = { quantity = it.filter { c -> c.isDigit() } },
+                        onValueChange = { quantity = filterQuantityInput(it) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Quantity needed") },
+                        supportingText = {
+                            if (quantity.isNotBlank()) {
+                                Text("= ${formatWithThousandSeparator(quantity)} units")
+                            }
+                        },
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -234,9 +239,14 @@ fun EditRequestScreen(
                     // ----- People served -----
                     OutlinedTextField(
                         value = peopleServed,
-                        onValueChange = { peopleServed = it.filter { c -> c.isDigit() } },
+                        onValueChange = { peopleServed = filterQuantityInput(it) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("People served") },
+                        supportingText = {
+                            if (peopleServed.isNotBlank()) {
+                                Text("= ${formatWithThousandSeparator(peopleServed)} people")
+                            }
+                        },
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

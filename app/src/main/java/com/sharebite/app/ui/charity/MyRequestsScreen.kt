@@ -307,7 +307,7 @@ private fun RequestCard(
 
             // ----- 食物名称 + 数量 -----
             Text(
-                text = "${request.foodName} × ${request.quantity}",
+                text = "${request.foodName} × ${formatWithThousandSeparator(request.quantity)}",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextDark

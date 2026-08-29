@@ -1,6 +1,7 @@
 package com.sharebite.app.ui.charity
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,7 +22,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharebite.app.ui.theme.*
-import androidx.compose.foundation.clickable
 
 @Composable
 fun ProfileScreen(
@@ -56,8 +56,6 @@ fun ProfileScreen(
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column {
-                // ⚠️ 目前是写死的假资料，等做完登入功能，
-                // 会改成从 Supabase 的 users 表读取真实登入者的资料
                 Text("Hope Charity Home", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
                 Text("Verified Partner", fontSize = 13.sp, color = GreenConfirmed)
             }
@@ -73,9 +71,11 @@ fun ProfileScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column {
-                ProfileMenuRow(label = "Saved Items", onClick = onSavedItemsClick)
+                ProfileInfoRow(icon = Icons.Default.Home, label = "Address", value = "Not set yet")
                 HorizontalDivider(color = Color(0xFFEFE6D9))
-                ProfileMenuRow(label = "About ShareBite", onClick = onAboutClick)
+                ProfileInfoRow(icon = Icons.Default.Phone, label = "Phone", value = "Not set yet")
+                HorizontalDivider(color = Color(0xFFEFE6D9))
+                ProfileInfoRow(icon = Icons.Default.Info, label = "Role", value = "Charity")
             }
         }
 
@@ -91,11 +91,7 @@ fun ProfileScreen(
             Column {
                 ProfileMenuRow(label = "Saved Items", onClick = onSavedItemsClick)
                 HorizontalDivider(color = Color(0xFFEFE6D9))
-                ProfileMenuRow(label = "Edit Profile", onClick = { /* TODO: 等 Auth 完成后开放 */ })
-                HorizontalDivider(color = Color(0xFFEFE6D9))
-                ProfileMenuRow(label = "Notification Settings", onClick = { /* TODO */ })
-                HorizontalDivider(color = Color(0xFFEFE6D9))
-                ProfileMenuRow(label = "About ShareBite", onClick = { /* TODO */ })
+                ProfileMenuRow(label = "About ShareBite", onClick = onAboutClick)
             }
         }
 

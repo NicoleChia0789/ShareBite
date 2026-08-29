@@ -38,6 +38,7 @@ import androidx.compose.foundation.clickable
 import com.sharebite.app.data.repository.SavedListingRepository
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import com.sharebite.app.data.session.CurrentUser
 
 @Composable
 fun FoodDetailScreen(
@@ -47,8 +48,7 @@ fun FoodDetailScreen(
 ) {
     val repository = remember { FoodListingRepository() }
 
-    // ⚠️ 临时 userId，后续替换为真实 Charity 用户 ID
-    val userId = "charity-temp-id"
+    val userId = CurrentUser.user?.id ?: ""
 
     var listing by remember { mutableStateOf<FoodListing?>(null) }
     var isLoading by remember { mutableStateOf(true) }

@@ -1,10 +1,8 @@
 package com.sharebite.app.ui.navigation
 
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -15,7 +13,6 @@ import androidx.navigation.navArgument
 import com.sharebite.app.ui.charity.*
 import com.sharebite.app.ui.components.AppScaffold
 import com.sharebite.app.ui.user.*
-import com.sharebite.app.ui.merchant.*
 
 import com.sharebite.app.ui.navigation.Screen
 import com.sharebite.app.ui.navigation.UserFoodDetailRoute
@@ -29,10 +26,9 @@ import com.sharebite.app.ui.navigation.PostRequestRoute
 import com.sharebite.app.ui.navigation.ApplyForFoodRoute
 import com.sharebite.app.ui.navigation.EditRequestRoute
 import com.sharebite.app.ui.navigation.NotificationsRoute
-import com.sharebite.app.ui.charity.SavedItemsScreen
 import com.sharebite.app.ui.navigation.SavedItemsRoute
-import com.sharebite.app.ui.charity.AboutScreen
 import com.sharebite.app.ui.navigation.AboutRoute
+
 @Composable
 fun AppNavHost(
     role: String
@@ -62,10 +58,10 @@ fun AppNavHost(
         currentRoute.startsWith("food_detail/") -> "Food Detail"
         currentRoute.startsWith("apply_for_food/") -> "Apply for Food"
         currentRoute.startsWith("edit_request/") -> "Edit Request"
-        currentRoute.startsWith("request_detail") -> "Request Detail"
         currentRoute == PostRequestRoute.route -> "Post a Food Request"
         currentRoute == NotificationsRoute.route -> "Notifications"
         currentRoute == SavedItemsRoute.route -> "Saved Items"
+        currentRoute.startsWith("request_detail/") -> "Request Detail"
         currentRoute == AboutRoute.route -> "About ShareBite"
         else -> "ShareBite"
     }
@@ -78,21 +74,11 @@ fun AppNavHost(
             currentRoute.startsWith("food_detail/") ||
             currentRoute.startsWith("apply_for_food/") ||
             currentRoute.startsWith("edit_request/") ||
-            currentRoute.startsWith("request_detail") ||
+            currentRoute.startsWith("request_detail/") ||
             currentRoute == PostRequestRoute.route ||
             currentRoute == NotificationsRoute.route ||
-            currentRoute == SavedItemsRoute.route||
+            currentRoute == SavedItemsRoute.route ||
             currentRoute == AboutRoute.route
-
-    val navigateToTab: (String) -> Unit = { route ->
-        navController.navigate(route) {
-            popUpTo(navController.graph.findStartDestination().id) {
-                saveState = true
-            }
-            launchSingleTop = true
-            restoreState = true
-        }
-    }
 
     AppScaffold(
         currentRoute = currentRoute,
@@ -129,13 +115,11 @@ fun AppNavHost(
                     "charity" -> CharityDashboardScreen(
                         paddingValues = paddingValues,
                         onCreateRequest = { navController.navigate(PostRequestRoute.route) },
-                        onViewAllClick = { navigateToTab(Screen.Requests.route) } ,
+                        onViewAllClick = { navController.navigate(Screen.Requests.route) },
                         onActivityClick = { requestId -> navController.navigate(RequestDetailRoute.createRoute(requestId)) }
-
                     )
-                    "merchant" -> MerchantDashboardScreen(
-                        paddingValues = paddingValues,
-                        onAddDonationClick = { navController.navigate(MerchantAddDonationRoute.route) }
+                    "merchant" -> Text(
+                        "Merchant Dashboard - Coming soon"
                     )
                     else -> Text("Unknown role: $role")
                 }
@@ -189,16 +173,16 @@ fun AppNavHost(
                         onLogout = { /* 待 Auth 实现 */ }
                     )
                     "charity" -> ProfileScreen(
-                        paddingValues = paddingValues,
-                        onSavedItemsClick = { navController.navigate(SavedItemsRoute.route) },
-                        onAboutClick = { navController.navigate(AboutRoute.route) }
-                    )
+                            paddingValues = paddingValues,
+                    onSavedItemsClick = {
+                        navController.navigate(SavedItemsRoute.route)
+                    },
+                    onAboutClick = {
+                        navController.navigate(AboutRoute.route)
+                    }
+                        )
                     else -> Text("Unknown role: $role")
                 }
-            }
-
-            composable(AboutRoute.route) {
-                AboutScreen(paddingValues = paddingValues)
             }
 
             // ══════════════════════════════════════
@@ -333,13 +317,11 @@ fun AppNavHost(
             composable(NotificationsRoute.route) {
                 NotificationsScreen(paddingValues = paddingValues)
             }
-            // ══════════════════════════════════════
-            // Merchant 特有详情路由
-            // ══════════════════════════════════════
 
-            composable(MerchantAddDonationRoute.route) {
-                Text("Add Donation Screen Here", modifier = Modifier.padding(paddingValues))
+            composable(AboutRoute.route) {
+                AboutScreen(paddingValues = paddingValues)
             }
+
             composable(SavedItemsRoute.route) {
                 SavedItemsScreen(
                     paddingValues = paddingValues,
@@ -347,6 +329,5 @@ fun AppNavHost(
                 )
             }
         }
-
     }
 }

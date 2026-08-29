@@ -69,8 +69,8 @@ fun PostRequestScreen(
         val errors = mutableListOf<String>()
         if (foodName.isBlank()) errors.add("Food Item or Type")
         if (selectedCategories.isEmpty()) errors.add("Category (select at least one)")
-        if (quantity.isBlank() || quantity.toIntOrNull() == null || quantity.toInt() <= 0) {
-            errors.add("Valid Quantity")
+        if (!isQuantityValid(quantity)) {
+            errors.add("Quantity must be between 1 and ${formatWithThousandSeparator(MAX_QUANTITY)}")
         }
         if (pickupDate.isBlank()) errors.add("Preferred collection date")
         if (pickupTime.isBlank()) errors.add("Collection time")
@@ -164,10 +164,15 @@ fun PostRequestScreen(
         // ----- Quantity -----
         OutlinedTextField(
             value = quantity,
-            onValueChange = { quantity = it },
+            onValueChange = { quantity = filterQuantityInput(it) },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Quantity requested") },
-            placeholder = { Text("e.g. 50 kg") },
+            placeholder = { Text("e.g. 50") },
+            supportingText = {
+                if (quantity.isNotBlank()) {
+                    Text("= ${formatWithThousandSeparator(quantity)} units")
+                }
+            },
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

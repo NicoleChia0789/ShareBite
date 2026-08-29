@@ -22,14 +22,14 @@ import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.data.repository.SavedListingRepository
 import com.sharebite.app.ui.theme.*
+import com.sharebite.app.data.session.CurrentUser
 
 @Composable
 fun SavedItemsScreen(
     paddingValues: PaddingValues,
     onItemClick: (Long) -> Unit
 ) {
-    // ⚠️ 临时 userId，后续替换为真实 Charity 用户 ID
-    val userId = "charity-temp-id"
+    val userId = CurrentUser.user?.id ?: ""
 
     val savedRepository = remember { SavedListingRepository() }
     val listingRepository = remember { FoodListingRepository() }

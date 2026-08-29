@@ -168,10 +168,15 @@ fun ApplyForFoodScreen(
                     // ----- People served -----
                     OutlinedTextField(
                         value = peopleServed,
-                        onValueChange = { peopleServed = it.filter { c -> c.isDigit() } },
+                        onValueChange = { peopleServed = filterQuantityInput(it) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("People served") },
                         placeholder = { Text("e.g. 30") },
+                        supportingText = {
+                            if (peopleServed.isNotBlank()) {
+                                Text("= ${formatWithThousandSeparator(peopleServed)} people")
+                            }
+                        },
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import com.sharebite.app.data.model.CharityRequest
 import com.sharebite.app.data.repository.CharityRepository
 
+
 // Color
 import com.sharebite.app.ui.theme.BgCream
 import com.sharebite.app.ui.theme.OrangeAccent
@@ -148,8 +149,8 @@ fun CharityDashboardScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    StatCard("Pending", pending.toString(), OrangeAccent, Modifier.weight(1f))
-                    StatCard("Confirmed", confirmed.toString(), GreenConfirmed, Modifier.weight(1f))
+                    StatCard("Pending", formatWithThousandSeparator(pending), OrangeAccent, Modifier.weight(1f))
+                    StatCard("Confirmed", formatWithThousandSeparator(confirmed), GreenConfirmed, Modifier.weight(1f))
                 }
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),

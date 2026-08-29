@@ -39,7 +39,9 @@ android {
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.compose.foundation.layout)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.runtime.saveable)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
@@ -57,7 +59,6 @@ dependencies {
     // Supabase
     implementation(platform("io.github.jan-tennert.supabase:bom:3.1.4"))
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
-    implementation("io.github.jan-tennert.supabase:auth-kt")
     implementation("io.github.jan-tennert.supabase:storage-kt")
 
     // Ktor (Supabase 需要用到)
@@ -74,4 +75,6 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     implementation("org.osmdroid:osmdroid-android:6.1.20")
+
+    implementation("at.favre.lib:bcrypt:0.10.2")
 }
