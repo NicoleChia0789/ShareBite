@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -59,6 +60,7 @@ fun UserBrowseScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repository = remember { FoodListingRepository() }
+    val configuration = LocalConfiguration.current  // ✅ 修复：使用 LocalConfiguration
 
     var allListings by remember { mutableStateOf<List<FoodListing>>(emptyList()) }
     var filteredListings by remember { mutableStateOf<List<FoodListing>>(emptyList()) }
@@ -76,10 +78,7 @@ fun UserBrowseScreen(
         position = CameraPosition.fromLatLngZoom(defaultLocation, 11f)
     }
 
-    val hasLocationPermission = ContextCompat.checkSelfPermission(
-        context,
-        Manifest.permission.ACCESS_FINE_LOCATION
-    ) == PackageManager.PERMISSION_GRANTED
+    // ✅ 删除未使用的 hasLocationPermission
 
     LaunchedEffect(Unit) {
         try {
@@ -117,7 +116,8 @@ fun UserBrowseScreen(
         allListings.map { it.category }.distinct()
     }
 
-    val currentLocale = context.resources.configuration.locales.get(0)
+    // ✅ 修复：使用 LocalConfiguration 获取当前 Locale
+    val currentLocale = configuration.locales.get(0)
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -593,7 +593,6 @@ private fun FilterBottomSheet(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                // Sort options (radio style)
                 SortOption(
                     label = "Distance (Closest)",
                     description = "Show items nearest to your location first",
@@ -689,47 +688,12 @@ private fun SortOption(
 }
 
 @Composable
-private fun SortChip(
-    label: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.clickable { onClick() },
-        shape = RoundedCornerShape(50),
-        color = if (isSelected) OrangeAccent else Color(0xFFE8E2D8),
-        shadowElevation = if (isSelected) 4.dp else 0.dp
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            if (isSelected) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                    tint = Color.White
-                )
-            }
-            Text(
-                text = label,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (isSelected) Color.White else TextDark
-            )
-        }
-    }
-}
-
-// ── ✅ 设计稿风格的 BrowseFoodCard ──
-@Composable
 private fun BrowseFoodCard(
     listing: FoodListing,
     onClick: () -> Unit,
     locale: Locale
 ) {
+    // 计算剩余天数（用于显示 "X days left"）
     val daysRemaining = remember(listing.deadline, locale) {
         try {
             val format = SimpleDateFormat("yyyy-MM-dd", locale)
@@ -744,6 +708,7 @@ private fun BrowseFoodCard(
         }
     }
 
+    // 计算剩余小时（用于显示 "Expires in Xh"）
     val hoursRemaining = remember(listing.deadline, locale) {
         try {
             val format = SimpleDateFormat("yyyy-MM-dd", locale)
@@ -770,13 +735,14 @@ private fun BrowseFoodCard(
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
-            // ── 图片区域 ──
+            // ── 图片区域（带叠加标签） ──
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(160.dp)
                     .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp))
             ) {
+                // 图片
                 if (!listing.photoUrl.isNullOrBlank()) {
                     AsyncImage(
                         model = listing.photoUrl,
@@ -802,13 +768,14 @@ private fun BrowseFoodCard(
                     }
                 }
 
-                // ── 左上角标签 ──
+                // ── 左上角状态标签 ──
                 Row(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    // "AVAILABLE" 标签
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = GreenConfirmed,
@@ -824,6 +791,7 @@ private fun BrowseFoodCard(
                         )
                     }
 
+                    // 分类标签（如 "BAKERY"）
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = Color(0xFFFF8A65).copy(alpha = 0.9f),
@@ -840,7 +808,7 @@ private fun BrowseFoodCard(
                     }
                 }
 
-                // ── 右上角收藏 ──
+                // ── 右上角收藏按钮 ──
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -867,6 +835,7 @@ private fun BrowseFoodCard(
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
+                // 标题行：食物名称 + 距离 + 到期时间（右上角）
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -898,6 +867,7 @@ private fun BrowseFoodCard(
                         }
                     }
 
+                    // 右侧：距离 + 到期时间（右上角）
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
                             text = "${listing.distanceKm} km away",
@@ -905,19 +875,28 @@ private fun BrowseFoodCard(
                             fontWeight = FontWeight.Medium,
                             color = OrangeAccent
                         )
+
+                        // ── ✅ 智能倒计时：超过 1 天显示天数，否则显示小时 ──
                         when {
-                            hoursRemaining <= 0 -> {
+                            daysRemaining >= 1 -> {
                                 Text(
-                                    text = "Expired",
+                                    text = "$daysRemaining day${if (daysRemaining > 1) "s" else ""} left",
                                     fontSize = 11.sp,
-                                    color = RedCancelled
+                                    color = if (daysRemaining <= 2) OrangeAccent else TextGrey
+                                )
+                            }
+                            hoursRemaining > 0 -> {
+                                Text(
+                                    text = "Expires in ${hoursRemaining}h",
+                                    fontSize = 11.sp,
+                                    color = if (hoursRemaining <= 3) RedCancelled else TextGrey
                                 )
                             }
                             else -> {
                                 Text(
-                                    text = "Expires in ${hoursRemaining}h",
+                                    text = "Expired",
                                     fontSize = 11.sp,
-                                    color = TextGrey
+                                    color = RedCancelled
                                 )
                             }
                         }
@@ -926,6 +905,7 @@ private fun BrowseFoodCard(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // ── Request 按钮 ──
                 Button(
                     onClick = onClick,
                     modifier = Modifier
