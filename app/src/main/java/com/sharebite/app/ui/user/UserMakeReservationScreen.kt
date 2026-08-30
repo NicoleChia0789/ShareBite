@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,6 +28,7 @@ import coil.compose.AsyncImage
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.data.repository.ReservationRepository
+import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -36,12 +38,15 @@ import java.util.*
 fun UserMakeReservationScreen(
     listingId: Long,
     paddingValues: PaddingValues,
-    onSuccess: () -> Unit
+    onSuccess: (Long) -> Unit  // ✅ 修正：接收 reservationId
 ) {
-    val context = LocalContext.current  // ✅ 添加
+    val context = LocalContext.current
     val foodRepo = remember { FoodListingRepository() }
     val reservationRepo = remember { ReservationRepository() }
     val scope = rememberCoroutineScope()
+
+    // ⚠️ 临时硬编码测试用户 ID，之后换成 CurrentUser.user?.id ?: ""
+    val userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3"
 
     var listing by remember { mutableStateOf<FoodListing?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -51,6 +56,9 @@ fun UserMakeReservationScreen(
 
     var selectedDate by remember { mutableStateOf<String?>(null) }
     var selectedTime by remember { mutableStateOf<String?>(null) }
+
+    var quantity by remember { mutableStateOf(1) }
+    val maxQuantity = listing?.remainingQuantity ?: 5
 
     val dateList = remember {
         val calendar = Calendar.getInstance()
@@ -90,17 +98,19 @@ fun UserMakeReservationScreen(
         scope.launch {
             isSubmitting = true
             try {
-                reservationRepo.createReservation(
-                    userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3",
+                val newReservationId = reservationRepo.createReservationAndGetId(
+                    userId = userId,
                     listingId = listingId,
                     merchantId = listing!!.merchantId ?: "",
                     foodName = listing!!.foodName,
-                    quantity = listing!!.quantity,
+                    quantity = quantity.toString(),
                     pickupDate = selectedDate!!,
                     pickupTime = selectedTime!!,
                     note = note
                 )
-                onSuccess()
+                println("✅ 新创建的 Reservation ID: $newReservationId")
+                isSubmitting = false
+                onSuccess(newReservationId)  // ✅ 传递 ID
             } catch (e: Exception) {
                 errorMessage = e.message
                 isSubmitting = false
@@ -248,7 +258,6 @@ fun UserMakeReservationScreen(
                                         fontWeight = FontWeight.Medium,
                                         color = TextDark
                                     )
-                                    // ✅ 修复：添加 context 引用
                                     Text(
                                         text = "View on Map",
                                         fontSize = 12.sp,
@@ -375,31 +384,76 @@ fun UserMakeReservationScreen(
                             colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
                             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                         ) {
-                            Row(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(14.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(14.dp)
                             ) {
-                                Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Text(
                                         text = "Quantity",
                                         fontSize = 12.sp,
                                         color = TextGrey
                                     )
                                     Text(
-                                        text = "1 Unit",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = TextDark
+                                        text = "Max $maxQuantity units",
+                                        fontSize = 11.sp,
+                                        color = TextGrey
                                     )
                                 }
-                                Text(
-                                    text = "Max limit per reservation",
-                                    fontSize = 11.sp,
-                                    color = TextGrey
-                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(
+                                        onClick = { if (quantity > 1) quantity-- },
+                                        modifier = Modifier.size(40.dp),
+                                        enabled = quantity > 1
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Remove,
+                                            contentDescription = "Decrease",
+                                            tint = if (quantity > 1) OrangeAccent else TextGrey
+                                        )
+                                    }
+
+                                    Text(
+                                        text = quantity.toString(),
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextDark,
+                                        modifier = Modifier.width(50.dp),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+
+                                    IconButton(
+                                        onClick = { if (quantity < maxQuantity) quantity++ },
+                                        modifier = Modifier.size(40.dp),
+                                        enabled = quantity < maxQuantity
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = "Increase",
+                                            tint = if (quantity < maxQuantity) OrangeAccent else TextGrey
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    Text(
+                                        text = "Unit${if (quantity > 1) "s" else ""}",
+                                        fontSize = 14.sp,
+                                        color = TextGrey
+                                    )
+                                }
                             }
                         }
 
@@ -412,6 +466,7 @@ fun UserMakeReservationScreen(
                                 .height(100.dp),
                             label = { Text("Message for Merchant (Optional)", color = TextGrey) },
                             placeholder = { Text("Let the donor know when you'll be arriving...", color = TextGrey) },
+                            textStyle = TextStyle(color = TextDark),
                             shape = RoundedCornerShape(12.dp),
                             maxLines = 3,
                             colors = OutlinedTextFieldDefaults.colors(

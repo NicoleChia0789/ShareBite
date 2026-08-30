@@ -22,7 +22,7 @@ import com.sharebite.app.ui.merchant.MerchantAddDonationScreen
 @Composable
 fun AppNavHost(
     role: String,
-    onLogout: () -> Unit = {}  // ✅ Added logout callback
+    onLogout: () -> Unit = {}  // ✅ 登出回调
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -100,8 +100,8 @@ fun AppNavHost(
                 "charity" -> navController.navigate(SavedItemsRoute.route)
                 else -> {}
             }
-        },
-        onLogoutClick = onLogout  // ✅ Pass logout callback
+        }
+        // ❌ 删除: onLogoutClick = onLogout   （AppScaffold 不需要这个参数）
     ) { paddingValues ->
         NavHost(
             navController = navController,
@@ -180,7 +180,7 @@ fun AppNavHost(
                         onSavedFood = { navController.navigate(UserSavedFoodRoute.route) },
                         onHelpClick = { navController.navigate(UserHelpRoute.route) },
                         onAboutClick = { navController.navigate(AboutRoute.route) },
-                        onLogout = onLogout  // ✅ Pass logout callback
+                        onLogout = onLogout  // ✅ 直接传递
                     )
                     "charity" -> ProfileScreen(
                         paddingValues = paddingValues,
@@ -220,7 +220,7 @@ fun AppNavHost(
                     listingId = listingId,
                     paddingValues = paddingValues,
                     onSuccess = { reservationId ->
-                        println("🚀 Going to detail page，ID = $reservationId")  // 调试
+                        println("🚀 Going to detail page，ID = $reservationId")
                         navController.navigate(UserReservationDetailRoute.createRoute(reservationId)) {
                             popUpTo(UserMakeReservationRoute.createRoute(listingId)) { inclusive = true }
                         }
