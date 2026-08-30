@@ -1,12 +1,14 @@
 package com.sharebite.app.ui.charity
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Restaurant
@@ -16,29 +18,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
-import com.sharebite.app.ui.theme.GreenConfirmed
-import com.sharebite.app.ui.theme.OrangeAccent
-import com.sharebite.app.ui.theme.RedCancelled
-import com.sharebite.app.ui.theme.TextDark
-import com.sharebite.app.ui.theme.TextGrey
-import coil.compose.AsyncImage
-import androidx.compose.ui.layout.ContentScale
+import com.sharebite.app.data.repository.SavedListingRepository
+import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.components.SimpleMapView
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.material.icons.filled.Favorite
+import com.sharebite.app.ui.theme.*
+import kotlinx.coroutines.launch
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.clickable
-import com.sharebite.app.data.repository.SavedListingRepository
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
-import com.sharebite.app.data.session.CurrentUser
+import android.widget.Toast
 
 @Composable
 fun FoodDetailScreen(
@@ -47,16 +42,22 @@ fun FoodDetailScreen(
     onApplyClick: (Long) -> Unit
 ) {
     val repository = remember { FoodListingRepository() }
-
-    val userId = CurrentUser.user?.id ?: ""
+    val savedRepository = remember { SavedListingRepository() }
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     var listing by remember { mutableStateOf<FoodListing?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isSaved by remember { mutableStateOf(false) }
 
     LaunchedEffect(listingId) {
         try {
             listing = repository.getListingById(listingId)
+            // ✅ Check if saved for current user (no userId needed)
+            listing?.let {
+                isSaved = savedRepository.isSaved(it.id)
+            }
         } catch (e: Exception) {
             errorMessage = e.message
         } finally {
@@ -87,20 +88,6 @@ fun FoodDetailScreen(
             }
             else -> {
                 val data = listing!!
-
-                val context = LocalContext.current
-                val savedRepository = remember { SavedListingRepository() }
-                val coroutineScope = rememberCoroutineScope()
-                var isSaved by remember { mutableStateOf(false) }
-
-                // ✅ 改为传递 userId 和 listingId
-                LaunchedEffect(data.id) {
-                    try {
-                        isSaved = savedRepository.isSaved(userId, data.id)
-                    } catch (e: Exception) {
-                        // 静默失败即可，不影响主要功能
-                    }
-                }
 
                 Column(
                     modifier = Modifier
@@ -194,7 +181,7 @@ fun FoodDetailScreen(
                                 color = Color.White.copy(alpha = 0.92f)
                             ) {
                                 Text(
-                                    "${data.address}",
+                                    data.address ?: "",
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                                     fontSize = 10.sp,
                                     color = TextDark,
@@ -338,13 +325,12 @@ fun FoodDetailScreen(
                                 coroutineScope.launch {
                                     try {
                                         if (isSaved) {
-                                            // ✅ 传入 userId 和 listingId
-                                            savedRepository.unsaveListing(userId, data.id)
+                                            // ✅ saveListing() and unsaveListing() already use CurrentUser internally
+                                            savedRepository.unsaveListing(data.id)
                                             isSaved = false
                                             Toast.makeText(context, "Removed from saved.", Toast.LENGTH_SHORT).show()
                                         } else {
-                                            // ✅ 传入 userId 和 listingId
-                                            savedRepository.saveListing(userId, data.id)
+                                            savedRepository.saveListing(data.id)
                                             isSaved = true
                                             Toast.makeText(context, "Saved to your list!", Toast.LENGTH_SHORT).show()
                                         }
@@ -365,8 +351,13 @@ fun FoodDetailScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(if (isSaved) "Saved" else "Save for later", color = if (isSaved) RedCancelled else TextDark, fontSize = 15.sp)
+                            Text(
+                                if (isSaved) "Saved" else "Save for later",
+                                color = if (isSaved) RedCancelled else TextDark,
+                                fontSize = 15.sp
+                            )
                         }
+
                         Spacer(modifier = Modifier.height(20.dp))
 
                         // ---------- IMPACT CARD ----------

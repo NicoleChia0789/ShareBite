@@ -19,29 +19,10 @@ import com.sharebite.app.ui.user.*
 import com.sharebite.app.ui.merchant.*
 import com.sharebite.app.ui.merchant.MerchantAddDonationScreen
 
-
-import com.sharebite.app.ui.navigation.Screen
-import com.sharebite.app.ui.navigation.UserFoodDetailRoute
-import com.sharebite.app.ui.navigation.UserMakeReservationRoute
-import com.sharebite.app.ui.navigation.UserReservationDetailRoute
-import com.sharebite.app.ui.navigation.UserSavedFoodRoute
-import com.sharebite.app.ui.navigation.UserEditProfileRoute
-import com.sharebite.app.ui.navigation.UserHelpRoute
-import com.sharebite.app.ui.navigation.FoodDetailRoute
-import com.sharebite.app.ui.navigation.RequestDetailRoute
-import com.sharebite.app.ui.navigation.PostRequestRoute
-import com.sharebite.app.ui.navigation.ApplyForFoodRoute
-import com.sharebite.app.ui.navigation.EditRequestRoute
-import com.sharebite.app.ui.navigation.NotificationsRoute
-import com.sharebite.app.ui.navigation.SavedItemsRoute
-import com.sharebite.app.ui.navigation.AboutRoute
-
-// ✅ 确保导入你的独立 UserHelpScreen
-// import com.sharebite.app.ui.user.UserHelpScreen  // 已通过 import com.sharebite.app.ui.user.* 包含
-
 @Composable
 fun AppNavHost(
-    role: String
+    role: String,
+    onLogout: () -> Unit = {}  // ✅ Added logout callback
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -112,14 +93,15 @@ fun AppNavHost(
         showBackButton = isDetailScreen,
         onBackClick = { navController.popBackStack() },
         onNotificationClick = { navController.navigate(NotificationsRoute.route) },
-        showSavedButton = role == "user" || role == "charity",  // ✅ User + Charity
+        showSavedButton = role == "user" || role == "charity",
         onSavedFoodClick = {
             when (role) {
-                "user" -> navController.navigate(UserSavedFoodRoute.route)      // User 跳自己的 Saved Food
-                "charity" -> navController.navigate(SavedItemsRoute.route)      // Charity 跳自己的 Saved Items
+                "user" -> navController.navigate(UserSavedFoodRoute.route)
+                "charity" -> navController.navigate(SavedItemsRoute.route)
                 else -> {}
             }
-        }
+        },
+        onLogoutClick = onLogout  // ✅ Pass logout callback
     ) { paddingValues ->
         NavHost(
             navController = navController,
@@ -197,7 +179,7 @@ fun AppNavHost(
                         onSavedFood = { navController.navigate(UserSavedFoodRoute.route) },
                         onHelpClick = { navController.navigate(UserHelpRoute.route) },
                         onAboutClick = { navController.navigate(AboutRoute.route) },
-                        onLogout = { /* 待 Auth 实现 */ }
+                        onLogout = onLogout  // ✅ Pass logout callback
                     )
                     "charity" -> ProfileScreen(
                         paddingValues = paddingValues,
@@ -270,10 +252,6 @@ fun AppNavHost(
                     onSaveSuccess = { navController.popBackStack() }
                 )
             }
-
-            // ══════════════════════════════════════
-            // User Help 路由（调用你的独立文件）
-            // ══════════════════════════════════════
 
             composable(UserHelpRoute.route) {
                 UserHelpScreen(paddingValues = paddingValues)
@@ -365,19 +343,15 @@ fun AppNavHost(
             }
 
             composable(MerchantAddDonationRoute.route) {
-                Text("Add Donation Screen Here", modifier = Modifier.padding(paddingValues))
-            }
-
-            composable(MerchantReservationsRoute.route) {
-                Text("Reservations Screen Here", modifier = Modifier.padding(paddingValues))
-            }
-
-            composable(MerchantAddDonationRoute.route) {
                 MerchantAddDonationScreen(
                     paddingValues = paddingValues,
                     onSaveSuccess = { navController.popBackStack() },
                     onCancel = { navController.popBackStack() }
                 )
+            }
+
+            composable(MerchantReservationsRoute.route) {
+                Text("Reservations Screen Here", modifier = Modifier.padding(paddingValues))
             }
         }
     }

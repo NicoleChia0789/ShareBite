@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.repository.ReservationRepository
+import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -29,7 +30,7 @@ fun UserMyReservationsScreen(
     paddingValues: PaddingValues,
     onViewClick: (Long) -> Unit
 ) {
-    val userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3"
+    val userId = CurrentUser.getUserId()
     val repository = remember { ReservationRepository() }
 
     var allReservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
@@ -42,7 +43,7 @@ fun UserMyReservationsScreen(
 
     LaunchedEffect(Unit) {
         try {
-            allReservations = repository.getUserReservations(userId)
+            allReservations = repository.getMyReservations()
             filteredReservations = allReservations
         } catch (e: Exception) {
             errorMessage = e.message

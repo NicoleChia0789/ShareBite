@@ -20,7 +20,18 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 val bottomNavItems = listOf(Screen.Home, Screen.Browse, Screen.Requests, Screen.Profile)
 
 // ──────────────────────────────────────────────
-// 2. User 特有路由
+// 2. Auth 路由
+// ──────────────────────────────────────────────
+object SignUpRoute {
+    const val route = "sign_up"
+}
+
+object SignInRoute {
+    const val route = "sign_in"
+}
+
+// ──────────────────────────────────────────────
+// 3. User 特有路由
 // ──────────────────────────────────────────────
 object UserFoodDetailRoute {
     const val route = "user_food_detail/{listingId}"
@@ -50,7 +61,7 @@ object UserHelpRoute {
 }
 
 // ──────────────────────────────────────────────
-// 3. Charity 特有路由
+// 4. Charity 特有路由
 // ──────────────────────────────────────────────
 object FoodDetailRoute {
     const val route = "food_detail/{listingId}"
@@ -80,16 +91,15 @@ object AboutRoute {
     const val route = "about"
 }
 
-
 // ──────────────────────────────────────────────
-// 4. 共用路由
+// 5. 共用路由
 // ──────────────────────────────────────────────
 object NotificationsRoute {
     const val route = "notifications"
 }
 
 // ──────────────────────────────────────────────
-// 5. Merchant 特有路由 (请添加到 Screen.kt 最底部)
+// 6. Merchant 特有路由
 // ──────────────────────────────────────────────
 object MerchantDashboardRoute {
     const val route = "merchant_dashboard"

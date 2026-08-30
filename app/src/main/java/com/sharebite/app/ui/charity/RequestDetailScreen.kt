@@ -45,7 +45,7 @@ fun RequestDetailScreen(
 
     LaunchedEffect(requestId) {
         try {
-            request = repository.getRequestById(requestId)
+            request = repository.getMyRequestById(requestId)
         } catch (e: Exception) {
             errorMessage = e.message
         } finally {
@@ -167,10 +167,10 @@ fun RequestDetailScreen(
             onWithdraw = {
                 coroutineScope.launch {
                     try {
-                        repository.withdrawRequest(requestId)
+                        repository.withdrawMyRequest(requestId)
                         showWithdrawDialog = false
                         // 重新载入，让画面显示最新的 Cancelled 状态
-                        request = repository.getRequestById(requestId)
+                        request = repository.getMyRequestById(requestId)
                     } catch (e: Exception) {
                         errorMessage = e.message
                         showWithdrawDialog = false

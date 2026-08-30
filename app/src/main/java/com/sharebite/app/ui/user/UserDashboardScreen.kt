@@ -24,6 +24,7 @@ import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.data.repository.ReservationRepository
+import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 
 @Composable
@@ -33,7 +34,7 @@ fun UserDashboardScreen(
     onFoodClick: (Long) -> Unit,
     onViewAllReservations: () -> Unit
 ) {
-    val userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3"
+    val userId = CurrentUser.getUserId()
     val foodRepo = remember { FoodListingRepository() }
     val reservationRepo = remember { ReservationRepository() }
 
@@ -45,7 +46,7 @@ fun UserDashboardScreen(
     LaunchedEffect(Unit) {
         try {
             nearbyListings = foodRepo.getAvailableListings().take(5)
-            recentReservations = reservationRepo.getUserReservations(userId).take(3)
+            recentReservations = reservationRepo.getMyReservations().take(3)
         } catch (e: Exception) {
             errorMessage = e.message
         } finally {

@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.repository.ReservationRepository
+import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -29,7 +30,7 @@ fun UserReservationDetailScreen(
 ) {
     val repository = remember { ReservationRepository() }
     val scope = rememberCoroutineScope()
-
+    val userId = CurrentUser.getUserId()
     var reservation by remember { mutableStateOf<Reservation?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -38,7 +39,7 @@ fun UserReservationDetailScreen(
 
     LaunchedEffect(reservationId) {
         try {
-            reservation = repository.getReservationById(reservationId)
+            reservation = repository.getMyReservationById(reservationId)
         } catch (e: Exception) {
             errorMessage = e.message
         } finally {
@@ -51,8 +52,8 @@ fun UserReservationDetailScreen(
         scope.launch {
             isCancelling = true
             try {
-                repository.cancelReservation(reservationId)
-                reservation = repository.getReservationById(reservationId)
+                repository.cancelMyReservation(reservationId)
+                reservation = repository.getMyReservationById(reservationId)
                 showCancelDialog = false
             } catch (e: Exception) {
                 errorMessage = e.message

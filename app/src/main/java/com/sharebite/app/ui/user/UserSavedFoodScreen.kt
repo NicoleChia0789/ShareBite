@@ -22,6 +22,7 @@ import coil.compose.AsyncImage
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.data.repository.SavedListingRepository
+import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 
 @Composable
@@ -29,7 +30,7 @@ fun UserSavedFoodScreen(
     paddingValues: PaddingValues,
     onFoodClick: (Long) -> Unit
 ) {
-    val userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3"
+    val userId = CurrentUser.getUserId()
     val savedRepo = remember { SavedListingRepository() }
     val foodRepo = remember { FoodListingRepository() }
 
@@ -39,7 +40,7 @@ fun UserSavedFoodScreen(
 
     LaunchedEffect(Unit) {
         try {
-            val savedIds = savedRepo.getSavedListingIds(userId)
+            val savedIds = savedRepo.getMySavedListingIds()
             savedListings = savedIds.mapNotNull { id ->
                 try { foodRepo.getListingById(id) } catch (e: Exception) { null }
             }

@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.CharityRepository
 import com.sharebite.app.data.repository.FoodListingRepository
+import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -31,14 +32,13 @@ fun ApplyForFoodScreen(
     val charityRepository = remember { CharityRepository() }
     val coroutineScope = rememberCoroutineScope()
 
+    // ✅ Get current user's name (auto-filled, read-only)
+    val organisationName = CurrentUser.getUserName()
+
     var listing by remember { mutableStateOf<FoodListing?>(null) }
     var isLoadingListing by remember { mutableStateOf(true) }
     var loadError by remember { mutableStateOf<String?>(null) }
 
-    // 只有这三项是使用者可以填的（其他都是商家定的固定资料）
-    // ⚠️ organisationName 目前手动填，是因为还没做登入功能；
-    // 之后做完 Auth，这里应该改成自动带入登入者的机构名称，并改为只读显示
-    var organisationName by remember { mutableStateOf("") }
     var peopleServed by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
 
@@ -59,6 +59,7 @@ fun ApplyForFoodScreen(
     fun validateForm(): List<String> {
         val errors = mutableListOf<String>()
         if (organisationName.isBlank()) errors.add("Organisation name")
+        if (peopleServed.isBlank()) errors.add("People served")
         return errors
     }
 
@@ -140,26 +141,30 @@ fun ApplyForFoodScreen(
                     Text("Your Details", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextDark)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "This will be auto-filled from your account once login is added.",
+                        "Auto-filled from your account.",
                         fontSize = 11.sp,
                         color = TextGrey
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // ----- Organisation name（暂时手动填，等 Auth 完成后改为自动带入） -----
+                    // ✅ Organisation name - READ ONLY (auto-filled from CurrentUser)
                     OutlinedTextField(
                         value = organisationName,
-                        onValueChange = { organisationName = it },
+                        onValueChange = { /* Read-only */ },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Organisation name") },
                         placeholder = { Text("e.g. Hope Charity Home") },
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true,
+                        enabled = false, // ✅ Read-only
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = OrangeAccent,
                             unfocusedBorderColor = TextGrey,
                             focusedLabelColor = OrangeAccent,
-                            unfocusedLabelColor = TextGrey
+                            unfocusedLabelColor = TextGrey,
+                            disabledTextColor = TextDark,
+                            disabledBorderColor = TextGrey,
+                            disabledLabelColor = TextGrey
                         )
                     )
 
@@ -223,7 +228,8 @@ fun ApplyForFoodScreen(
                             isSubmitting = true
                             coroutineScope.launch {
                                 try {
-                                    charityRepository.createRequestFromListing(
+                                    // ✅ Use createMyRequestFromListing() with current user
+                                    charityRepository.createMyRequestFromListing(
                                         merchantId = data.merchantId,
                                         listingId = data.id.toString(),
                                         foodName = data.foodName,

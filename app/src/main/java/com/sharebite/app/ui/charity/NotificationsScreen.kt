@@ -55,8 +55,8 @@ fun NotificationsScreen(paddingValues: PaddingValues) {
 
     LaunchedEffect(Unit) {
         try {
-            allRequests = repository.getRequests()
-            dismissedIds = dismissedRepository.getDismissedIds()
+            allRequests = repository.getMyRequests()
+            dismissedIds = dismissedRepository.getMyDismissedIds()
         } catch (e: Exception) {
             errorMessage = e.message
         } finally {

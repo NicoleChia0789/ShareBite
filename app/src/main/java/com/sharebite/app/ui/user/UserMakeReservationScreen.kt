@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.data.repository.ReservationRepository
+import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -36,6 +37,7 @@ fun UserMakeReservationScreen(
     onSuccess: () -> Unit
 ) {
     val foodRepo = remember { FoodListingRepository() }
+    val userId = CurrentUser.getUserId()
     val reservationRepo = remember { ReservationRepository() }
     val scope = rememberCoroutineScope()
 
@@ -86,8 +88,8 @@ fun UserMakeReservationScreen(
         scope.launch {
             isSubmitting = true
             try {
-                reservationRepo.createReservation(
-                    userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3",
+                reservationRepo.createMyReservation(
+
                     listingId = listingId,
                     merchantId = listing!!.merchantId ?: "",
                     foodName = listing!!.foodName,

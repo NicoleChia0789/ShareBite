@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 
 @Composable
@@ -26,8 +27,8 @@ fun UserProfileScreen(
     onAboutClick: () -> Unit,
     onLogout: () -> Unit
 ) {
-    val userName = "Food Lover"
-    val userEmail = "user@example.com"
+    val userName = CurrentUser.getUserName()
+    val userEmail = CurrentUser.getUserEmail()
     val userPhone = "Not set yet"
     val userAddress = "Not set yet"
 

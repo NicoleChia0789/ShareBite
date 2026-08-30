@@ -2,38 +2,15 @@ package com.sharebite.app.data.repository
 
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.remote.SupabaseClient
+import com.sharebite.app.data.session.CurrentUser
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
 
 class ReservationRepository {
 
-    suspend fun createReservation(
-        userId: String,
-        listingId: Long,
-        merchantId: String,
-        foodName: String,
-        quantity: String,
-        pickupDate: String,
-        pickupTime: String,
-        note: String
-    ) {
-        val newReservation = Reservation(
-            userId = userId,
-            listingId = listingId,
-            merchantId = merchantId,
-            foodName = foodName,
-            quantity = quantity,
-            pickupDate = pickupDate,
-            pickupTime = pickupTime,
-            status = "Pending",
-            note = note
-        )
-        SupabaseClient.client.postgrest["reservations"]
-            .insert(newReservation)
-    }
-
-    // ✅ 修改：捕获异常，返回空列表
-    suspend fun getUserReservations(userId: String): List<Reservation> {
+    // ✅ Get reservations for the current user
+    suspend fun getMyReservations(): List<Reservation> {
+        val userId = CurrentUser.getUserId()
         return try {
             SupabaseClient.client.postgrest["reservations"]
                 .select {
@@ -42,16 +19,13 @@ class ReservationRepository {
                 }
                 .decodeList<Reservation>()
         } catch (e: Exception) {
-            // 如果 userId 无效或网络错误，返回空列表
             emptyList()
         }
     }
 
-    // ✅ 修改：捕获异常，返回空列表
-    suspend fun getUserReservationsByStatus(
-        userId: String,
-        status: String
-    ): List<Reservation> {
+    // ✅ Get my reservations by status
+    suspend fun getMyReservationsByStatus(status: String): List<Reservation> {
+        val userId = CurrentUser.getUserId()
         return try {
             SupabaseClient.client.postgrest["reservations"]
                 .select {
@@ -67,12 +41,37 @@ class ReservationRepository {
         }
     }
 
-    // ✅ 修改：捕获异常，返回 null
-    suspend fun getReservationById(id: Long): Reservation? {
+    // ✅ Get counts for user dashboard
+    suspend fun getMyReservationCounts(): Map<String, Int> {
+        val userId = CurrentUser.getUserId()
+        val allReservations = try {
+            SupabaseClient.client.postgrest["reservations"]
+                .select {
+                    filter { eq("user_id", userId) }
+                }
+                .decodeList<Reservation>()
+        } catch (e: Exception) {
+            emptyList()
+        }
+
+        return mapOf(
+            "pending" to allReservations.count { it.status == "Pending" },
+            "confirmed" to allReservations.count { it.status == "Confirmed" },
+            "completed" to allReservations.count { it.status == "Completed" },
+            "cancelled" to allReservations.count { it.status == "Cancelled" }
+        )
+    }
+
+    // ✅ Get single reservation by ID (ensure it belongs to current user)
+    suspend fun getMyReservationById(id: Long): Reservation? {
+        val userId = CurrentUser.getUserId()
         return try {
             SupabaseClient.client.postgrest["reservations"]
                 .select {
-                    filter { eq("id", id) }
+                    filter {
+                        eq("id", id)
+                        eq("user_id", userId)
+                    }
                     limit(1)
                 }
                 .decodeSingle<Reservation>()
@@ -81,11 +80,39 @@ class ReservationRepository {
         }
     }
 
-    suspend fun updatePickupTime(
+    // ✅ Create reservation for current user
+    suspend fun createMyReservation(
+        listingId: Long,
+        merchantId: String,
+        foodName: String,
+        quantity: String,
+        pickupDate: String,
+        pickupTime: String,
+        note: String
+    ) {
+        val userId = CurrentUser.getUserId()
+        val newReservation = Reservation(
+            userId = userId,
+            listingId = listingId,
+            merchantId = merchantId,
+            foodName = foodName,
+            quantity = quantity,
+            pickupDate = pickupDate,
+            pickupTime = pickupTime,
+            status = "Pending",
+            note = note
+        )
+        SupabaseClient.client.postgrest["reservations"]
+            .insert(newReservation)
+    }
+
+    // ✅ Update my pickup time
+    suspend fun updateMyPickupTime(
         reservationId: Long,
         newDate: String,
         newTime: String
     ) {
+        val userId = CurrentUser.getUserId()
         SupabaseClient.client.postgrest["reservations"]
             .update(
                 {
@@ -93,23 +120,36 @@ class ReservationRepository {
                     set("pickup_time", newTime)
                 }
             ) {
-                filter { eq("id", reservationId) }
+                filter {
+                    eq("id", reservationId)
+                    eq("user_id", userId) // ✅ Ensure it belongs to current user
+                }
             }
     }
 
-    suspend fun cancelReservation(reservationId: Long) {
+    // ✅ Cancel my reservation
+    suspend fun cancelMyReservation(reservationId: Long) {
+        val userId = CurrentUser.getUserId()
         SupabaseClient.client.postgrest["reservations"]
             .update(
                 { set("status", "Cancelled") }
             ) {
-                filter { eq("id", reservationId) }
+                filter {
+                    eq("id", reservationId)
+                    eq("user_id", userId) // ✅ Ensure it belongs to current user
+                }
             }
     }
 
-    suspend fun deleteReservation(reservationId: Long) {
+    // ✅ Delete my reservation
+    suspend fun deleteMyReservation(reservationId: Long) {
+        val userId = CurrentUser.getUserId()
         SupabaseClient.client.postgrest["reservations"]
             .delete {
-                filter { eq("id", reservationId) }
+                filter {
+                    eq("id", reservationId)
+                    eq("user_id", userId) // ✅ Ensure it belongs to current user
+                }
             }
     }
 }
