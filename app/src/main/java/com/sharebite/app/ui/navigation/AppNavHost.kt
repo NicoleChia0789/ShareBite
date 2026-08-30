@@ -151,7 +151,8 @@ fun AppNavHost(
                 when (role) {
                     "user" -> UserMyReservationsScreen(
                         paddingValues = paddingValues,
-                        onViewClick = { id -> navController.navigate(UserReservationDetailRoute.createRoute(id)) }
+                        onViewClick = { id -> navController.navigate(UserReservationDetailRoute.createRoute(id)) },
+                        onBrowseClick = { navController.navigate(Screen.Browse.route) }
                     )
                     "charity" -> MyRequestsScreen(
                         paddingValues = paddingValues,

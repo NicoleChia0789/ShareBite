@@ -24,6 +24,7 @@ import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.ui.platform.LocalConfiguration  // ✅ 新增
 
 @Composable
 fun UserMyReservationsScreen(
@@ -33,6 +34,9 @@ fun UserMyReservationsScreen(
 ) {
     val userId = CurrentUser.getUserId()
     val repository = remember { ReservationRepository() }
+    val configuration = LocalConfiguration.current  // ✅ 新增
+    val locale = configuration.locales.get(0)       // ✅ 新增
+
 
     var allReservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
     var filteredReservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
@@ -176,7 +180,8 @@ fun UserMyReservationsScreen(
                 items(filteredReservations) { reservation ->
                     ReservationCard(
                         reservation = reservation,
-                        onViewClick = { onViewClick(reservation.id) }
+                        onViewClick = { onViewClick(reservation.id) },
+                        locale = locale
                     )
                 }
             }
@@ -188,7 +193,8 @@ fun UserMyReservationsScreen(
 @Composable
 private fun ReservationCard(
     reservation: Reservation,
-    onViewClick: () -> Unit
+    onViewClick: () -> Unit,
+    locale: Locale
 ) {
     val statusColor = when (reservation.status) {
         "Confirmed" -> GreenConfirmed
@@ -207,7 +213,7 @@ private fun ReservationCard(
 
     // 判断是否今天取餐
     val isToday = try {
-        val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val format = SimpleDateFormat("yyyy-MM-dd", locale)
         val pickupDate = format.parse(reservation.pickupDate)
         val today = Date()
         pickupDate != null && format.format(pickupDate) == format.format(today)
