@@ -2,6 +2,12 @@ package com.sharebite.app.ui.user
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -26,7 +33,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -34,6 +40,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
+import com.sharebite.app.data.repository.SavedListingRepository
 import com.sharebite.app.ui.theme.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -55,12 +62,15 @@ private val allCategories = listOf("Bakery", "Produce", "Dairy", "Meals", "Veget
 @Composable
 fun UserBrowseScreen(
     paddingValues: PaddingValues,
-    onFoodClick: (Long) -> Unit
+    onFoodClick: (Long) -> Unit,
+    onNotifyMeClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repository = remember { FoodListingRepository() }
-    val configuration = LocalConfiguration.current  // ✅ 修复：使用 LocalConfiguration
+    val savedRepo = remember { SavedListingRepository() }
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
     var allListings by remember { mutableStateOf<List<FoodListing>>(emptyList()) }
     var filteredListings by remember { mutableStateOf<List<FoodListing>>(emptyList()) }
@@ -73,19 +83,36 @@ fun UserBrowseScreen(
     var showFilterSheet by remember { mutableStateOf(false) }
     var filterState by remember { mutableStateOf(FilterState()) }
 
+    var selectedListingForMap by remember { mutableStateOf<FoodListing?>(null) }
+    var showMapBottomSheet by remember { mutableStateOf(false) }
+
+    val userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3"
+
     val defaultLocation = LatLng(3.1390, 101.6869)
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(defaultLocation, 11f)
     }
 
-    // ✅ 删除未使用的 hasLocationPermission
+    fun isFoodExpired(deadline: String): Boolean {
+        return try {
+            val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val deadlineDate = format.parse(deadline)
+            val today = Date()
+            deadlineDate != null && deadlineDate.before(today)
+        } catch (e: Exception) {
+            false
+        }
+    }
 
     LaunchedEffect(Unit) {
         try {
-            allListings = repository.getAvailableListings()
+            val all = repository.getAvailableListings()
+            allListings = all.filter { !isFoodExpired(it.deadline) }
             filteredListings = allListings
+            println("🔍 Browse - 找到 ${allListings.size} 个食物")  // ✅ 加在这里
         } catch (e: Exception) {
             errorMessage = e.message
+            println("🔴 Browse 错误: ${e.message}")
         } finally {
             isLoading = false
         }
@@ -102,7 +129,19 @@ fun UserBrowseScreen(
                 listing.category in filterState.categories
             } else true
 
-            matchesSearch && matchesCategory && matchesFilter
+            // ✅ 距离筛选（真正应用）
+            val matchesDistance = listing.distanceKm <= filterState.distance
+
+            // ✅ 饮食偏好筛选（如果 food_listings 表有 dietary_type 字段）
+            val matchesDietary = when {
+                filterState.isVegetarian -> listing.dietaryType == "Vegetarian"
+                filterState.isVegan -> listing.dietaryType == "Vegan"
+                filterState.isGlutenFree -> listing.dietaryType == "Gluten-Free"
+                filterState.isNutFree -> listing.dietaryType == "Nut-Free"
+                else -> true
+            }
+
+            matchesSearch && matchesCategory && matchesFilter && matchesDistance && matchesDietary
         }
 
         when (filterState.sortBy) {
@@ -116,7 +155,6 @@ fun UserBrowseScreen(
         allListings.map { it.category }.distinct()
     }
 
-    // ✅ 修复：使用 LocalConfiguration 获取当前 Locale
     val currentLocale = configuration.locales.get(0)
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -309,54 +347,216 @@ fun UserBrowseScreen(
                         }
                     }
 
-                    GoogleMap(
-                        modifier = Modifier.fillMaxSize(),
-                        cameraPositionState = cameraPositionState,
-                        uiSettings = MapUiSettings(
-                            zoomControlsEnabled = true,
-                            myLocationButtonEnabled = true
-                        )
-                    ) {
-                        locations.forEach { listing ->
-                            val location = LatLng(listing.latitude!!, listing.longitude!!)
-                            Marker(
-                                state = MarkerState(position = location),
-                                title = listing.foodName,
-                                snippet = "${listing.merchantName} · ${listing.distanceKm}km",
-                                onClick = {
-                                    onFoodClick(listing.id)
-                                    true
-                                }
+                    // ── 地图 + 渐显悬浮卡片 ──
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        GoogleMap(
+                            modifier = Modifier.fillMaxSize(),
+                            cameraPositionState = cameraPositionState,
+                            uiSettings = MapUiSettings(
+                                zoomControlsEnabled = true,
+                                myLocationButtonEnabled = true
                             )
+                        ) {
+                            locations.forEach { listing ->
+                                val location = LatLng(listing.latitude!!, listing.longitude!!)
+                                Marker(
+                                    state = MarkerState(position = location),
+                                    title = listing.foodName,
+                                    snippet = "${listing.merchantName} · ${listing.distanceKm}km",
+                                    onClick = {
+                                        selectedListingForMap = listing
+                                        showMapBottomSheet = true
+                                        true
+                                    }
+                                )
+                            }
+                        }
+
+                        // ✅ 渐显悬浮卡片（地图底部）
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = showMapBottomSheet && selectedListingForMap != null,
+                            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                        ) {
+                            selectedListingForMap?.let { item ->
+                                Surface(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 12.dp)
+                                        .height(120.dp)
+                                        .shadow(8.dp, shape = RoundedCornerShape(16.dp)),
+                                    color = Color.White,
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // 食物图片
+                                        if (!item.photoUrl.isNullOrBlank()) {
+                                            AsyncImage(
+                                                model = item.photoUrl,
+                                                contentDescription = item.foodName,
+                                                modifier = Modifier
+                                                    .size(60.dp)
+                                                    .clip(RoundedCornerShape(8.dp)),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        } else {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(60.dp)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(Color(0xFFEFE6D9)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Fastfood,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(28.dp),
+                                                    tint = Color(0xFFD8C4A8)
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.width(12.dp))
+
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = item.foodName,
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = TextDark
+                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Storefront,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(14.dp),
+                                                    tint = TextGrey
+                                                )
+                                                Text(
+                                                    text = item.merchantName,
+                                                    fontSize = 13.sp,
+                                                    color = TextGrey
+                                                )
+                                            }
+                                            Text(
+                                                text = "${item.distanceKm} km away · ${item.category}",
+                                                fontSize = 12.sp,
+                                                color = OrangeAccent
+                                            )
+                                        }
+
+                                        // View 按钮
+                                        Button(
+                                            onClick = {
+                                                showMapBottomSheet = false
+                                                onFoodClick(item.id)
+                                            },
+                                            modifier = Modifier
+                                                .height(32.dp)
+                                                .padding(horizontal = 8.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                                            shape = RoundedCornerShape(50)
+                                        ) {
+                                            Text(
+                                                text = "View",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                        }
+
+                                        // 关闭按钮
+                                        IconButton(
+                                            onClick = { showMapBottomSheet = false },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Close",
+                                                tint = TextGrey,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
 
-                filteredListings.isEmpty() -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.Fastfood,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = TextGrey
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "No food available", fontSize = 16.sp, color = TextGrey)
-                        Text(text = "Check back later!", fontSize = 14.sp, color = TextGrey)
+                filteredListings.isEmpty() -> {
+                    Box(Modifier.fillMaxSize(), Alignment.Center) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.padding(horizontal = 32.dp)
+                        ) {
+                            Text(text = "🍱", fontSize = 48.sp)
+                            Text(text = "No food available right now", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                            Text(text = "Check back later — merchants usually post in the morning!", fontSize = 14.sp, color = TextGrey, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                            OutlinedButton(
+                                onClick = onNotifyMeClick,
+                                modifier = Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 40.dp),
+                                shape = RoundedCornerShape(50),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, OrangeAccent)
+                            ) {
+                                Text(text = "Notify Me", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = OrangeAccent)
+                            }
+                        }
                     }
                 }
 
-                else -> LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    items(filteredListings) { listing ->
-                        BrowseFoodCard(
-                            listing = listing,
-                            onClick = { onFoodClick(listing.id) },
-                            locale = currentLocale
-                        )
+                else -> {
+                    val columns = if (isLandscape) 2 else 1
+
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        if (columns == 2) {
+                            items(filteredListings.chunked(2)) { rowListings ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    rowListings.forEach { listing ->
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            BrowseFoodCard(
+                                                listing = listing,
+                                                onClick = { onFoodClick(listing.id) },
+                                                locale = currentLocale,
+                                                userId = userId,
+                                                savedRepo = savedRepo
+                                            )
+                                        }
+                                    }
+                                    if (rowListings.size == 1) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
+                        } else {
+                            items(filteredListings) { listing ->
+                                BrowseFoodCard(
+                                    listing = listing,
+                                    onClick = { onFoodClick(listing.id) },
+                                    locale = currentLocale,
+                                    userId = userId,
+                                    savedRepo = savedRepo
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -400,7 +600,7 @@ fun UserBrowseScreen(
     }
 }
 
-// ── ✅ 滚动版 Filter Bottom Sheet ──
+// ── 底部筛选浮层 ──
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FilterBottomSheet(
@@ -411,6 +611,8 @@ private fun FilterBottomSheet(
     val categories = allCategories
     var localFilterState by remember { mutableStateOf(filterState) }
     val scrollState = rememberScrollState()
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -424,14 +626,14 @@ private fun FilterBottomSheet(
                     .height(4.dp)
                     .background(Color(0xFFDDC0B8), RoundedCornerShape(2.dp))
             )
-        }
+        },
+        modifier = Modifier.fillMaxWidth(if (isLandscape) 0.5f else 1f)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.9f)
         ) {
-            // ── Header ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -439,38 +641,19 @@ private fun FilterBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Filter",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextDark
-                )
-                TextButton(
-                    onClick = { localFilterState = FilterState() }
-                ) {
-                    Text(
-                        text = "Reset",
-                        color = OrangeAccent,
-                        fontWeight = FontWeight.Bold
-                    )
+                Text(text = "Filter", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                TextButton(onClick = { localFilterState = FilterState() }) {
+                    Text(text = "Reset", color = OrangeAccent, fontWeight = FontWeight.Bold)
                 }
             }
 
-            // ── 可滚动内容 ──
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(scrollState)
                     .padding(horizontal = 20.dp)
             ) {
-                // Food Categories
-                Text(
-                    text = "Food Categories",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextDark,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+                Text(text = "Food Categories", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextDark, modifier = Modifier.padding(bottom = 8.dp))
 
                 androidx.compose.foundation.layout.FlowRow(
                     modifier = Modifier.fillMaxWidth(),
@@ -504,24 +687,10 @@ private fun FilterBottomSheet(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Distance
-                Text(
-                    text = "Distance",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextDark
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+                Text(text = "Distance", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(text = "0.5 km", fontSize = 12.sp, color = TextGrey)
-                    Text(
-                        text = "${localFilterState.distance} km",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = OrangeAccent
-                    )
+                    Text(text = "${localFilterState.distance} km", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = OrangeAccent)
                     Text(text = "10 km", fontSize = 12.sp, color = TextGrey)
                 }
                 Slider(
@@ -539,14 +708,7 @@ private fun FilterBottomSheet(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Dietary Needs
-                Text(
-                    text = "Dietary Needs",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextDark,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+                Text(text = "Dietary Needs", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextDark, modifier = Modifier.padding(bottom = 8.dp))
 
                 val dietaryOptions = listOf(
                     "Vegetarian" to { localFilterState = localFilterState.copy(isVegetarian = !localFilterState.isVegetarian) },
@@ -557,10 +719,7 @@ private fun FilterBottomSheet(
 
                 dietaryOptions.forEach { (label, onClick) ->
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onClick() }
-                            .padding(vertical = 6.dp),
+                        modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -584,14 +743,7 @@ private fun FilterBottomSheet(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Sort By
-                Text(
-                    text = "Sort By",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextDark,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+                Text(text = "Sort By", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextDark, modifier = Modifier.padding(bottom = 8.dp))
 
                 SortOption(
                     label = "Distance (Closest)",
@@ -609,7 +761,6 @@ private fun FilterBottomSheet(
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // ── 底部固定按钮 ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -624,9 +775,7 @@ private fun FilterBottomSheet(
                     },
                     modifier = Modifier.weight(1f).height(50.dp),
                     shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = OrangeAccent
-                    ),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent),
                     border = androidx.compose.foundation.BorderStroke(1.dp, OrangeAccent)
                 ) {
                     Text(text = "Clear All", fontSize = 14.sp, fontWeight = FontWeight.Bold)
@@ -656,10 +805,7 @@ private fun SortOption(
     onClick: () -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         RadioButton(
@@ -671,44 +817,34 @@ private fun SortOption(
             )
         )
         Column(modifier = Modifier.padding(start = 8.dp)) {
-            Text(
-                text = label,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = if (isSelected) OrangeAccent else TextDark
-            )
-            Text(
-                text = description,
-                fontSize = 12.sp,
-                color = TextGrey,
-                maxLines = 2
-            )
+            Text(text = label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = if (isSelected) OrangeAccent else TextDark)
+            Text(text = description, fontSize = 12.sp, color = TextGrey, maxLines = 2)
         }
     }
 }
 
+// ── 食物卡片 ──
 @Composable
 private fun BrowseFoodCard(
     listing: FoodListing,
     onClick: () -> Unit,
-    locale: Locale
+    locale: Locale,
+    userId: String,
+    savedRepo: SavedListingRepository
 ) {
-    // 计算剩余天数（用于显示 "X days left"）
-    val daysRemaining = remember(listing.deadline, locale) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var isSaved by remember { mutableStateOf(false) }
+
+    LaunchedEffect(listing.id) {
         try {
-            val format = SimpleDateFormat("yyyy-MM-dd", locale)
-            val deadline = format.parse(listing.deadline)
-            val now = Date()
-            if (deadline != null && deadline.after(now)) {
-                val diff = deadline.time - now.time
-                (diff / (1000 * 60 * 60 * 24)).toInt()
-            } else 0
-        } catch (_: Exception) {
-            0
+            isSaved = savedRepo.isSaved(userId, listing.id)
+        } catch (e: Exception) {
+            // 忽略
         }
     }
 
-    // 计算剩余小时（用于显示 "Expires in Xh"）
     val hoursRemaining = remember(listing.deadline, locale) {
         try {
             val format = SimpleDateFormat("yyyy-MM-dd", locale)
@@ -723,6 +859,25 @@ private fun BrowseFoodCard(
         }
     }
 
+    val daysRemaining = remember(listing.deadline, locale) {
+        try {
+            val format = SimpleDateFormat("yyyy-MM-dd", locale)
+            val deadline = format.parse(listing.deadline)
+            val now = Date()
+            if (deadline != null && deadline.after(now)) {
+                val diff = deadline.time - now.time
+                (diff / (1000 * 60 * 60 * 24)).toInt()
+            } else 0
+        } catch (_: Exception) {
+            0
+        }
+    }
+
+    val viewerCount = remember { (2..5).random() }
+
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -732,17 +887,14 @@ private fun BrowseFoodCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            // ── 图片区域（带叠加标签） ──
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // ── 图片区域 ──
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp)
+                    .height(if (isLandscape) 140.dp else 160.dp)
                     .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp))
             ) {
-                // 图片
                 if (!listing.photoUrl.isNullOrBlank()) {
                     AsyncImage(
                         model = listing.photoUrl,
@@ -768,21 +920,23 @@ private fun BrowseFoodCard(
                     }
                 }
 
-                // ── 左上角状态标签 ──
+                // 左上角标签
                 Row(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // "AVAILABLE" 标签
+                    val statusText = if (listing.remainingQuantity <= 2) "LIMITED" else "AVAILABLE"
+                    val statusColor = if (listing.remainingQuantity <= 2) RedCancelled else GreenConfirmed
+
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = GreenConfirmed,
+                        color = statusColor,
                         shadowElevation = 4.dp
                     ) {
                         Text(
-                            text = "AVAILABLE",
+                            text = statusText,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -791,7 +945,6 @@ private fun BrowseFoodCard(
                         )
                     }
 
-                    // 分类标签（如 "BAKERY"）
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = Color(0xFFFF8A65).copy(alpha = 0.9f),
@@ -808,119 +961,187 @@ private fun BrowseFoodCard(
                     }
                 }
 
-                // ── 右上角收藏按钮 ──
+                // 右上角收藏按钮
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(12.dp)
                         .size(36.dp),
                     shape = RoundedCornerShape(50),
-                    color = Color.White.copy(alpha = 0.7f),
+                    color = Color.White.copy(alpha = 0.85f),
                     shadowElevation = 4.dp
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.FavoriteBorder,
-                            contentDescription = "Save",
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        IconButton(
+                            onClick = {
+                                scope.launch {
+                                    try {
+                                        if (isSaved) {
+                                            savedRepo.unsaveListing(userId, listing.id)
+                                            isSaved = false
+                                            Toast.makeText(context, "Removed from saved", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            savedRepo.saveListing(userId, listing.id)
+                                            isSaved = true
+                                            Toast.makeText(context, "Saved!", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = if (isSaved) "Saved" else "Save",
+                                modifier = Modifier.size(18.dp),
+                                tint = if (isSaved) RedCancelled else TextDark
+                            )
+                        }
                     }
                 }
+
+                // 底部渐变
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.5f))
+                            )
+                        )
+                )
             }
 
             // ── 内容区域 ──
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(horizontal = 14.dp)
+                    .padding(top = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // 标题行：食物名称 + 距离 + 到期时间（右上角）
+                // 第一行：食物名称 + 距离 + 到期时间
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Top
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = listing.foodName,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextDark
-                        )
+                    Text(
+                        text = listing.foodName,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextDark,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Storefront,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = TextGrey
-                            )
-                            Text(
-                                text = listing.merchantName,
-                                fontSize = 13.sp,
-                                color = TextGrey
-                            )
-                        }
-                    }
-
-                    // 右侧：距离 + 到期时间（右上角）
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
                             text = "${listing.distanceKm} km away",
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = OrangeAccent
                         )
-
-                        // ── ✅ 智能倒计时：超过 1 天显示天数，否则显示小时 ──
                         when {
-                            daysRemaining >= 1 -> {
-                                Text(
-                                    text = "$daysRemaining day${if (daysRemaining > 1) "s" else ""} left",
-                                    fontSize = 11.sp,
-                                    color = if (daysRemaining <= 2) OrangeAccent else TextGrey
-                                )
+                            hoursRemaining <= 0 -> {
+                                Text(text = "Expired", fontSize = 11.sp, color = RedCancelled)
                             }
-                            hoursRemaining > 0 -> {
+                            hoursRemaining < 24 -> {
                                 Text(
                                     text = "Expires in ${hoursRemaining}h",
                                     fontSize = 11.sp,
-                                    color = if (hoursRemaining <= 3) RedCancelled else TextGrey
+                                    color = if (hoursRemaining < 4) RedCancelled else OrangeAccent
                                 )
                             }
                             else -> {
                                 Text(
-                                    text = "Expired",
+                                    text = "$daysRemaining day${if (daysRemaining > 1) "s" else ""} left",
                                     fontSize = 11.sp,
-                                    color = RedCancelled
+                                    color = TextGrey
                                 )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                // 第二行：商家名
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Storefront,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = TextGrey
+                    )
+                    Text(
+                        text = listing.merchantName,
+                        fontSize = 13.sp,
+                        color = TextGrey,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
 
-                // ── Request 按钮 ──
-                Button(
-                    onClick = onClick,
+                // ── 底部行：头像组 + Request 按钮 ──
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
-                    shape = RoundedCornerShape(50),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+                        .padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Request",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(0.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(28.dp),
+                            shape = RoundedCornerShape(50),
+                            color = GreenConfirmed.copy(alpha = 0.2f),
+                            border = androidx.compose.foundation.BorderStroke(2.dp, Color.White)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(text = "JD", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = GreenConfirmed)
+                            }
+                        }
+                        Surface(
+                            modifier = Modifier.size(28.dp).offset(x = (-4).dp),
+                            shape = RoundedCornerShape(50),
+                            color = OrangeAccent.copy(alpha = 0.2f),
+                            border = androidx.compose.foundation.BorderStroke(2.dp, Color.White)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(text = "AK", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = OrangeAccent)
+                            }
+                        }
+                        Surface(
+                            modifier = Modifier.size(28.dp).offset(x = (-8).dp),
+                            shape = RoundedCornerShape(50),
+                            color = Color(0xFFDDC0B8).copy(alpha = 0.3f),
+                            border = androidx.compose.foundation.BorderStroke(2.dp, Color.White)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(text = "+$viewerCount", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = TextGrey)
+                            }
+                        }
+                    }
+
+                    Button(
+                        onClick = onClick,
+                        modifier = Modifier.height(32.dp).padding(horizontal = 16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                        shape = RoundedCornerShape(50),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+                    ) {
+                        Text(text = "Request", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
                 }
             }
         }

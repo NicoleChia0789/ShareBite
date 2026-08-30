@@ -30,6 +30,26 @@ class ReservationRepository {
         )
         SupabaseClient.client.postgrest["reservations"]
             .insert(newReservation)
+
+        val current = SupabaseClient.client.postgrest["food_listings"]
+            .select {
+                filter { eq("id", listingId) }
+                limit(1)
+            }
+            .decodeList<Map<String, Any>>()
+            .firstOrNull()
+
+        val currentRemaining = (current?.get("remaining_quantity") as? Number)?.toInt() ?: 0
+        val newRemaining = currentRemaining - 1
+
+        SupabaseClient.client.postgrest["food_listings"]
+            .update(
+                {
+                    set("remaining_quantity", newRemaining)
+                }
+            ) {
+                filter { eq("id", listingId) }
+            }
     }
 
     // ✅ 修改：捕获异常，返回空列表

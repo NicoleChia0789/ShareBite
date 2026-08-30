@@ -40,11 +40,13 @@ fun UserSavedFoodScreen(
     LaunchedEffect(Unit) {
         try {
             val savedIds = savedRepo.getSavedListingIds(userId)
+            println("🔍 SavedFood - 找到 ${savedIds.size} 个收藏")  // ✅ 加在这里
             savedListings = savedIds.mapNotNull { id ->
                 try { foodRepo.getListingById(id) } catch (e: Exception) { null }
             }
         } catch (e: Exception) {
             errorMessage = e.message
+            println("🔴 SavedFood 错误: ${e.message}")
         } finally {
             isLoading = false
         }

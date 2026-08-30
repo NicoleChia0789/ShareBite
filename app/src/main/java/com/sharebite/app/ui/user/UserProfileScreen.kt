@@ -8,7 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sharebite.app.data.repository.UserRepository
 import com.sharebite.app.ui.theme.*
 
 @Composable
@@ -26,10 +27,48 @@ fun UserProfileScreen(
     onAboutClick: () -> Unit,
     onLogout: () -> Unit
 ) {
-    val userName = "Food Lover"
-    val userEmail = "user@example.com"
-    val userPhone = "Not set yet"
-    val userAddress = "Not set yet"
+    val userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3"
+    val userRepo = remember { UserRepository() }
+
+    var userName by remember { mutableStateOf("Loading...") }
+    var userEmail by remember { mutableStateOf("") }
+    var userPhone by remember { mutableStateOf("Not set yet") }
+    var userAddress by remember { mutableStateOf("Not set yet") }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val user = userRepo.getUser(userId)
+            if (user != null) {
+                userName = user.name.ifBlank { "User" }
+                userEmail = user.email.ifBlank { "No email" }
+                userPhone = user.phone?.ifBlank { "Not set yet" } ?: "Not set yet"
+                userAddress = user.address?.ifBlank { "Not set yet" } ?: "Not set yet"
+                println("✅ User loaded: $userName, $userEmail")
+            } else {
+                errorMessage = "User not found"
+                println("❌ User not found for ID: $userId")
+            }
+        } catch (e: Exception) {
+            errorMessage = "Failed to load profile: ${e.message}"
+            println("❌ Error loading user: ${e.message}")
+        } finally {
+            isLoading = false
+        }
+    }
+
+    if (isLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = OrangeAccent)
+        }
+        return
+    }
 
     Column(
         modifier = Modifier
@@ -39,6 +78,23 @@ fun UserProfileScreen(
             .padding(horizontal = 16.dp)
     ) {
         Spacer(modifier = Modifier.height(16.dp))
+
+        // ── 显示错误信息 ──
+        if (errorMessage != null) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEDED))
+            ) {
+                Text(
+                    text = "⚠️ $errorMessage",
+                    modifier = Modifier.padding(16.dp),
+                    color = RedCancelled,
+                    fontSize = 14.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -67,6 +123,12 @@ fun UserProfileScreen(
                     text = userEmail,
                     fontSize = 13.sp,
                     color = TextGrey
+                )
+                // ✅ 显示当前使用的 userId（方便调试）
+                Text(
+                    text = "ID: $userId",
+                    fontSize = 10.sp,
+                    color = TextGrey.copy(alpha = 0.5f)
                 )
             }
         }

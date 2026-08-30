@@ -35,9 +35,9 @@ import com.sharebite.app.ui.navigation.EditRequestRoute
 import com.sharebite.app.ui.navigation.NotificationsRoute
 import com.sharebite.app.ui.navigation.SavedItemsRoute
 import com.sharebite.app.ui.navigation.AboutRoute
-
-// ✅ 确保导入你的独立 UserHelpScreen
-// import com.sharebite.app.ui.user.UserHelpScreen  // 已通过 import com.sharebite.app.ui.user.* 包含
+import com.sharebite.app.ui.navigation.MerchantDashboardRoute
+import com.sharebite.app.ui.navigation.MerchantAddDonationRoute
+import com.sharebite.app.ui.navigation.MerchantReservationsRoute
 
 @Composable
 fun AppNavHost(
@@ -112,14 +112,15 @@ fun AppNavHost(
         showBackButton = isDetailScreen,
         onBackClick = { navController.popBackStack() },
         onNotificationClick = { navController.navigate(NotificationsRoute.route) },
-        showSavedButton = role == "user" || role == "charity",  // ✅ User + Charity
+        showSavedButton = role == "user" || role == "charity",
         onSavedFoodClick = {
             when (role) {
-                "user" -> navController.navigate(UserSavedFoodRoute.route)      // User 跳自己的 Saved Food
-                "charity" -> navController.navigate(SavedItemsRoute.route)      // Charity 跳自己的 Saved Items
+                "user" -> navController.navigate(UserSavedFoodRoute.route)
+                "charity" -> navController.navigate(SavedItemsRoute.route)
                 else -> {}
             }
-        }
+        },
+        role = role  // ✅ 关键：传递角色给 AppScaffold
     ) { paddingValues ->
         NavHost(
             navController = navController,
@@ -169,7 +170,8 @@ fun AppNavHost(
                 when (role) {
                     "user" -> UserMyReservationsScreen(
                         paddingValues = paddingValues,
-                        onViewClick = { id -> navController.navigate(UserReservationDetailRoute.createRoute(id)) }
+                        onViewClick = { id -> navController.navigate(UserReservationDetailRoute.createRoute(id)) },
+                        onBrowseClick = { navController.navigate(Screen.Browse.route) }
                     )
                     "charity" -> MyRequestsScreen(
                         paddingValues = paddingValues,
@@ -271,10 +273,6 @@ fun AppNavHost(
                 )
             }
 
-            // ══════════════════════════════════════
-            // User Help 路由（调用你的独立文件）
-            // ══════════════════════════════════════
-
             composable(UserHelpRoute.route) {
                 UserHelpScreen(paddingValues = paddingValues)
             }
@@ -364,13 +362,9 @@ fun AppNavHost(
                 )
             }
 
-            composable(MerchantAddDonationRoute.route) {
-                Text("Add Donation Screen Here", modifier = Modifier.padding(paddingValues))
-            }
-
-            composable(MerchantReservationsRoute.route) {
-                Text("Reservations Screen Here", modifier = Modifier.padding(paddingValues))
-            }
+            // ══════════════════════════════════════
+            // Merchant 特有路由
+            // ══════════════════════════════════════
 
             composable(MerchantAddDonationRoute.route) {
                 MerchantAddDonationScreen(
@@ -378,6 +372,10 @@ fun AppNavHost(
                     onSaveSuccess = { navController.popBackStack() },
                     onCancel = { navController.popBackStack() }
                 )
+            }
+
+            composable(MerchantReservationsRoute.route) {
+                Text("Reservations Screen Here", modifier = Modifier.padding(paddingValues))
             }
         }
     }
