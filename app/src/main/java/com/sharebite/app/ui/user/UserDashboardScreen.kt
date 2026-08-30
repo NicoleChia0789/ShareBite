@@ -26,6 +26,7 @@ import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.data.repository.ReservationRepository
+import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -40,23 +41,25 @@ fun UserDashboardScreen(
     val userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3"
     val foodRepo = remember { FoodListingRepository() }
     val reservationRepo = remember { ReservationRepository() }
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     var nearbyListings by remember { mutableStateOf<List<FoodListing>>(emptyList()) }
     var recentReservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var isDataLoaded by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        try {
-            nearbyListings = foodRepo.getAvailableListings().take(5)
-            recentReservations = reservationRepo.getUserReservations(userId).take(3)
-            println("🔍 Dashboard - ${nearbyListings.size} 个食物, ${recentReservations.size} 条预订")
-        } catch (e: Exception) {
-            errorMessage = e.message
-            println("🔴 Dashboard 错误: ${e.message}")
-        } finally {
+        if (!isDataLoaded) {
+            try {
+                nearbyListings = foodRepo.getAvailableListings().take(5)
+                recentReservations = reservationRepo.getUserReservations(userId).take(3)
+                isDataLoaded = true
+            } catch (e: Exception) {
+                errorMessage = e.message
+            } finally {
+                isLoading = false
+            }
+        } else {
             isLoading = false
         }
     }
@@ -165,7 +168,10 @@ fun UserDashboardScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(nearbyListings) { listing ->
+                items(
+                    items = nearbyListings,
+                    key = { it.id }
+                ) { listing ->
                     FoodListingCard(
                         listing = listing,
                         onClick = { onFoodClick(listing.id) }

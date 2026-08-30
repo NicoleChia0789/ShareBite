@@ -41,22 +41,28 @@ fun UserReservationDetailScreen(
     val scope = rememberCoroutineScope()
 
     var reservation by remember { mutableStateOf<Reservation?>(null) }
+    var foodImage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    var isDataLoaded by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isCancelling by remember { mutableStateOf(false) }
     var showCancelDialog by remember { mutableStateOf(false) }
-    var foodImage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(reservationId) {
         try {
+            isLoading = true
             reservation = repository.getReservationById(reservationId)
-            reservation?.listingId?.let { listingId ->
-                try {
-                    val listing = foodRepo.getListingById(listingId)
-                    foodImage = listing.photoUrl
-                } catch (e: Exception) {
-                    // 忽略
+            if (reservation == null) {
+                errorMessage = "Reservation not found (ID: $reservationId)"
+            } else {
+                // 加载图片
+                reservation?.listingId?.let { listingId ->
+                    try {
+                        val listing = foodRepo.getListingById(listingId)
+                        foodImage = listing.photoUrl
+                    } catch (e: Exception) { /* 忽略 */ }
                 }
+                isDataLoaded = true
             }
         } catch (e: Exception) {
             errorMessage = e.message

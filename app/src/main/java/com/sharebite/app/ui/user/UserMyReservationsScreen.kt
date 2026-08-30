@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.repository.ReservationRepository
+import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -36,20 +37,23 @@ fun UserMyReservationsScreen(
     var allReservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
     var filteredReservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var isDataLoaded by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var selectedStatus by remember { mutableStateOf<String?>(null) }
-
     val statuses = listOf("All", "Pending", "Confirmed", "Completed", "Cancelled")
 
     LaunchedEffect(Unit) {
-        try {
-            allReservations = repository.getUserReservations(userId)
-            filteredReservations = allReservations
-            println("🔍 MyReservations - 找到 ${allReservations.size} 条预订")
-        } catch (e: Exception) {
-            errorMessage = e.message
-            println("🔴 MyReservations 错误: ${e.message}")
-        } finally {
+        if (!isDataLoaded) {
+            try {
+                allReservations = repository.getUserReservations(userId)
+                filteredReservations = allReservations
+                isDataLoaded = true
+            } catch (e: Exception) {
+                errorMessage = e.message
+            } finally {
+                isLoading = false
+            }
+        } else {
             isLoading = false
         }
     }

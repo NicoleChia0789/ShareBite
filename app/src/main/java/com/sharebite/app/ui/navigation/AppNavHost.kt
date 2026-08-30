@@ -238,14 +238,14 @@ fun AppNavHost(
                 UserMakeReservationScreen(
                     listingId = listingId,
                     paddingValues = paddingValues,
-                    onSuccess = {
-                        navController.navigate(Screen.Requests.route) {
-                            popUpTo(Screen.Home.route) { inclusive = true }
+                    onSuccess = { reservationId ->
+                        println("🚀 Going to detail page，ID = $reservationId")  // 调试
+                        navController.navigate(UserReservationDetailRoute.createRoute(reservationId)) {
+                            popUpTo(UserMakeReservationRoute.createRoute(listingId)) { inclusive = true }
                         }
                     }
                 )
             }
-
             composable(
                 route = UserReservationDetailRoute.route,
                 arguments = listOf(navArgument("reservationId") { type = NavType.LongType })
