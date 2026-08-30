@@ -41,6 +41,7 @@ fun UserFoodDetailScreen(
     var listing by remember { mutableStateOf<FoodListing?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isSaved by remember { mutableStateOf(false) }
 
     LaunchedEffect(listingId) {
         try {
@@ -52,7 +53,7 @@ fun UserFoodDetailScreen(
         }
     }
 
-    val remainingHours = remember(listing) {
+    val countdownText = remember(listing?.deadline) {
         listing?.let {
             try {
                 val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -60,288 +61,386 @@ fun UserFoodDetailScreen(
                 val now = Date()
                 if (deadline != null && deadline.after(now)) {
                     val diff = deadline.time - now.time
-                    (diff / (1000 * 60 * 60)).toInt()
-                } else 0
+                    val hours = (diff / (1000 * 60 * 60)).toInt()
+                    val minutes = ((diff % (1000 * 60 * 60)) / (1000 * 60)).toInt()
+                    "${hours}h ${minutes}m"
+                } else "Expired"
             } catch (e: Exception) {
-                0
+                "N/A"
             }
-        } ?: 0
+        } ?: "N/A"
     }
 
+    val viewersCount = remember { (2..5).random() }
+
     when {
-        isLoading -> Box(Modifier.fillMaxSize().padding(paddingValues), Alignment.Center) {
+        isLoading -> Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = OrangeAccent)
         }
 
-        errorMessage != null -> Box(Modifier.fillMaxSize().padding(paddingValues), Alignment.Center) {
+        errorMessage != null -> Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
             Text(text = "Error: $errorMessage", color = RedCancelled)
         }
 
-        listing == null -> Box(Modifier.fillMaxSize().padding(paddingValues), Alignment.Center) {
+        listing == null -> Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
             Text(text = "Food not found", color = TextGrey)
         }
 
         else -> {
             val item = listing!!
 
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(BgCream)
                     .padding(paddingValues)
-                    .verticalScroll(rememberScrollState())
             ) {
-                if (!item.photoUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = item.photoUrl,
-                        contentDescription = item.foodName,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(300.dp)
-                            .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(bottom = 80.dp)
+                ) {
+                    // ── 图片区域 ──
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(250.dp)
-                            .background(Color(0xFFEFE6D9)),
-                        contentAlignment = Alignment.Center
+                            .height(260.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Fastfood,
-                            contentDescription = "Food",
-                            modifier = Modifier.size(64.dp),
-                            tint = Color(0xFFD8C4A8)
-                        )
-                    }
-                }
+                        if (!item.photoUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = item.photoUrl,
+                                contentDescription = item.foodName,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color(0xFFEFE6D9))
+                                    .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Fastfood,
+                                    contentDescription = "Food",
+                                    modifier = Modifier.size(64.dp),
+                                    tint = Color(0xFFD8C4A8)
+                                )
+                            }
+                        }
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(top = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    if (remainingHours > 0 && remainingHours <= 24) {
+                        // ── 右上角收藏按钮 ──
                         Surface(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(16.dp)
+                                .size(44.dp),
+                            shape = RoundedCornerShape(50),
+                            color = Color.White.copy(alpha = 0.85f),
+                            shadowElevation = 4.dp
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                IconButton(
+                                    onClick = { isSaved = !isSaved },
+                                    modifier = Modifier.size(44.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                        contentDescription = if (isSaved) "Saved" else "Save",
+                                        modifier = Modifier.size(24.dp),
+                                        tint = if (isSaved) RedCancelled else TextDark
+                                    )
+                                }
+                            }
+                        }
+
+                        // ── 底部渐变文字覆盖 ──
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(100.dp)
+                                .align(Alignment.BottomCenter)
+                                .background(
+                                    brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
+                                    )
+                                )
+                        )
+
+                        // 食物名称 + 商家名 在图片底部
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(16.dp)
+                        ) {
+                            Text(
+                                text = item.foodName,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Storefront,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = Color.White.copy(alpha = 0.8f)
+                                )
+                                Text(
+                                    text = item.merchantName,
+                                    fontSize = 14.sp,
+                                    color = Color.White.copy(alpha = 0.9f)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        // ── "X people viewing" ──
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "👁",
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = "$viewersCount people viewing this now",
+                                fontSize = 13.sp,
+                                color = TextGrey
+                            )
+                        }
+
+                        // ── 分类 + Status Badge ──
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = NavSelectedBg
+                            ) {
+                                Text(
+                                    text = item.category,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                    fontSize = 12.sp,
+                                    color = OrangeAccent,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = if (item.status == "available") Color(0xFFE3F5E6) else Color(0xFFFFEDED)
+                            ) {
+                                Text(
+                                    text = if (item.status == "available") "Available" else "Not Available",
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                    fontSize = 12.sp,
+                                    color = if (item.status == "available") GreenConfirmed else RedCancelled,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        // ── Countdown Timer ──
+                        Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFFFFEDED)
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (countdownText.contains("Expired")) Color(0xFFFFEDED) else Color(0xFFFFF3E0)
+                            )
                         ) {
                             Row(
-                                modifier = Modifier.padding(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Schedule,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp),
-                                    tint = RedCancelled
+                                    tint = if (countdownText.contains("Expired")) RedCancelled else OrangeAccent
                                 )
-                                Text(
-                                    text = "Expires in $remainingHours hour${if (remainingHours > 1) "s" else ""}",
-                                    fontSize = 14.sp,
-                                    color = RedCancelled,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-
-                    Text(
-                        text = item.foodName,
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextDark
-                    )
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Storefront,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = TextGrey
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = item.merchantName, fontSize = 16.sp, color = TextDark)
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Surface(shape = RoundedCornerShape(50), color = NavSelectedBg) {
-                            Text(
-                                text = item.category,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                                fontSize = 12.sp,
-                                color = OrangeAccent,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = if (item.status == "available") Color(0xFFE3F5E6) else Color(0xFFFFEDED)
-                        ) {
-                            Text(
-                                text = if (item.status == "available") "Available" else "Not Available",
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                                fontSize = 12.sp,
-                                color = if (item.status == "available") GreenConfirmed else RedCancelled,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            InfoRow(Icons.Default.Category, "Quantity", item.quantity.ifBlank { "N/A" })
-                            InfoRow(Icons.Default.DateRange, "Pickup Date", item.pickupDate.ifBlank { "N/A" })
-                            InfoRow(Icons.Default.Schedule, "Deadline", item.deadline.ifBlank { "N/A" })
-                            InfoRow(Icons.Default.LocationOn, "Address", item.address.ifBlank { "N/A" })
-                            if (!item.portionInfo.isNullOrBlank()) {
-                                InfoRow(Icons.Default.Restaurant, "Portion Info", item.portionInfo)
-                            }
-                            if (item.distanceKm > 0) {
-                                InfoRow(Icons.Default.Map, "Distance", "${item.distanceKm} km")
-                            }
-                        }
-                    }
-
-                    if (item.description.isNotBlank()) {
-                        Text(
-                            text = "About this donation",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextDark
-                        )
-                        Text(text = item.description, fontSize = 14.sp, color = TextDark)
-                    }
-
-                    if (!item.notes.isNullOrBlank()) {
-                        Text(
-                            text = "Merchant's Note",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextDark
-                        )
-                        Text(text = item.notes, fontSize = 14.sp, color = TextGrey)
-                    }
-
-                    if (item.latitude != null && item.longitude != null &&
-                        item.latitude != 0.0 && item.longitude != 0.0
-                    ) {
-                        Text(
-                            text = "Pickup Location",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextDark
-                        )
-
-                        val location = LatLng(item.latitude, item.longitude)
-                        val cameraPositionState = rememberCameraPositionState {
-                            position = CameraPosition.fromLatLngZoom(location, 15f)
-                        }
-
-                        GoogleMap(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(180.dp)
-                                .clip(RoundedCornerShape(14.dp)),
-                            cameraPositionState = cameraPositionState,
-                            uiSettings = MapUiSettings(
-                                scrollGesturesEnabled = false,
-                                zoomControlsEnabled = false,
-                                zoomGesturesEnabled = false
-                            )
-                        ) {
-                            Marker(
-                                state = MarkerState(position = location),
-                                title = item.foodName,
-                                snippet = item.address
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Button(
-                            onClick = {
-                                val uri = Uri.parse("google.navigation:q=${item.latitude},${item.longitude}")
-                                val intent = Intent(Intent.ACTION_VIEW, uri).apply {
-                                    setPackage("com.google.android.apps.maps")
-                                }
-                                if (intent.resolveActivity(context.packageManager) != null) {
-                                    context.startActivity(intent)
-                                } else {
-                                    val browserUri = Uri.parse(
-                                        "https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}"
+                                Column {
+                                    Text(
+                                        text = if (countdownText.contains("Expired")) "Expired" else "Time remaining",
+                                        fontSize = 12.sp,
+                                        color = TextGrey
                                     )
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, browserUri))
+                                    Text(
+                                        text = countdownText,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (countdownText.contains("Expired")) RedCancelled else OrangeAccent
+                                    )
                                 }
-                            },
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White,
-                                contentColor = OrangeAccent
-                            ),
-                            shape = RoundedCornerShape(50),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Directions,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "Get Directions", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
-                    }
 
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F8F2))
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.VolunteerActivism,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = GreenConfirmed
+                        // ── 信息卡片 ──
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                InfoRow(Icons.Default.Category, "Quantity", item.quantity.ifBlank { "N/A" })
+                                InfoRow(Icons.Default.DateRange, "Pickup Date", item.pickupDate.ifBlank { "N/A" })
+                                InfoRow(Icons.Default.Schedule, "Deadline", item.deadline.ifBlank { "N/A" })
+                                InfoRow(Icons.Default.LocationOn, "Address", item.address.ifBlank { "N/A" })
+                                if (!item.portionInfo.isNullOrBlank()) {
+                                    InfoRow(Icons.Default.Restaurant, "Portion Info", item.portionInfo)
+                                }
+                                if (item.distanceKm > 0) {
+                                    InfoRow(Icons.Default.Map, "Distance", "${item.distanceKm} km")
+                                }
+                            }
+                        }
+
+                        if (item.description.isNotBlank()) {
+                            Text(
+                                text = "About this donation",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextDark
+                            )
+                            Text(text = item.description, fontSize = 14.sp, color = TextDark)
+                        }
+
+                        // ── 商家备注（带左边框） ──
+                        if (!item.notes.isNullOrBlank()) {
+                            Text(
+                                text = "Merchant's Note",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextDark
+                            )
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFFFFF8EE),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    4.dp,
+                                    OrangeAccent
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                            ) {
                                 Text(
-                                    text = "Every request helps reduce food waste",
+                                    text = item.notes,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
                                     fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
                                     color = TextDark
                                 )
                             }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "By picking up this donation, you're supporting your community and the planet.",
-                                fontSize = 12.sp,
-                                color = TextGrey
-                            )
                         }
+
+                        // ── Map ──
+                        if (item.latitude != null && item.longitude != null &&
+                            item.latitude != 0.0 && item.longitude != 0.0
+                        ) {
+                            Text(
+                                text = "Pickup Location",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextDark
+                            )
+
+                            val location = LatLng(item.latitude, item.longitude)
+                            val cameraPositionState = rememberCameraPositionState {
+                                position = CameraPosition.fromLatLngZoom(location, 15f)
+                            }
+
+                            GoogleMap(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(180.dp)
+                                    .clip(RoundedCornerShape(14.dp)),
+                                cameraPositionState = cameraPositionState,
+                                uiSettings = MapUiSettings(
+                                    scrollGesturesEnabled = false,
+                                    zoomControlsEnabled = false,
+                                    zoomGesturesEnabled = false
+                                )
+                            ) {
+                                Marker(
+                                    state = MarkerState(position = location),
+                                    title = item.foodName,
+                                    snippet = item.address
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            OutlinedButton(
+                                onClick = {
+                                    val uri = Uri.parse("google.navigation:q=${item.latitude},${item.longitude}")
+                                    val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                                        setPackage("com.google.android.apps.maps")
+                                    }
+                                    if (intent.resolveActivity(context.packageManager) != null) {
+                                        context.startActivity(intent)
+                                    } else {
+                                        val browserUri = Uri.parse(
+                                            "https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}"
+                                        )
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, browserUri))
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = OrangeAccent
+                                ),
+                                shape = RoundedCornerShape(50)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Directions,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = "Get Directions", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
+                // ── 底部固定 Reserve 按钮 ──
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth(),
+                    color = BgCream,
+                    shadowElevation = 8.dp
+                ) {
                     Button(
                         onClick = { onReserveClick(listingId) },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .height(56.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = OrangeAccent,
                             contentColor = Color.White
@@ -352,12 +451,10 @@ fun UserFoodDetailScreen(
                     ) {
                         Text(
                             text = if (item.status == "available") "Reserve Now" else "Not Available",
-                            fontSize = 17.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -365,11 +462,7 @@ fun UserFoodDetailScreen(
 }
 
 @Composable
-private fun InfoRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    value: String
-) {
+private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -381,7 +474,17 @@ private fun InfoRow(
             tint = TextGrey
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Text(text = label, fontSize = 13.sp, color = TextGrey, modifier = Modifier.width(100.dp))
-        Text(text = value, fontSize = 13.sp, color = TextDark, fontWeight = FontWeight.Medium)
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            color = TextGrey,
+            modifier = Modifier.width(100.dp)
+        )
+        Text(
+            text = value,
+            fontSize = 13.sp,
+            color = TextDark,
+            fontWeight = FontWeight.Medium
+        )
     }
 }

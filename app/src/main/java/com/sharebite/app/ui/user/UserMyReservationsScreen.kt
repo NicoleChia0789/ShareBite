@@ -28,7 +28,8 @@ import java.util.*
 @Composable
 fun UserMyReservationsScreen(
     paddingValues: PaddingValues,
-    onViewClick: (Long) -> Unit
+    onViewClick: (Long) -> Unit,
+    onBrowseClick: () -> Unit = {}
 ) {
     val userId = CurrentUser.getUserId()
     val repository = remember { ReservationRepository() }
@@ -45,8 +46,10 @@ fun UserMyReservationsScreen(
         try {
             allReservations = repository.getMyReservations()
             filteredReservations = allReservations
+            println("🔍 MyReservations - 找到 ${allReservations.size} 条预订")
         } catch (e: Exception) {
             errorMessage = e.message
+            println("🔴 MyReservations 错误: ${e.message}")
         } finally {
             isLoading = false
         }
@@ -60,29 +63,28 @@ fun UserMyReservationsScreen(
         }
     }
 
-    fun formatDate(dateStr: String): String {
-        return try {
-            val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            val date = format.parse(dateStr)
-            if (date != null) {
-                SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(date)
-            } else dateStr
-        } catch (e: Exception) {
-            dateStr
-        }
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(BgCream)
             .padding(paddingValues)
     ) {
+        // ── 标题 ──
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Text("My Reservations", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextDark)
-            Text("Track and manage your community food pickups.", fontSize = 13.sp, color = TextGrey)
+            Text(
+                text = "My Reservations",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextDark
+            )
+            Text(
+                text = "Track and manage your community food pickups.",
+                fontSize = 13.sp,
+                color = TextGrey
+            )
         }
 
+        // ── ✅ 横向可滚动的 pill 样式 Filter Tabs ──
         LazyRow(
             modifier = Modifier.padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -97,7 +99,7 @@ fun UserMyReservationsScreen(
                     onClick = {
                         selectedStatus = if (status == "All") null else status
                     },
-                    label = { Text(status, fontSize = 13.sp) },
+                    label = { Text(text = status, fontSize = 13.sp) },
                     selected = isSelected,
                     shape = RoundedCornerShape(50),
                     colors = FilterChipDefaults.filterChipColors(
@@ -112,26 +114,57 @@ fun UserMyReservationsScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // ── Content ──
         when {
             isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) {
                 CircularProgressIndicator(color = OrangeAccent)
             }
 
             errorMessage != null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                Text("Error: $errorMessage", color = RedCancelled)
+                Text(text = "Error: $errorMessage", color = RedCancelled)
             }
 
-            filteredReservations.isEmpty() -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.Assignment,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = TextGrey
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("No reservations", fontSize = 16.sp, color = TextGrey)
-                    Text("Start browsing food!", fontSize = 14.sp, color = TextGrey)
+            filteredReservations.isEmpty() -> {
+                // ── ✅ 空状态：emoji + 提示文字 + Browse Food 按钮 ──
+                Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.padding(horizontal = 32.dp)
+                    ) {
+                        Text(
+                            text = "📋",
+                            fontSize = 48.sp
+                        )
+                        Text(
+                            text = "No reservations yet",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextDark
+                        )
+                        Text(
+                            text = "Start browsing food to make your first reservation!",
+                            fontSize = 14.sp,
+                            color = TextGrey,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Button(
+                            onClick = onBrowseClick,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .padding(horizontal = 40.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                            shape = RoundedCornerShape(50)
+                        ) {
+                            Text(
+                                text = "Browse Food",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
                 }
             }
 
@@ -143,7 +176,7 @@ fun UserMyReservationsScreen(
                 items(filteredReservations) { reservation ->
                     ReservationCard(
                         reservation = reservation,
-                        onClick = { onViewClick(reservation.id) }
+                        onViewClick = { onViewClick(reservation.id) }
                     )
                 }
             }
@@ -151,10 +184,11 @@ fun UserMyReservationsScreen(
     }
 }
 
+// ── ✅ 卡片：左边信息，右边只保留 View 按钮 ──
 @Composable
 private fun ReservationCard(
     reservation: Reservation,
-    onClick: () -> Unit
+    onViewClick: () -> Unit
 ) {
     val statusColor = when (reservation.status) {
         "Confirmed" -> GreenConfirmed
@@ -171,6 +205,7 @@ private fun ReservationCard(
         else -> Color(0xFFEEEEEE)
     }
 
+    // 判断是否今天取餐
     val isToday = try {
         val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val pickupDate = format.parse(reservation.pickupDate)
@@ -180,6 +215,7 @@ private fun ReservationCard(
         false
     }
 
+    // 状态描述文字
     val statusHeadline = when {
         reservation.status == "Pending" && isToday -> "PICK UP TODAY"
         reservation.status == "Pending" -> "REQUESTED"
@@ -193,126 +229,80 @@ private fun ReservationCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable { onViewClick() },
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // ── 左侧信息 ──
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(
-                    statusHeadline,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (reservation.status == "Cancelled") TextGrey else OrangeAccent
-                )
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = statusBg
+                // 状态行
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        reservation.status,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        text = statusHeadline,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = statusColor
+                        color = if (reservation.status == "Cancelled") TextGrey else OrangeAccent
                     )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                "${reservation.foodName} × ${reservation.quantity}",
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextDark
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                "${reservation.pickupDate} · ${reservation.pickupTime}",
-                fontSize = 13.sp,
-                color = TextGrey
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Divider(color = Color(0xFFDDC0B8).copy(alpha = 0.3f))
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = if (reservation.status == "Pending") {
-                    Arrangement.SpaceBetween
-                } else {
-                    Arrangement.Start
-                },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { onClick() }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Visibility,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = OrangeAccent
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("View", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = OrangeAccent)
-                }
-
-                if (reservation.status == "Pending") {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = Color.Transparent,
-                            modifier = Modifier.clickable { /* onEditClick */ }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = GreenConfirmed
-                                )
-                                Spacer(modifier = Modifier.width(2.dp))
-                                Text("Edit", fontSize = 12.sp, color = GreenConfirmed)
-                            }
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = Color.Transparent,
-                            modifier = Modifier.clickable { /* onWithdrawClick */ }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = RedCancelled
-                                )
-                                Spacer(modifier = Modifier.width(2.dp))
-                                Text("Withdraw", fontSize = 12.sp, color = RedCancelled)
-                            }
-                        }
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = statusBg
+                    ) {
+                        Text(
+                            text = reservation.status,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = statusColor
+                        )
                     }
                 }
+
+                // 食物名称 + 数量
+                Text(
+                    text = "${reservation.foodName} × ${reservation.quantity}",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextDark
+                )
+
+                // 取餐日期时间
+                Text(
+                    text = "${reservation.pickupDate} · ${reservation.pickupTime}",
+                    fontSize = 13.sp,
+                    color = TextGrey
+                )
+            }
+
+            // ── ✅ 右侧只保留 View 按钮（pill 形状，大小合理） ──
+            Button(
+                onClick = onViewClick,
+                modifier = Modifier
+                    .height(36.dp)
+                    .padding(start = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                shape = RoundedCornerShape(50)
+            ) {
+                Text(
+                    text = "View",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
             }
         }
     }

@@ -1,5 +1,7 @@
 package com.sharebite.app.ui.user
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,18 +11,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Fastfood
-import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.data.repository.ReservationRepository
@@ -36,6 +39,7 @@ fun UserMakeReservationScreen(
     paddingValues: PaddingValues,
     onSuccess: () -> Unit
 ) {
+    val context = LocalContext.current  // ✅ 添加
     val foodRepo = remember { FoodListingRepository() }
     val userId = CurrentUser.getUserId()
     val reservationRepo = remember { ReservationRepository() }
@@ -118,49 +122,72 @@ fun UserMakeReservationScreen(
         else -> {
             val item = listing!!
 
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(BgCream)
                     .padding(paddingValues)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    "Make Reservation",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextDark
-                )
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(bottom = 80.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    // ── 顶部食物图片 ──
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
                     ) {
+                        if (!item.photoUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = item.photoUrl,
+                                contentDescription = item.foodName,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color(0xFFEFE6D9))
+                                    .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Fastfood,
+                                    contentDescription = "Food",
+                                    modifier = Modifier.size(48.dp),
+                                    tint = Color(0xFFD8C4A8)
+                                )
+                            }
+                        }
+
                         Box(
                             modifier = Modifier
-                                .size(56.dp)
-                                .background(OrangeAccent.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .height(100.dp)
+                                .align(Alignment.BottomCenter)
+                                .background(
+                                    brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
+                                    )
+                                )
+                        )
+
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(16.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Fastfood,
-                                contentDescription = null,
-                                modifier = Modifier.size(28.dp),
-                                tint = OrangeAccent
+                            Text(
+                                text = item.foodName,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
                             )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(item.foodName, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextDark)
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -169,129 +196,278 @@ fun UserMakeReservationScreen(
                                     imageVector = Icons.Default.Storefront,
                                     contentDescription = null,
                                     modifier = Modifier.size(14.dp),
-                                    tint = TextGrey
+                                    tint = Color.White.copy(alpha = 0.8f)
                                 )
-                                Text(item.merchantName, fontSize = 13.sp, color = TextGrey)
+                                Text(
+                                    text = item.merchantName,
+                                    fontSize = 13.sp,
+                                    color = Color.White.copy(alpha = 0.9f)
+                                )
                             }
                         }
                     }
-                }
 
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Select Date", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        items(dateList) { (dateStr, displayStr, dayOfWeek) ->
-                            val isSelected = dateStr == selectedDate
-                            Card(
+                        // ── 取餐地址卡片 ──
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
+                        ) {
+                            Row(
                                 modifier = Modifier
-                                    .width(68.dp)
-                                    .clickable { selectedDate = dateStr },
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (isSelected) OrangeAccent else Color.White
-                                ),
-                                elevation = CardDefaults.cardElevation(
-                                    defaultElevation = if (isSelected) 4.dp else 1.dp
-                                )
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(
+                                Box(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 10.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                                        .size(40.dp)
+                                        .background(OrangeAccent.copy(alpha = 0.15f), RoundedCornerShape(10.dp)),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        dayOfWeek,
-                                        fontSize = 11.sp,
-                                        color = if (isSelected) Color.White.copy(alpha = 0.8f) else TextGrey,
-                                        fontWeight = FontWeight.Medium
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = null,
+                                        tint = OrangeAccent,
+                                        modifier = Modifier.size(20.dp)
                                     )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
                                     Text(
-                                        displayStr.split(" ").last(),
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) Color.White else TextDark
+                                        text = item.address.ifBlank { "Address not available" },
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = TextDark
+                                    )
+                                    // ✅ 修复：添加 context 引用
+                                    Text(
+                                        text = "View on Map",
+                                        fontSize = 12.sp,
+                                        color = OrangeAccent,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.clickable {
+                                            val uri = Uri.parse("geo:0,0?q=${Uri.encode(item.address)}")
+                                            val intent = Intent(Intent.ACTION_VIEW, uri)
+                                            context.startActivity(intent)
+                                        }
                                     )
                                 }
                             }
                         }
-                    }
-                }
 
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Available Times", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(timeSlots) { time ->
-                            val isSelected = time == selectedTime
-                            Card(
-                                modifier = Modifier
-                                    .clickable { selectedTime = time },
-                                shape = RoundedCornerShape(50),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (isSelected) OrangeAccent else Color.White
-                                ),
-                                border = if (!isSelected)
-                                    androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDDC0B8))
-                                else null,
-                                elevation = CardDefaults.cardElevation(
-                                    defaultElevation = if (isSelected) 4.dp else 1.dp
-                                )
+                        // ── 日期选择 ──
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "Select Date",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextDark
+                            )
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
+                                items(dateList) { (dateStr, displayStr, dayOfWeek) ->
+                                    val isSelected = dateStr == selectedDate
+                                    Card(
+                                        modifier = Modifier
+                                            .width(68.dp)
+                                            .clickable { selectedDate = dateStr },
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isSelected) OrangeAccent else Color.White
+                                        ),
+                                        elevation = CardDefaults.cardElevation(
+                                            defaultElevation = if (isSelected) 4.dp else 1.dp
+                                        )
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 10.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text(
+                                                dayOfWeek,
+                                                fontSize = 11.sp,
+                                                color = if (isSelected) Color.White.copy(alpha = 0.8f) else TextGrey,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                            Text(
+                                                displayStr.split(" ").last(),
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isSelected) Color.White else TextDark
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // ── 时间槽 ──
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "Available Times",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextDark
+                            )
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                timeSlots.chunked(2).forEach { rowSlots ->
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        rowSlots.forEach { time ->
+                                            val isSelected = time == selectedTime
+                                            Card(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .clickable { selectedTime = time },
+                                                shape = RoundedCornerShape(50),
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = if (isSelected) OrangeAccent else Color.White
+                                                ),
+                                                border = if (!isSelected)
+                                                    androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDDC0B8))
+                                                else null,
+                                                elevation = CardDefaults.cardElevation(
+                                                    defaultElevation = if (isSelected) 4.dp else 1.dp
+                                                )
+                                            ) {
+                                                Text(
+                                                    time,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                                    fontSize = 13.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                    color = if (isSelected) Color.White else TextDark,
+                                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                                )
+                                            }
+                                        }
+                                        if (rowSlots.size == 1) {
+                                            Spacer(modifier = Modifier.weight(1f))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // ── 数量选择 ──
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "Quantity",
+                                        fontSize = 12.sp,
+                                        color = TextGrey
+                                    )
+                                    Text(
+                                        text = "1 Unit",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextDark
+                                    )
+                                }
                                 Text(
-                                    time,
-                                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
-                                    fontSize = 13.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) Color.White else TextDark
+                                    text = "Max limit per reservation",
+                                    fontSize = 11.sp,
+                                    color = TextGrey
                                 )
                             }
                         }
+
+                        // ── 备注输入框 ──
+                        OutlinedTextField(
+                            value = note,
+                            onValueChange = { note = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(100.dp),
+                            label = { Text("Message for Merchant (Optional)", color = TextGrey) },
+                            placeholder = { Text("Let the donor know when you'll be arriving...", color = TextGrey) },
+                            shape = RoundedCornerShape(12.dp),
+                            maxLines = 3,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = OrangeAccent,
+                                unfocusedBorderColor = Color(0xFFDDC0B8)
+                            )
+                        )
+
+                        if (errorMessage != null) {
+                            Text(
+                                text = "Error: $errorMessage",
+                                color = RedCancelled,
+                                fontSize = 14.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
 
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it },
+                // ── 底部固定 Confirm 按钮 ──
+                Surface(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp),
-                    label = { Text("Message for Merchant (Optional)", color = TextGrey) },
-                    placeholder = { Text("Let the donor know when you'll be arriving...", color = TextGrey) },
-                    shape = RoundedCornerShape(12.dp),
-                    maxLines = 3,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OrangeAccent,
-                        unfocusedBorderColor = Color(0xFFDDC0B8)
-                    )
-                )
-
-                if (errorMessage != null) {
-                    Text("Error: $errorMessage", color = RedCancelled, fontSize = 14.sp)
-                }
-
-                Button(
-                    onClick = { submitReservation() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = OrangeAccent,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(50),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
-                    enabled = !isSubmitting && selectedDate != null && selectedTime != null
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth(),
+                    color = BgCream,
+                    shadowElevation = 8.dp
                 ) {
-                    if (isSubmitting) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                    } else {
-                        Text("Confirm", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Button(
+                        onClick = { submitReservation() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .height(56.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = OrangeAccent,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(50),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
+                        enabled = !isSubmitting && selectedDate != null && selectedTime != null
+                    ) {
+                        if (isSubmitting) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        } else {
+                            Text(
+                                text = "Confirm",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
