@@ -52,13 +52,11 @@ fun MyRequestsScreen(
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var selectedStatus by remember { mutableStateOf("All") }
-
-    // 新增：控制 Withdraw 弹窗的显示，记录目前要撤回哪一笔（null 代表不显示）
     var withdrawTargetId by remember { mutableStateOf<Long?>(null) }
 
     suspend fun loadRequests() {
         try {
-            allRequests = repository.getRequests()
+            allRequests = repository.getMyRequests()
         } catch (e: Exception) {
             errorMessage = e.message
         } finally {
@@ -83,7 +81,6 @@ fun MyRequestsScreen(
                 .background(BgCream)
                 .padding(paddingValues)
         ) {
-            // 标题
             Text(
                 "Track and manage your community food requests.",
                 fontSize = 13.sp,
@@ -93,7 +90,6 @@ fun MyRequestsScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 状态筛选标签
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -113,26 +109,22 @@ fun MyRequestsScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 列表内容
             when {
                 isLoading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = OrangeAccent)
                     }
                 }
-
                 errorMessage != null -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("Error: $errorMessage", color = RedCancelled)
                     }
                 }
-
                 filteredRequests.isEmpty() -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("No requests found.", color = TextGrey)
                     }
                 }
-
                 else -> {
                     LazyColumn(
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
@@ -202,7 +194,6 @@ fun MyRequestsScreen(
         ) {
             Icon(Icons.Default.Add, contentDescription = "Create Food Request")
         }
-
     }
 
     // ---------- WITHDRAW 确认弹窗 ----------
@@ -212,9 +203,10 @@ fun MyRequestsScreen(
             onWithdraw = {
                 coroutineScope.launch {
                     try {
-                        repository.withdrawRequest(targetId)
+                        // ✅ FIX: Use withdrawMyRequest() instead of withdrawRequest()
+                        repository.withdrawMyRequest(targetId)
                         withdrawTargetId = null
-                        loadRequests() // 撤回成功后重新载入列表，立刻反映最新状态
+                        loadRequests()
                     } catch (e: Exception) {
                         errorMessage = e.message
                         withdrawTargetId = null
@@ -231,16 +223,14 @@ private fun RequestCard(
     onViewClick: () -> Unit,
     onEditClick: () -> Unit,
     onWithdrawClick: () -> Unit,
-    onGetDirections: () -> Unit,        // 新增：Confirmed 专用
-    onRequestAgain: () -> Unit          // 新增：Completed 专用
+    onGetDirections: () -> Unit,
+    onRequestAgain: () -> Unit
 ) {
-    // ----- 根据状态决定显示内容 -----
     val isPending = request.status == "Pending"
     val isConfirmed = request.status == "Confirmed"
     val isCompleted = request.status == "Completed"
     val isCancelled = request.status == "Cancelled"
 
-    // 顶部状态描述文字（完全照搬图片里的）
     val statusHeadline = when (request.status) {
         "Pending", "Confirmed" -> {
             if (request.pickupDate == getTodayDateString()) {
@@ -254,7 +244,6 @@ private fun RequestCard(
         else -> ""
     }
 
-    // 状态标签颜色和背景
     val (statusColor, statusBgColor) = when (request.status) {
         "Pending" -> Color(0xFFE65100) to Color(0xFFFFF3E0)
         "Confirmed" -> GreenConfirmed to Color(0xFFE8F5E9)
@@ -276,7 +265,6 @@ private fun RequestCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // ----- 顶部行：状态描述 + 状态标签 -----
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -288,7 +276,6 @@ private fun RequestCard(
                     fontWeight = FontWeight.Bold,
                     color = statusColor
                 )
-                // 状态标签（小圆角矩形）
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = statusBgColor
@@ -305,7 +292,6 @@ private fun RequestCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ----- 食物名称 + 数量 -----
             Text(
                 text = "${request.foodName} × ${formatWithThousandSeparator(request.quantity)}",
                 fontSize = 18.sp,
@@ -315,14 +301,12 @@ private fun RequestCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // ----- 商家名称（地址暂时用 OrganisationName）-----
             Text(
                 text = request.organisationName,
                 fontSize = 14.sp,
                 color = TextGrey
             )
 
-            // ----- 新增：日期和时间 -----
             Text(
                 text = "${request.pickupDate} · ${request.pickupTime}",
                 fontSize = 13.sp,
@@ -331,7 +315,6 @@ private fun RequestCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ----- 分割线 -----
             Divider(
                 color = Color(0xFFE8E2D8),
                 thickness = 1.dp,
@@ -340,10 +323,8 @@ private fun RequestCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // ----- 底部操作按钮（根据状态不同）-----
             when {
                 isPending -> {
-                    // Pending：View（左）+ Edit + Withdraw（右）
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -366,7 +347,6 @@ private fun RequestCard(
                     }
                 }
                 isConfirmed -> {
-                    // Confirmed：View（左）+ Get Directions（右）
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -390,7 +370,6 @@ private fun RequestCard(
                     }
                 }
                 isCompleted -> {
-                    // Completed：View（左）+ Request Again（右）
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -414,7 +393,6 @@ private fun RequestCard(
                     }
                 }
                 isCancelled -> {
-                    // Cancelled：View（左）+ 灰色提示（右）
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -431,7 +409,6 @@ private fun RequestCard(
                 }
                 else -> {}
             }
-
         }
     }
 }

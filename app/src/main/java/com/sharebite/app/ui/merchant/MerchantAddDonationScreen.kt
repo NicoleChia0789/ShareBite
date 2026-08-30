@@ -4,24 +4,28 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.sharebite.app.ui.theme.BgCream
 import com.sharebite.app.ui.theme.OrangeAccent
+import androidx.compose.foundation.layout.PaddingValues
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MerchantAddDonationScreen(
     paddingValues: PaddingValues,
-    onSaveSuccess: () -> Unit,
-    onCancel: () -> Unit,
-    viewModel: MerchantViewModel   // no default: must be passed in from AppNavHost (shared instance)
+    onSaveSuccess: () -> Unit, // Callback to go back after saving
+    onCancel: () -> Unit // Callback to go back without saving
 ) {
+    // State for the form inputs
     var foodName by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("") }
     var quantity by remember { mutableStateOf("") }
@@ -37,6 +41,7 @@ fun MerchantAddDonationScreen(
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
+        // Title
         Text(
             text = "Add New Donation",
             style = MaterialTheme.typography.headlineSmall,
@@ -46,6 +51,7 @@ fun MerchantAddDonationScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Food Name Input
         OutlinedTextField(
             value = foodName,
             onValueChange = { foodName = it },
@@ -58,6 +64,7 @@ fun MerchantAddDonationScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // Category Input
         OutlinedTextField(
             value = category,
             onValueChange = { category = it },
@@ -70,6 +77,7 @@ fun MerchantAddDonationScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // Quantity Input (Keyboard Type Number)
         OutlinedTextField(
             value = quantity,
             onValueChange = { quantity = it },
@@ -77,11 +85,13 @@ fun MerchantAddDonationScreen(
             placeholder = { Text("Enter amount") },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            singleLine = true
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // Date & Time Inputs (Using simple text fields for now, will replace with DatePicker later)
         Row(modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
                 value = pickupDate,
@@ -106,6 +116,7 @@ fun MerchantAddDonationScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // Notes Input
         OutlinedTextField(
             value = notes,
             onValueChange = { notes = it },
@@ -118,17 +129,11 @@ fun MerchantAddDonationScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        // Save Button
         Button(
             onClick = {
-                viewModel.addDonation(
-                    foodName = foodName,
-                    category = category,
-                    quantity = quantity,
-                    pickupDate = pickupDate,
-                    pickupTime = pickupTime,
-                    notes = notes
-                )
-                onSaveSuccess()
+                // TODO: Save to Supabase (We will do this in Step 6)
+                onSaveSuccess() // For now, just navigate back
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -141,6 +146,7 @@ fun MerchantAddDonationScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        // Cancel Button
         OutlinedButton(
             onClick = onCancel,
             modifier = Modifier.fillMaxWidth(),

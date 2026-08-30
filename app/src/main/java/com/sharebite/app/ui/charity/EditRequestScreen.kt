@@ -58,13 +58,13 @@ fun EditRequestScreen(
 
     LaunchedEffect(requestId) {
         try {
-            val data = repository.getRequestById(requestId)
+            val data = repository.getMyRequestById(requestId)
             original = data
-            quantity = data.quantity.toString()
-            pickupDate = data.pickupDate
-            pickupTime = data.pickupTime
-            peopleServed = data.peopleServed.toString()
-            note = data.note ?: ""
+            quantity = data?.quantity?.toString() ?: ""
+            pickupDate = data?.pickupDate ?: ""
+            pickupTime = data?.pickupTime ?: ""
+            peopleServed = data?.peopleServed?.toString() ?: ""
+            note = data?.note ?: ""
         } catch (e: Exception) {
             loadError = e.message
         } finally {
@@ -292,7 +292,7 @@ fun EditRequestScreen(
                             isSaving = true
                             coroutineScope.launch {
                                 try {
-                                    repository.updateRequest(
+                                    repository.updateMyRequest(
                                         requestId = requestId,
                                         quantity = quantity.toInt(),
                                         pickupDate = pickupDate,

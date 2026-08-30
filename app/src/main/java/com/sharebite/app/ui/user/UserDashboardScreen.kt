@@ -1,5 +1,6 @@
 package com.sharebite.app.ui.user
 
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -7,6 +8,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fastfood
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -23,6 +27,8 @@ import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.data.repository.ReservationRepository
 import com.sharebite.app.ui.theme.*
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun UserDashboardScreen(
@@ -31,47 +37,39 @@ fun UserDashboardScreen(
     onFoodClick: (Long) -> Unit,
     onViewAllReservations: () -> Unit
 ) {
-    // 临时 userId，等 Member D 做好 Auth 再换
-    val userId = "test-user-id"
-
+    val userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3"
     val foodRepo = remember { FoodListingRepository() }
     val reservationRepo = remember { ReservationRepository() }
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    // 页面状态
     var nearbyListings by remember { mutableStateOf<List<FoodListing>>(emptyList()) }
     var recentReservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // 页面加载时从 Supabase 拿数据
     LaunchedEffect(Unit) {
         try {
             nearbyListings = foodRepo.getAvailableListings().take(5)
             recentReservations = reservationRepo.getUserReservations(userId).take(3)
+            println("🔍 Dashboard - ${nearbyListings.size} 个食物, ${recentReservations.size} 条预订")
         } catch (e: Exception) {
             errorMessage = e.message
+            println("🔴 Dashboard 错误: ${e.message}")
         } finally {
             isLoading = false
         }
     }
 
-    // 显示加载中
     if (isLoading) {
-        Box(
-            modifier = Modifier.fillMaxSize().padding(paddingValues),
-            contentAlignment = Alignment.Center
-        ) {
+        Box(Modifier.fillMaxSize().padding(paddingValues), Alignment.Center) {
             CircularProgressIndicator(color = OrangeAccent)
         }
         return
     }
 
-    // 显示错误
     if (errorMessage != null) {
-        Box(
-            modifier = Modifier.fillMaxSize().padding(paddingValues),
-            contentAlignment = Alignment.Center
-        ) {
+        Box(Modifier.fillMaxSize().padding(paddingValues), Alignment.Center) {
             Text("Error: $errorMessage", color = RedCancelled)
         }
         return
@@ -84,7 +82,6 @@ fun UserDashboardScreen(
             .padding(paddingValues),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-
         // ── Hero Banner ──
         item {
             Card(
@@ -110,16 +107,10 @@ fun UserDashboardScreen(
                     Spacer(modifier = Modifier.height(14.dp))
                     Button(
                         onClick = onBrowseClick,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(8.dp)
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(50)
                     ) {
-                        Text(
-                            "Browse Food →",
-                            color = OrangeAccent,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text("Browse Food →", color = OrangeAccent, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -128,34 +119,28 @@ fun UserDashboardScreen(
         // ── Stats Row ──
         item {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // 总可用 listings 数量
                 DashboardStatCard(
-                    label = "Available Now",
-                    value = nearbyListings.size.toString(),
-                    color = OrangeAccent,
-                    modifier = Modifier.weight(1f)
+                    "Available Now",
+                    nearbyListings.size.toString(),
+                    OrangeAccent,
+                    Modifier.weight(1f)
                 )
-                // 用户的 reservation 数量
                 DashboardStatCard(
-                    label = "My Reservations",
-                    value = recentReservations.size.toString(),
-                    color = GreenConfirmed,
-                    modifier = Modifier.weight(1f)
+                    "My Reservations",
+                    recentReservations.size.toString(),
+                    GreenConfirmed,
+                    Modifier.weight(1f)
                 )
             }
         }
 
-        // ── Nearby Food Listings ──
+        // ── Nearby Food Listings（横向滚动） ──
         item {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -175,7 +160,6 @@ fun UserDashboardScreen(
             }
         }
 
-        // 横向滚动的食物卡片
         item {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
@@ -190,12 +174,10 @@ fun UserDashboardScreen(
             }
         }
 
-        // ── Recent Reservations ──
+        // ── Recent Reservations（列表） ──
         item {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -215,13 +197,13 @@ fun UserDashboardScreen(
             }
         }
 
-        // 如果没有 reservation 显示提示
+        // ── ✅ 空状态或预订卡片列表 ──
         if (recentReservations.isEmpty()) {
             item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -231,37 +213,33 @@ fun UserDashboardScreen(
                     )
                 }
             }
+        } else {
+            // ✅ 使用 items 显示预订卡片（不是食物卡片）
+            items(recentReservations) { reservation ->
+                RecentReservationCard(
+                    reservation = reservation,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
         }
 
-        // Recent reservation cards
-        items(recentReservations) { reservation ->
-            RecentReservationCard(
-                reservation = reservation,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-        }
-
-        // 底部空间
         item { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }
 
-// ── Food Listing Card (横向滚动用) ──
+// ── Food Listing Card（横向滚动用） ──
 @Composable
-private fun FoodListingCard(
-    listing: FoodListing,
-    onClick: () -> Unit
-) {
+private fun FoodListingCard(listing: FoodListing, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .width(180.dp)
             .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
     ) {
         Column {
-            // 食物图片
             if (!listing.photoUrl.isNullOrBlank()) {
                 AsyncImage(
                     model = listing.photoUrl,
@@ -269,59 +247,43 @@ private fun FoodListingCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(110.dp)
-                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
+                        .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp)),
                     contentScale = ContentScale.Crop
                 )
             } else {
-                // 没有图片时显示占位色块
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(110.dp)
-                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                        .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp))
                         .background(Color(0xFFEFE6D9)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("🍱", fontSize = 32.sp)
+                    Icon(
+                        imageVector = Icons.Default.Fastfood,
+                        contentDescription = "Food",
+                        modifier = Modifier.size(32.dp),
+                        tint = Color(0xFFD8C4A8)
+                    )
                 }
             }
 
             Column(modifier = Modifier.padding(10.dp)) {
-                // 分类 badge
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = NavSelectedBg
-                ) {
+                Surface(shape = RoundedCornerShape(50), color = NavSelectedBg) {
                     Text(
                         listing.category,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         fontSize = 10.sp,
                         color = OrangeAccent,
                         fontWeight = FontWeight.Bold
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    listing.foodName,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextDark,
-                    maxLines = 1
-                )
+                Text(listing.foodName, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextDark, maxLines = 1)
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    listing.merchantName,
-                    fontSize = 11.sp,
-                    color = TextGrey,
-                    maxLines = 1
-                )
+                Text(listing.merchantName, fontSize = 11.sp, color = TextGrey, maxLines = 1)
                 Spacer(modifier = Modifier.height(4.dp))
-                // 到期时间
-                Text(
-                    "Ends: ${listing.deadline}",
-                    fontSize = 10.sp,
-                    color = RedCancelled
-                )
+                Text("Ends: ${listing.deadline}", fontSize = 10.sp, color = RedCancelled)
             }
         }
     }
@@ -329,71 +291,57 @@ private fun FoodListingCard(
 
 // ── Recent Reservation Card ──
 @Composable
-private fun RecentReservationCard(
-    reservation: Reservation,
-    modifier: Modifier = Modifier
-) {
-    // 根据 status 决定颜色
+private fun RecentReservationCard(reservation: Reservation, modifier: Modifier = Modifier) {
     val statusColor = when (reservation.status) {
         "Confirmed" -> GreenConfirmed
-        "Pending"   -> OrangeAccent
+        "Pending" -> OrangeAccent
         "Cancelled" -> RedCancelled
         "Completed" -> GreyCompleted
-        else        -> TextGrey
+        else -> TextGrey
     }
     val statusBg = when (reservation.status) {
         "Confirmed" -> Color(0xFFE3F5E6)
-        "Pending"   -> NavSelectedBg
+        "Pending" -> NavSelectedBg
         "Cancelled" -> Color(0xFFFFEDED)
         "Completed" -> Color(0xFFEEEEEE)
-        else        -> Color(0xFFEEEEEE)
+        else -> Color(0xFFEEEEEE)
     }
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 占位图
             Box(
                 modifier = Modifier
                     .size(52.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(10.dp))
                     .background(Color(0xFFEFE6D9)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("🍱", fontSize = 24.sp)
+                Icon(
+                    imageVector = Icons.Default.Fastfood,
+                    contentDescription = "Food",
+                    modifier = Modifier.size(24.dp),
+                    tint = Color(0xFFD8C4A8)
+                )
             }
 
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    reservation.foodName,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextDark
-                )
+                Text(reservation.foodName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextDark)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    "Pickup: ${reservation.pickupDate}, ${reservation.pickupTime}",
-                    fontSize = 12.sp,
-                    color = TextGrey
-                )
+                Text("Pickup: ${reservation.pickupDate}, ${reservation.pickupTime}", fontSize = 12.sp, color = TextGrey)
             }
 
-            // Status badge
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = statusBg
-            ) {
+            Surface(shape = RoundedCornerShape(50), color = statusBg) {
                 Text(
                     reservation.status,
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -408,22 +356,16 @@ private fun RecentReservationCard(
 
 // ── Stats Card ──
 @Composable
-private fun DashboardStatCard(
-    label: String,
-    value: String,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
+private fun DashboardStatCard(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(value, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = color)

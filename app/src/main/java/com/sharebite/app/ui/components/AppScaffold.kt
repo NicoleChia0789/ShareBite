@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,10 +31,12 @@ fun AppScaffold(
     onNavigate: (String) -> Unit,
     topBarTitle: String = "ShareBite",
     onNotificationClick: () -> Unit = {},
+    showSavedButton: Boolean = false,
+    onSavedFoodClick: () -> Unit = {},
     showBackButton: Boolean = false,
     onBackClick: () -> Unit = {},
+    onLogoutClick: () -> Unit = {},  // ✅ Added logout callback
     content: @Composable (PaddingValues) -> Unit
-
 ) {
     val screenWidthDp = LocalConfiguration.current.screenWidthDp
     val isTablet = screenWidthDp >= TABLET_BREAKPOINT_DP
@@ -49,8 +53,17 @@ fun AppScaffold(
             },
             actions = {
                 if (!showBackButton) {
+                    if (showSavedButton) {
+                        IconButton(onClick = onSavedFoodClick) {
+                            Icon(Icons.Default.Favorite, contentDescription = "Saved Food")
+                        }
+                    }
                     IconButton(onClick = onNotificationClick) {
                         Icon(Icons.Default.Notifications, contentDescription = "Notifications")
+                    }
+                    // ✅ Logout button
+                    IconButton(onClick = onLogoutClick) {
+                        Icon(Icons.Default.Logout, contentDescription = "Logout")
                     }
                 }
             },

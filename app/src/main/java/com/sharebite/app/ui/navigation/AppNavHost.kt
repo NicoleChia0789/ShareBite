@@ -1,57 +1,28 @@
 package com.sharebite.app.ui.navigation
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.sharebite.app.ui.charity.*
 import com.sharebite.app.ui.components.AppScaffold
 import com.sharebite.app.ui.user.*
-import com.sharebite.app.ui.merchant.MerchantDashboardScreen
+import com.sharebite.app.ui.merchant.*
 import com.sharebite.app.ui.merchant.MerchantAddDonationScreen
-import com.sharebite.app.ui.merchant.MerchantAllListingsScreen
-import com.sharebite.app.ui.merchant.MerchantAllRequestsScreen
-import com.sharebite.app.ui.merchant.MerchantAllReservationsScreen
-import com.sharebite.app.ui.merchant.MerchantViewModel
-
-import com.sharebite.app.ui.navigation.Screen
-import com.sharebite.app.ui.navigation.UserFoodDetailRoute
-import com.sharebite.app.ui.navigation.UserMakeReservationRoute
-import com.sharebite.app.ui.navigation.UserReservationDetailRoute
-import com.sharebite.app.ui.navigation.UserSavedFoodRoute
-import com.sharebite.app.ui.navigation.UserEditProfileRoute
-import com.sharebite.app.ui.navigation.FoodDetailRoute
-import com.sharebite.app.ui.navigation.RequestDetailRoute
-import com.sharebite.app.ui.navigation.PostRequestRoute
-import com.sharebite.app.ui.navigation.ApplyForFoodRoute
-import com.sharebite.app.ui.navigation.EditRequestRoute
-import com.sharebite.app.ui.navigation.NotificationsRoute
-import com.sharebite.app.ui.navigation.SavedItemsRoute
-import com.sharebite.app.ui.navigation.AboutRoute
-
-// Nested-graph route names for the merchant flow.
-// The graph itself is registered under Screen.Home.route (see below),
-// so it can still be the NavHost's startDestination when role == "merchant".
-private const val MERCHANT_DASHBOARD_ROUTE = "merchant_dashboard"
-private const val MERCHANT_ADD_DONATION_ROUTE = "merchant_add_donation"
-private const val MERCHANT_ALL_LISTINGS_ROUTE = "merchant_all_listings"
-private const val MERCHANT_ALL_REQUESTS_ROUTE = "merchant_all_requests"
-private const val MERCHANT_ALL_RESERVATIONS_ROUTE = "merchant_all_reservations"
 
 @Composable
 fun AppNavHost(
-    role: String
+    role: String,
+    onLogout: () -> Unit = {}  // ✅ 登出回调
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -59,11 +30,6 @@ fun AppNavHost(
 
     val titleForRoute = when {
         currentRoute == Screen.Home.route -> "ShareBite"
-        currentRoute == MERCHANT_DASHBOARD_ROUTE -> "ShareBite"
-        currentRoute == MERCHANT_ADD_DONATION_ROUTE -> "Add Donation"
-        currentRoute == MERCHANT_ALL_LISTINGS_ROUTE -> "Your Active Donations"
-        currentRoute == MERCHANT_ALL_REQUESTS_ROUTE -> "Charity Requests"
-        currentRoute == MERCHANT_ALL_RESERVATIONS_ROUTE -> "User Reservations"
         currentRoute == Screen.Browse.route -> when (role) {
             "user" -> "Browse Food"
             "charity" -> "Browse Donations"
@@ -80,6 +46,7 @@ fun AppNavHost(
         currentRoute.startsWith("user_reservation_detail/") -> "Reservation Detail"
         currentRoute == UserSavedFoodRoute.route -> "Saved Food"
         currentRoute == UserEditProfileRoute.route -> "Edit Profile"
+        currentRoute == UserHelpRoute.route -> "Help & Support"
         currentRoute.startsWith("food_detail/") -> "Food Detail"
         currentRoute.startsWith("apply_for_food/") -> "Apply for Food"
         currentRoute.startsWith("edit_request/") -> "Edit Request"
@@ -88,6 +55,9 @@ fun AppNavHost(
         currentRoute == SavedItemsRoute.route -> "Saved Items"
         currentRoute.startsWith("request_detail/") -> "Request Detail"
         currentRoute == AboutRoute.route -> "About ShareBite"
+        currentRoute == MerchantDashboardRoute.route -> "Merchant Dashboard"
+        currentRoute == MerchantAddDonationRoute.route -> "Add Donation"
+        currentRoute == MerchantReservationsRoute.route -> "Reservations"
         else -> "ShareBite"
     }
 
@@ -96,6 +66,7 @@ fun AppNavHost(
             currentRoute.startsWith("user_reservation_detail/") ||
             currentRoute == UserSavedFoodRoute.route ||
             currentRoute == UserEditProfileRoute.route ||
+            currentRoute == UserHelpRoute.route ||
             currentRoute.startsWith("food_detail/") ||
             currentRoute.startsWith("apply_for_food/") ||
             currentRoute.startsWith("edit_request/") ||
@@ -104,10 +75,8 @@ fun AppNavHost(
             currentRoute == NotificationsRoute.route ||
             currentRoute == SavedItemsRoute.route ||
             currentRoute == AboutRoute.route ||
-            currentRoute == MERCHANT_ADD_DONATION_ROUTE ||
-            currentRoute == MERCHANT_ALL_LISTINGS_ROUTE ||
-            currentRoute == MERCHANT_ALL_REQUESTS_ROUTE ||
-            currentRoute == MERCHANT_ALL_RESERVATIONS_ROUTE
+            currentRoute == MerchantAddDonationRoute.route ||
+            currentRoute == MerchantReservationsRoute.route
 
     AppScaffold(
         currentRoute = currentRoute,
@@ -123,7 +92,16 @@ fun AppNavHost(
         topBarTitle = titleForRoute,
         showBackButton = isDetailScreen,
         onBackClick = { navController.popBackStack() },
-        onNotificationClick = { navController.navigate(NotificationsRoute.route) }
+        onNotificationClick = { navController.navigate(NotificationsRoute.route) },
+        showSavedButton = role == "user" || role == "charity",
+        onSavedFoodClick = {
+            when (role) {
+                "user" -> navController.navigate(UserSavedFoodRoute.route)
+                "charity" -> navController.navigate(SavedItemsRoute.route)
+                else -> {}
+            }
+        }
+        // ❌ 删除: onLogoutClick = onLogout   （AppScaffold 不需要这个参数）
     ) { paddingValues ->
         NavHost(
             navController = navController,
@@ -133,102 +111,25 @@ fun AppNavHost(
             // 底部导航路由
             // ══════════════════════════════════════
 
-            if (role == "merchant") {
-                // Nested graph for the merchant flow. Registering it under
-                // Screen.Home.route means it can still be the NavHost's
-                // startDestination, exactly like the other roles.
-                // Every screen inside grabs the SAME MerchantViewModel by
-                // scoping it to this graph's own back stack entry instead
-                // of each screen's own — that's what keeps listings/requests/
-                // reservations in sync across dashboard, add-donation, and
-                // the "View All" screens.
-                navigation(
-                    startDestination = MERCHANT_DASHBOARD_ROUTE,
-                    route = Screen.Home.route
-                ) {
-                    composable(MERCHANT_DASHBOARD_ROUTE) { entry ->
-                        val parentEntry = remember(entry) {
-                            navController.getBackStackEntry(Screen.Home.route)
-                        }
-                        val merchantViewModel: MerchantViewModel = viewModel(parentEntry)
-
-                        MerchantDashboardScreen(
-                            paddingValues = paddingValues,
-                            onAddDonationClick = { navController.navigate(MERCHANT_ADD_DONATION_ROUTE) },
-                            onViewAllListingsClick = { navController.navigate(MERCHANT_ALL_LISTINGS_ROUTE) },
-                            onViewAllRequestsClick = { navController.navigate(MERCHANT_ALL_REQUESTS_ROUTE) },
-                            onViewAllReservationsClick = { navController.navigate(MERCHANT_ALL_RESERVATIONS_ROUTE) },
-                            viewModel = merchantViewModel
-                        )
-                    }
-
-                    composable(MERCHANT_ADD_DONATION_ROUTE) { entry ->
-                        val parentEntry = remember(entry) {
-                            navController.getBackStackEntry(Screen.Home.route)
-                        }
-                        val merchantViewModel: MerchantViewModel = viewModel(parentEntry)
-
-                        MerchantAddDonationScreen(
-                            paddingValues = paddingValues,
-                            onSaveSuccess = { navController.popBackStack() },
-                            onCancel = { navController.popBackStack() },
-                            viewModel = merchantViewModel
-                        )
-                    }
-
-                    composable(MERCHANT_ALL_LISTINGS_ROUTE) { entry ->
-                        val parentEntry = remember(entry) {
-                            navController.getBackStackEntry(Screen.Home.route)
-                        }
-                        val merchantViewModel: MerchantViewModel = viewModel(parentEntry)
-
-                        MerchantAllListingsScreen(
-                            paddingValues = paddingValues,
-                            viewModel = merchantViewModel
-                        )
-                    }
-
-                    composable(MERCHANT_ALL_REQUESTS_ROUTE) { entry ->
-                        val parentEntry = remember(entry) {
-                            navController.getBackStackEntry(Screen.Home.route)
-                        }
-                        val merchantViewModel: MerchantViewModel = viewModel(parentEntry)
-
-                        MerchantAllRequestsScreen(
-                            paddingValues = paddingValues,
-                            viewModel = merchantViewModel
-                        )
-                    }
-
-                    composable(MERCHANT_ALL_RESERVATIONS_ROUTE) { entry ->
-                        val parentEntry = remember(entry) {
-                            navController.getBackStackEntry(Screen.Home.route)
-                        }
-                        val merchantViewModel: MerchantViewModel = viewModel(parentEntry)
-
-                        MerchantAllReservationsScreen(
-                            paddingValues = paddingValues,
-                            viewModel = merchantViewModel
-                        )
-                    }
-                }
-            } else {
-                composable(Screen.Home.route) {
-                    when (role) {
-                        "user" -> UserDashboardScreen(
-                            paddingValues = paddingValues,
-                            onBrowseClick = { navController.navigate(Screen.Browse.route) },
-                            onFoodClick = { id -> navController.navigate(UserFoodDetailRoute.createRoute(id)) },
-                            onViewAllReservations = { navController.navigate(Screen.Requests.route) }
-                        )
-                        "charity" -> CharityDashboardScreen(
-                            paddingValues = paddingValues,
-                            onCreateRequest = { navController.navigate(PostRequestRoute.route) },
-                            onViewAllClick = { navController.navigate(Screen.Requests.route) },
-                            onActivityClick = { requestId -> navController.navigate(RequestDetailRoute.createRoute(requestId)) }
-                        )
-                        else -> Text("Unknown role: $role")
-                    }
+            composable(Screen.Home.route) {
+                when (role) {
+                    "user" -> UserDashboardScreen(
+                        paddingValues = paddingValues,
+                        onBrowseClick = { navController.navigate(Screen.Browse.route) },
+                        onFoodClick = { id -> navController.navigate(UserFoodDetailRoute.createRoute(id)) },
+                        onViewAllReservations = { navController.navigate(Screen.Requests.route) }
+                    )
+                    "charity" -> CharityDashboardScreen(
+                        paddingValues = paddingValues,
+                        onCreateRequest = { navController.navigate(PostRequestRoute.route) },
+                        onViewAllClick = { navController.navigate(Screen.Requests.route) },
+                        onActivityClick = { requestId -> navController.navigate(RequestDetailRoute.createRoute(requestId)) }
+                    )
+                    "merchant" -> MerchantDashboardScreen(
+                        paddingValues = paddingValues,
+                        onAddDonationClick = { navController.navigate(MerchantAddDonationRoute.route) }
+                    )
+                    else -> Text("Unknown role: $role")
                 }
             }
 
@@ -250,7 +151,8 @@ fun AppNavHost(
                 when (role) {
                     "user" -> UserMyReservationsScreen(
                         paddingValues = paddingValues,
-                        onViewClick = { id -> navController.navigate(UserReservationDetailRoute.createRoute(id)) }
+                        onViewClick = { id -> navController.navigate(UserReservationDetailRoute.createRoute(id)) },
+                        onBrowseClick = { navController.navigate(Screen.Browse.route) }
                     )
                     "charity" -> MyRequestsScreen(
                         paddingValues = paddingValues,
@@ -275,9 +177,10 @@ fun AppNavHost(
                 when (role) {
                     "user" -> UserProfileScreen(
                         paddingValues = paddingValues,
-                        onEditProfile = { navController.navigate(UserEditProfileRoute.route) },
                         onSavedFood = { navController.navigate(UserSavedFoodRoute.route) },
-                        onLogout = { /* 待 Auth 实现 */ }
+                        onHelpClick = { navController.navigate(UserHelpRoute.route) },
+                        onAboutClick = { navController.navigate(AboutRoute.route) },
+                        onLogout = onLogout  // ✅ 直接传递
                     )
                     "charity" -> ProfileScreen(
                         paddingValues = paddingValues,
@@ -316,14 +219,14 @@ fun AppNavHost(
                 UserMakeReservationScreen(
                     listingId = listingId,
                     paddingValues = paddingValues,
-                    onSuccess = {
-                        navController.navigate(Screen.Requests.route) {
-                            popUpTo(Screen.Home.route) { inclusive = true }
+                    onSuccess = { reservationId ->
+                        println("🚀 Going to detail page，ID = $reservationId")
+                        navController.navigate(UserReservationDetailRoute.createRoute(reservationId)) {
+                            popUpTo(UserMakeReservationRoute.createRoute(listingId)) { inclusive = true }
                         }
                     }
                 )
             }
-
             composable(
                 route = UserReservationDetailRoute.route,
                 arguments = listOf(navArgument("reservationId") { type = NavType.LongType })
@@ -349,6 +252,10 @@ fun AppNavHost(
                     paddingValues = paddingValues,
                     onSaveSuccess = { navController.popBackStack() }
                 )
+            }
+
+            composable(UserHelpRoute.route) {
+                UserHelpScreen(paddingValues = paddingValues)
             }
 
             // ══════════════════════════════════════
@@ -434,6 +341,18 @@ fun AppNavHost(
                     paddingValues = paddingValues,
                     onItemClick = { id -> navController.navigate(FoodDetailRoute.createRoute(id)) }
                 )
+            }
+
+            composable(MerchantAddDonationRoute.route) {
+                MerchantAddDonationScreen(
+                    paddingValues = paddingValues,
+                    onSaveSuccess = { navController.popBackStack() },
+                    onCancel = { navController.popBackStack() }
+                )
+            }
+
+            composable(MerchantReservationsRoute.route) {
+                Text("Reservations Screen Here", modifier = Modifier.padding(paddingValues))
             }
         }
     }

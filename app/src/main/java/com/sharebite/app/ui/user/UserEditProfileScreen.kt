@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.repository.UserRepository
+import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -22,7 +23,7 @@ fun UserEditProfileScreen(
     paddingValues: PaddingValues,
     onSaveSuccess: () -> Unit
 ) {
-    val userId = "test-user-id" // 临时
+    val userId = CurrentUser.getUserId()
     val repository = remember { UserRepository() }
     val scope = rememberCoroutineScope()
 

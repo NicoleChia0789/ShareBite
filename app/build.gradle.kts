@@ -77,4 +77,14 @@ dependencies {
     implementation("org.osmdroid:osmdroid-android:6.1.20")
 
     implementation("at.favre.lib:bcrypt:0.10.2")
+
+    // Google Maps Compose
+    implementation("com.google.maps.android:maps-compose:4.3.3")
+
+    // Google Play Services Maps
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+
+    // 定位服务
+    implementation("com.google.android.gms:play-services-location:21.1.0")
+
 }

@@ -46,7 +46,7 @@ fun SavedItemsScreen(
                 try {
                     listingRepository.getListingById(id)
                 } catch (e: Exception) {
-                    null // 万一那笔食物已经被删除了，就跳过，不影响其他项目显示
+                    null
                 }
             }
         } catch (e: Exception) {
