@@ -2,50 +2,49 @@ package com.sharebite.app.data.repository
 
 import com.sharebite.app.data.model.CharityRequest
 import com.sharebite.app.data.model.FoodListing
+import com.sharebite.app.data.model.Reservation
+import com.sharebite.app.data.remote.SupabaseClient
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Order
 
 class MerchantRepository {
 
-    // Mock data goes here
-    fun getMerchantListings(): List<FoodListing> {
-        return listOf(
-            FoodListing(
-                id = 1,
-                merchantId = "merchant_123",
-                foodName = "Assorted Morning Pastries",
-                category = "Bakery",
-                quantity = "24 units",
-                status = "available"
-            ),
-            FoodListing(
-                id = 2,
-                merchantId = "merchant_123",
-                foodName = "Fresh Vegetables Box",
-                category = "Produce",
-                quantity = "12 kg",
-                status = "available"
-            )
-        )
+    // Fetch Merchant's Listings
+    suspend fun getMerchantListings(merchantId: String): List<FoodListing> {
+        return SupabaseClient.client.postgrest["food_listings"]
+            .select {
+                filter { eq("merchant_id", merchantId) }
+                order("created_at", Order.DESCENDING)
+            }
+            .decodeList()
     }
 
-    fun getMerchantRequests(): List<CharityRequest> {
-        return listOf(
-            CharityRequest(
-                id = 1,
-                merchantId = "merchant_123",
-                organisationName = "Hope Shelter",
-                foodName = "Assorted Pastries",
-                quantity = 10,
-                status = "Pending"
-            ),
-            CharityRequest(
-                id = 2,
-                merchantId = "merchant_123",
-                organisationName = "Downtown Mission",
-                foodName = "Fresh Vegetables",
-                quantity = 5,
-                status = "Pending"
-            )
-        )
+    // Add a new Listing
+    suspend fun addListing(listing: FoodListing) {
+        SupabaseClient.client.postgrest["food_listings"].insert(listing)
     }
 
+    // Fetch Charity Requests
+    suspend fun getRequests(merchantId: String): List<CharityRequest> {
+        return SupabaseClient.client.postgrest["charity_requests"]
+            .select {
+                filter { eq("merchant_id", merchantId) }
+                order("created_at", Order.DESCENDING)
+            }
+            .decodeList()
+    }
+
+    // Fetch User Reservations
+    suspend fun getReservations(merchantId: String): List<Reservation> {
+        return try {
+            SupabaseClient.client.postgrest["reservations"]
+                .select {
+                    filter { eq("merchant_id", merchantId) }
+                    order("created_at", Order.DESCENDING)
+                }
+                .decodeList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 }

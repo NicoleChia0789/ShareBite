@@ -1,6 +1,7 @@
 package com.sharebite.app.ui.merchant
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,23 +15,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sharebite.app.ui.theme.BgCream
 import com.sharebite.app.ui.theme.OrangeAccent
 import androidx.compose.foundation.layout.PaddingValues
+
+// How many items each dashboard section shows before the rest are hidden
+// behind "View All".
+private const val SECTION_PREVIEW_LIMIT = 2
 
 @Composable
 fun MerchantDashboardScreen(
     paddingValues: PaddingValues,
     onAddDonationClick: () -> Unit,
-    viewModel: MerchantViewModel = viewModel()
+    onViewAllListingsClick: () -> Unit,
+    onViewAllRequestsClick: () -> Unit,
+    onViewAllReservationsClick: () -> Unit,
+    viewModel: MerchantViewModel   // no default: must be passed in from AppNavHost (shared instance)
 ) {
     val listings by viewModel.listings.collectAsState()
     val requests by viewModel.requests.collectAsState()
-
-    LaunchedEffect(Unit) {
-        viewModel.loadMockData()
-    }
+    val reservations by viewModel.reservations.collectAsState()
 
     Box(
         modifier = Modifier
@@ -58,87 +62,43 @@ fun MerchantDashboardScreen(
                 }
             }
 
-            // 2. Section Title
-            item {
-                Text("Your Active Donations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            // 2. Listings (capped preview)
+            item { Text("Your Active Donations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+            items(listings.take(SECTION_PREVIEW_LIMIT)) { listing ->
+                ListingCard(listing)
+            }
+            if (listings.isEmpty()) {
+                item { EmptySectionHint("No active donations yet.") }
+            } else {
+                item { ViewAllLink(onClick = onViewAllListingsClick) }
             }
 
-            // 3. Mock Listings
-            items(listings) { listing ->
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(50.dp)
-                                .background(Color(0xFFEEE5DB), RoundedCornerShape(8.dp))
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(listing.foodName, fontWeight = FontWeight.SemiBold)
-                            Text("${listing.quantity} left", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                            Text(listing.category, style = MaterialTheme.typography.labelSmall, color = OrangeAccent)
-                        }
-                        OutlinedButton(onClick = {}, modifier = Modifier.height(36.dp)) {
-                            Text("View")
-                        }
-                    }
-                }
-            }
-
-            // 4. Requests Title
+            // 3. Charity Requests (capped preview)
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("Charity Requests", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
+            items(requests.take(SECTION_PREVIEW_LIMIT)) { request ->
+                CharityRequestCard(request)
+            }
+            if (requests.isEmpty()) {
+                item { EmptySectionHint("No charity requests yet.") }
+            } else {
+                item { ViewAllLink(onClick = onViewAllRequestsClick) }
+            }
 
-            // 5. Mock Requests
-            items(requests) { request ->
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .background(Color(0xFFFFE8E8), RoundedCornerShape(50))
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(request.organisationName, fontWeight = FontWeight.Bold)
-                                Text("Requesting: ${request.quantity} x ${request.foodName}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(request.status, color = if (request.status == "Pending") OrangeAccent else Color.Gray)
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            OutlinedButton(
-                                onClick = { },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red)
-                            ) {
-                                Text("Decline")
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Button(
-                                onClick = { },
-                                colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Approve", color = Color.White)
-                            }
-                        }
-                    }
-                }
+            // 4. User Reservations (capped preview)
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("User Reservations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            items(reservations.take(SECTION_PREVIEW_LIMIT)) { reservation ->
+                ReservationCard(reservation)
+            }
+            if (reservations.isEmpty()) {
+                item { EmptySectionHint("No reservations yet.") }
+            } else {
+                item { ViewAllLink(onClick = onViewAllReservationsClick) }
             }
         }
 
@@ -152,4 +112,36 @@ fun MerchantDashboardScreen(
             Icon(Icons.Default.Add, contentDescription = "Add Donation", tint = Color.White)
         }
     }
+}
+
+/**
+ * "View All" link shown under a section's item cards.
+ * Shown whenever the section has at least 1 item — even just one — so
+ * tapping it always takes the user to that section's full list screen.
+ */
+@Composable
+private fun ViewAllLink(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "View All",
+            style = MaterialTheme.typography.labelLarge,
+            color = OrangeAccent,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .clickable { onClick() }
+                .padding(vertical = 4.dp)
+        )
+    }
+}
+
+@Composable
+private fun EmptySectionHint(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = Color.Gray
+    )
 }

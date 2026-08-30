@@ -1,18 +1,29 @@
 package com.sharebite.app.ui.navigation
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.sharebite.app.ui.charity.*
 import com.sharebite.app.ui.components.AppScaffold
 import com.sharebite.app.ui.user.*
+import com.sharebite.app.ui.merchant.MerchantDashboardScreen
+import com.sharebite.app.ui.merchant.MerchantAddDonationScreen
+import com.sharebite.app.ui.merchant.MerchantAllListingsScreen
+import com.sharebite.app.ui.merchant.MerchantAllRequestsScreen
+import com.sharebite.app.ui.merchant.MerchantAllReservationsScreen
+import com.sharebite.app.ui.merchant.MerchantViewModel
 
 import com.sharebite.app.ui.navigation.Screen
 import com.sharebite.app.ui.navigation.UserFoodDetailRoute
@@ -29,6 +40,15 @@ import com.sharebite.app.ui.navigation.NotificationsRoute
 import com.sharebite.app.ui.navigation.SavedItemsRoute
 import com.sharebite.app.ui.navigation.AboutRoute
 
+// Nested-graph route names for the merchant flow.
+// The graph itself is registered under Screen.Home.route (see below),
+// so it can still be the NavHost's startDestination when role == "merchant".
+private const val MERCHANT_DASHBOARD_ROUTE = "merchant_dashboard"
+private const val MERCHANT_ADD_DONATION_ROUTE = "merchant_add_donation"
+private const val MERCHANT_ALL_LISTINGS_ROUTE = "merchant_all_listings"
+private const val MERCHANT_ALL_REQUESTS_ROUTE = "merchant_all_requests"
+private const val MERCHANT_ALL_RESERVATIONS_ROUTE = "merchant_all_reservations"
+
 @Composable
 fun AppNavHost(
     role: String
@@ -39,6 +59,11 @@ fun AppNavHost(
 
     val titleForRoute = when {
         currentRoute == Screen.Home.route -> "ShareBite"
+        currentRoute == MERCHANT_DASHBOARD_ROUTE -> "ShareBite"
+        currentRoute == MERCHANT_ADD_DONATION_ROUTE -> "Add Donation"
+        currentRoute == MERCHANT_ALL_LISTINGS_ROUTE -> "Your Active Donations"
+        currentRoute == MERCHANT_ALL_REQUESTS_ROUTE -> "Charity Requests"
+        currentRoute == MERCHANT_ALL_RESERVATIONS_ROUTE -> "User Reservations"
         currentRoute == Screen.Browse.route -> when (role) {
             "user" -> "Browse Food"
             "charity" -> "Browse Donations"
@@ -78,7 +103,11 @@ fun AppNavHost(
             currentRoute == PostRequestRoute.route ||
             currentRoute == NotificationsRoute.route ||
             currentRoute == SavedItemsRoute.route ||
-            currentRoute == AboutRoute.route
+            currentRoute == AboutRoute.route ||
+            currentRoute == MERCHANT_ADD_DONATION_ROUTE ||
+            currentRoute == MERCHANT_ALL_LISTINGS_ROUTE ||
+            currentRoute == MERCHANT_ALL_REQUESTS_ROUTE ||
+            currentRoute == MERCHANT_ALL_RESERVATIONS_ROUTE
 
     AppScaffold(
         currentRoute = currentRoute,
@@ -104,24 +133,102 @@ fun AppNavHost(
             // 底部导航路由
             // ══════════════════════════════════════
 
-            composable(Screen.Home.route) {
-                when (role) {
-                    "user" -> UserDashboardScreen(
-                        paddingValues = paddingValues,
-                        onBrowseClick = { navController.navigate(Screen.Browse.route) },
-                        onFoodClick = { id -> navController.navigate(UserFoodDetailRoute.createRoute(id)) },
-                        onViewAllReservations = { navController.navigate(Screen.Requests.route) }
-                    )
-                    "charity" -> CharityDashboardScreen(
-                        paddingValues = paddingValues,
-                        onCreateRequest = { navController.navigate(PostRequestRoute.route) },
-                        onViewAllClick = { navController.navigate(Screen.Requests.route) },
-                        onActivityClick = { requestId -> navController.navigate(RequestDetailRoute.createRoute(requestId)) }
-                    )
-                    "merchant" -> Text(
-                        "Merchant Dashboard - Coming soon"
-                    )
-                    else -> Text("Unknown role: $role")
+            if (role == "merchant") {
+                // Nested graph for the merchant flow. Registering it under
+                // Screen.Home.route means it can still be the NavHost's
+                // startDestination, exactly like the other roles.
+                // Every screen inside grabs the SAME MerchantViewModel by
+                // scoping it to this graph's own back stack entry instead
+                // of each screen's own — that's what keeps listings/requests/
+                // reservations in sync across dashboard, add-donation, and
+                // the "View All" screens.
+                navigation(
+                    startDestination = MERCHANT_DASHBOARD_ROUTE,
+                    route = Screen.Home.route
+                ) {
+                    composable(MERCHANT_DASHBOARD_ROUTE) { entry ->
+                        val parentEntry = remember(entry) {
+                            navController.getBackStackEntry(Screen.Home.route)
+                        }
+                        val merchantViewModel: MerchantViewModel = viewModel(parentEntry)
+
+                        MerchantDashboardScreen(
+                            paddingValues = paddingValues,
+                            onAddDonationClick = { navController.navigate(MERCHANT_ADD_DONATION_ROUTE) },
+                            onViewAllListingsClick = { navController.navigate(MERCHANT_ALL_LISTINGS_ROUTE) },
+                            onViewAllRequestsClick = { navController.navigate(MERCHANT_ALL_REQUESTS_ROUTE) },
+                            onViewAllReservationsClick = { navController.navigate(MERCHANT_ALL_RESERVATIONS_ROUTE) },
+                            viewModel = merchantViewModel
+                        )
+                    }
+
+                    composable(MERCHANT_ADD_DONATION_ROUTE) { entry ->
+                        val parentEntry = remember(entry) {
+                            navController.getBackStackEntry(Screen.Home.route)
+                        }
+                        val merchantViewModel: MerchantViewModel = viewModel(parentEntry)
+
+                        MerchantAddDonationScreen(
+                            paddingValues = paddingValues,
+                            onSaveSuccess = { navController.popBackStack() },
+                            onCancel = { navController.popBackStack() },
+                            viewModel = merchantViewModel
+                        )
+                    }
+
+                    composable(MERCHANT_ALL_LISTINGS_ROUTE) { entry ->
+                        val parentEntry = remember(entry) {
+                            navController.getBackStackEntry(Screen.Home.route)
+                        }
+                        val merchantViewModel: MerchantViewModel = viewModel(parentEntry)
+
+                        MerchantAllListingsScreen(
+                            paddingValues = paddingValues,
+                            viewModel = merchantViewModel
+                        )
+                    }
+
+                    composable(MERCHANT_ALL_REQUESTS_ROUTE) { entry ->
+                        val parentEntry = remember(entry) {
+                            navController.getBackStackEntry(Screen.Home.route)
+                        }
+                        val merchantViewModel: MerchantViewModel = viewModel(parentEntry)
+
+                        MerchantAllRequestsScreen(
+                            paddingValues = paddingValues,
+                            viewModel = merchantViewModel
+                        )
+                    }
+
+                    composable(MERCHANT_ALL_RESERVATIONS_ROUTE) { entry ->
+                        val parentEntry = remember(entry) {
+                            navController.getBackStackEntry(Screen.Home.route)
+                        }
+                        val merchantViewModel: MerchantViewModel = viewModel(parentEntry)
+
+                        MerchantAllReservationsScreen(
+                            paddingValues = paddingValues,
+                            viewModel = merchantViewModel
+                        )
+                    }
+                }
+            } else {
+                composable(Screen.Home.route) {
+                    when (role) {
+                        "user" -> UserDashboardScreen(
+                            paddingValues = paddingValues,
+                            onBrowseClick = { navController.navigate(Screen.Browse.route) },
+                            onFoodClick = { id -> navController.navigate(UserFoodDetailRoute.createRoute(id)) },
+                            onViewAllReservations = { navController.navigate(Screen.Requests.route) }
+                        )
+                        "charity" -> CharityDashboardScreen(
+                            paddingValues = paddingValues,
+                            onCreateRequest = { navController.navigate(PostRequestRoute.route) },
+                            onViewAllClick = { navController.navigate(Screen.Requests.route) },
+                            onActivityClick = { requestId -> navController.navigate(RequestDetailRoute.createRoute(requestId)) }
+                        )
+                        else -> Text("Unknown role: $role")
+                    }
                 }
             }
 
@@ -173,14 +280,14 @@ fun AppNavHost(
                         onLogout = { /* 待 Auth 实现 */ }
                     )
                     "charity" -> ProfileScreen(
-                            paddingValues = paddingValues,
-                    onSavedItemsClick = {
-                        navController.navigate(SavedItemsRoute.route)
-                    },
-                    onAboutClick = {
-                        navController.navigate(AboutRoute.route)
-                    }
-                        )
+                        paddingValues = paddingValues,
+                        onSavedItemsClick = {
+                            navController.navigate(SavedItemsRoute.route)
+                        },
+                        onAboutClick = {
+                            navController.navigate(AboutRoute.route)
+                        }
+                    )
                     else -> Text("Unknown role: $role")
                 }
             }
