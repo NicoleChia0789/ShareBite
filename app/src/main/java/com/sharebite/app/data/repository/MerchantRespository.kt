@@ -2,6 +2,7 @@ package com.sharebite.app.data.repository
 
 import com.sharebite.app.data.model.CharityRequest
 import com.sharebite.app.data.model.FoodListing
+import com.sharebite.app.data.model.Reservation
 
 class MerchantRepository {
 
@@ -27,6 +28,8 @@ class MerchantRepository {
         )
     }
 
+
+
     fun getMerchantRequests(): List<CharityRequest> {
         return listOf(
             CharityRequest(
@@ -45,6 +48,14 @@ class MerchantRepository {
                 quantity = 5,
                 status = "Pending"
             )
+        )
+    }
+
+    // NEW: Mock data for User Reservations
+    fun getMerchantReservations(): List<Reservation> {
+        return listOf(
+            Reservation(id = 1, merchantId = "merchant_123", userId = "user_456", foodName = "Fresh Produce Box", quantity = "1", pickupDate = "Today", pickupTime = "4:00 PM - 5:00 PM", status = "Pending"),
+            Reservation(id = 2, merchantId = "merchant_123", userId = "user_789", foodName = "Organic Veggie Box", quantity = "2", pickupDate = "Today", pickupTime = "5:30 PM - 6:30 PM", status = "Pending")
         )
     }
 

@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.ui.theme.BgCream
 import com.sharebite.app.ui.theme.OrangeAccent
 import androidx.compose.foundation.layout.PaddingValues
@@ -27,6 +28,7 @@ fun MerchantDashboardScreen(
 ) {
     val listings by viewModel.listings.collectAsState()
     val requests by viewModel.requests.collectAsState()
+    val reservations by viewModel.reservations.collectAsState() // NEW
 
     LaunchedEffect(Unit) {
         viewModel.loadMockData()
@@ -58,12 +60,10 @@ fun MerchantDashboardScreen(
                 }
             }
 
-            // 2. Section Title
+            // 2. Active Donations
             item {
                 Text("Your Active Donations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
-
-            // 3. Mock Listings
             items(listings) { listing ->
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -71,11 +71,7 @@ fun MerchantDashboardScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(50.dp)
-                                .background(Color(0xFFEEE5DB), RoundedCornerShape(8.dp))
-                        )
+                        Box(modifier = Modifier.size(50.dp).background(Color(0xFFEEE5DB), RoundedCornerShape(8.dp)))
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(listing.foodName, fontWeight = FontWeight.SemiBold)
@@ -89,13 +85,11 @@ fun MerchantDashboardScreen(
                 }
             }
 
-            // 4. Requests Title
+            // 3. Charity Requests
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("Charity Requests", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
-
-            // 5. Mock Requests
             items(requests) { request ->
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -104,11 +98,7 @@ fun MerchantDashboardScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .background(Color(0xFFFFE8E8), RoundedCornerShape(50))
-                            )
+                            Box(modifier = Modifier.size(40.dp).background(Color(0xFFFFE8E8), RoundedCornerShape(50)))
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(request.organisationName, fontWeight = FontWeight.Bold)
@@ -117,25 +107,50 @@ fun MerchantDashboardScreen(
                             Spacer(modifier = Modifier.weight(1f))
                             Text(request.status, color = if (request.status == "Pending") OrangeAccent else Color.Gray)
                         }
-
                         Spacer(modifier = Modifier.height(12.dp))
-
                         Row(modifier = Modifier.fillMaxWidth()) {
-                            OutlinedButton(
-                                onClick = { },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red)
-                            ) {
+                            OutlinedButton(onClick = { }, modifier = Modifier.weight(1f), colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red)) {
                                 Text("Decline")
                             }
                             Spacer(modifier = Modifier.width(12.dp))
-                            Button(
-                                onClick = { },
-                                colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
-                                modifier = Modifier.weight(1f)
-                            ) {
+                            Button(onClick = { }, colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent), modifier = Modifier.weight(1f)) {
                                 Text("Approve", color = Color.White)
                             }
+                        }
+                    }
+                }
+            }
+
+            // 4. User Reservations (NEW SECTION)
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("User Reservations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            items(reservations) { reservation ->
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(modifier = Modifier.size(40.dp).background(Color(0xFFE8F5E9), RoundedCornerShape(50)))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text("User: ${reservation.userId}", fontWeight = FontWeight.Bold)
+                                Text("Reserved: ${reservation.quantity} x ${reservation.foodName}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                Text("${reservation.pickupDate} at ${reservation.pickupTime}", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                            }
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(reservation.status, color = if (reservation.status == "Pending") OrangeAccent else Color.Gray)
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = { },
+                            colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Confirm Pickup", color = Color.White)
                         }
                     }
                 }

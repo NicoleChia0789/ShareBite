@@ -1,9 +1,11 @@
 package com.sharebite.app.ui.navigation
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -14,6 +16,9 @@ import androidx.navigation.navArgument
 import com.sharebite.app.ui.charity.*
 import com.sharebite.app.ui.components.AppScaffold
 import com.sharebite.app.ui.user.*
+import com.sharebite.app.ui.merchant.*
+import com.sharebite.app.ui.merchant.MerchantAddDonationScreen
+
 
 import com.sharebite.app.ui.navigation.Screen
 import com.sharebite.app.ui.navigation.UserFoodDetailRoute
@@ -69,6 +74,9 @@ fun AppNavHost(
         currentRoute == SavedItemsRoute.route -> "Saved Items"
         currentRoute.startsWith("request_detail/") -> "Request Detail"
         currentRoute == AboutRoute.route -> "About ShareBite"
+        currentRoute == MerchantDashboardRoute.route -> "Merchant Dashboard"
+        currentRoute == MerchantAddDonationRoute.route -> "Add Donation"
+        currentRoute == MerchantReservationsRoute.route -> "Reservations"
         else -> "ShareBite"
     }
 
@@ -85,7 +93,9 @@ fun AppNavHost(
             currentRoute == PostRequestRoute.route ||
             currentRoute == NotificationsRoute.route ||
             currentRoute == SavedItemsRoute.route ||
-            currentRoute == AboutRoute.route
+            currentRoute == AboutRoute.route ||
+            currentRoute == MerchantAddDonationRoute.route ||
+            currentRoute == MerchantReservationsRoute.route
 
     AppScaffold(
         currentRoute = currentRoute,
@@ -133,8 +143,9 @@ fun AppNavHost(
                         onViewAllClick = { navController.navigate(Screen.Requests.route) },
                         onActivityClick = { requestId -> navController.navigate(RequestDetailRoute.createRoute(requestId)) }
                     )
-                    "merchant" -> Text(
-                        "Merchant Dashboard - Coming soon"
+                    "merchant" -> MerchantDashboardScreen(
+                        paddingValues = paddingValues,
+                        onAddDonationClick = { navController.navigate(MerchantAddDonationRoute.route) }
                     )
                     else -> Text("Unknown role: $role")
                 }
@@ -350,6 +361,22 @@ fun AppNavHost(
                 SavedItemsScreen(
                     paddingValues = paddingValues,
                     onItemClick = { id -> navController.navigate(FoodDetailRoute.createRoute(id)) }
+                )
+            }
+
+            composable(MerchantAddDonationRoute.route) {
+                Text("Add Donation Screen Here", modifier = Modifier.padding(paddingValues))
+            }
+
+            composable(MerchantReservationsRoute.route) {
+                Text("Reservations Screen Here", modifier = Modifier.padding(paddingValues))
+            }
+
+            composable(MerchantAddDonationRoute.route) {
+                MerchantAddDonationScreen(
+                    paddingValues = paddingValues,
+                    onSaveSuccess = { navController.popBackStack() },
+                    onCancel = { navController.popBackStack() }
                 )
             }
         }
