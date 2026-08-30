@@ -41,7 +41,7 @@ fun SavedItemsScreen(
     LaunchedEffect(Unit) {
         try {
             // ✅ 传入 userId
-            val savedIds = savedRepository.getSavedListingIds(userId)
+            val savedIds = savedRepository.getMySavedListingIds()
             savedListings = savedIds.mapNotNull { id ->
                 try {
                     listingRepository.getListingById(id)

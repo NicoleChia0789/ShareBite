@@ -20,18 +20,52 @@ class MerchantViewModel(
     private val _requests = MutableStateFlow<List<CharityRequest>>(emptyList())
     val requests: StateFlow<List<CharityRequest>> = _requests
 
-    // NEW: State for Reservations
     private val _reservations = MutableStateFlow<List<Reservation>>(emptyList())
     val reservations: StateFlow<List<Reservation>> = _reservations
 
-    fun loadMockData() {
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading
+
+    // ✅ Load merchant's own data
+    fun loadMerchantData() {
         viewModelScope.launch {
-            // Calls the Repository to get the mock data
-            _listings.value = repo.getMerchantListings()
-            _requests.value = repo.getMerchantRequests()
-            _reservations.value = repo.getMerchantReservations() // NEW
+            _isLoading.value = true
+            try {
+                // ✅ All functions use CurrentUser internally
+                _listings.value = repo.getMyListings()
+                _requests.value = repo.getMyPendingRequests()
+                _reservations.value = repo.getMyReservations()
+            } catch (e: Exception) {
+                // Handle error
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
+    // ✅ Update request status (approve/decline)
+    fun updateRequestStatus(requestId: Long, status: String) {
+        viewModelScope.launch {
+            try {
+                repo.updateRequestStatus(requestId, status)
+                // Refresh data
+                loadMerchantData()
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
 
+    // ✅ Update reservation status
+    fun updateReservationStatus(reservationId: Long, status: String) {
+        viewModelScope.launch {
+            try {
+                repo.updateReservationStatus(reservationId, status)
+                // Refresh data
+                loadMerchantData()
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
 }

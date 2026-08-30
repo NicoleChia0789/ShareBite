@@ -3,75 +3,7 @@ package com.sharebite.app.data.repository
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.remote.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-
-@Serializable
-private data class RemainingQuantityRow(
-    @SerialName("remaining_quantity") val remainingQuantity: Int
-)
-
-@Serializable
-private data class InsertIdRow(
-    @SerialName("id") val id: Long  // ✅ 明确指定字段名
-)
-
-suspend fun createReservationAndGetId(
-    userId: String,
-    listingId: Long,
-    merchantId: String,
-    foodName: String,
-    quantity: String,
-    pickupDate: String,
-    pickupTime: String,
-    note: String
-): Long {
-    val newReservation = Reservation(
-        userId = userId,
-        listingId = listingId,
-        merchantId = merchantId,
-        foodName = foodName,
-        quantity = quantity,
-        pickupDate = pickupDate,
-        pickupTime = pickupTime,
-        status = "Pending",
-        note = note
-    )
-
-    // 插入并返回 ID
-    val result = SupabaseClient.client.postgrest["reservations"]
-        .insert(newReservation) {
-            select(Columns.list("id"))
-        }
-        .decodeList<InsertIdRow>()
-        .firstOrNull()
-
-    val newId = result?.id ?: 0L
-    println("✅ 从数据库返回的 ID: $newId")  // 调试用
-
-    // 更新剩余数量
-    val current = SupabaseClient.client.postgrest["food_listings"]
-        .select(Columns.list("remaining_quantity")) {
-            filter { eq("id", listingId) }
-            limit(1)
-        }
-        .decodeList<RemainingQuantityRow>()
-        .firstOrNull()
-
-    val newRemaining = (current?.remainingQuantity ?: 1) - 1
-    SupabaseClient.client.postgrest["food_listings"]
-        .update(
-            {
-                set("remaining_quantity", newRemaining)
-            }
-        ) {
-            filter { eq("id", listingId) }
-        }
-
-    return newId
-}
 
 class ReservationRepository {
 
@@ -100,14 +32,16 @@ class ReservationRepository {
             .insert(newReservation)
 
         val current = SupabaseClient.client.postgrest["food_listings"]
-            .select(Columns.list("remaining_quantity")) {
+            .select {
                 filter { eq("id", listingId) }
                 limit(1)
             }
-            .decodeList<RemainingQuantityRow>()
+            .decodeList<Map<String, Any>>()
             .firstOrNull()
 
-        val newRemaining = (current?.remainingQuantity ?: 1) - 1
+        val currentRemaining = (current?.get("remaining_quantity") as? Number)?.toInt() ?: 0
+        val newRemaining = currentRemaining - 1
+
         SupabaseClient.client.postgrest["food_listings"]
             .update(
                 {
@@ -118,60 +52,7 @@ class ReservationRepository {
             }
     }
 
-    // ✅ 修复：用 InsertIdRow 代替 Map<String, Any>
-    suspend fun createReservationAndGetId(
-        userId: String,
-        listingId: Long,
-        merchantId: String,
-        foodName: String,
-        quantity: String,
-        pickupDate: String,
-        pickupTime: String,
-        note: String
-    ): Long {
-        val newReservation = Reservation(
-            userId = userId,
-            listingId = listingId,
-            merchantId = merchantId,
-            foodName = foodName,
-            quantity = quantity,
-            pickupDate = pickupDate,
-            pickupTime = pickupTime,
-            status = "Pending",
-            note = note
-        )
-
-        // ✅ 用 InsertIdRow 代替 Map<String, Any>
-        val result = SupabaseClient.client.postgrest["reservations"]
-            .insert(newReservation) {
-                select(Columns.list("id"))
-            }
-            .decodeList<InsertIdRow>()
-            .firstOrNull()
-
-        val newId = result?.id ?: 0L
-
-        val current = SupabaseClient.client.postgrest["food_listings"]
-            .select(Columns.list("remaining_quantity")) {
-                filter { eq("id", listingId) }
-                limit(1)
-            }
-            .decodeList<RemainingQuantityRow>()
-            .firstOrNull()
-
-        val newRemaining = (current?.remainingQuantity ?: 1) - 1
-        SupabaseClient.client.postgrest["food_listings"]
-            .update(
-                {
-                    set("remaining_quantity", newRemaining)
-                }
-            ) {
-                filter { eq("id", listingId) }
-            }
-
-        return newId
-    }
-
+    // ✅ 修改：捕获异常，返回空列表
     suspend fun getUserReservations(userId: String): List<Reservation> {
         return try {
             SupabaseClient.client.postgrest["reservations"]
@@ -181,10 +62,12 @@ class ReservationRepository {
                 }
                 .decodeList<Reservation>()
         } catch (e: Exception) {
+            // 如果 userId 无效或网络错误，返回空列表
             emptyList()
         }
     }
 
+    // ✅ 修改：捕获异常，返回空列表
     suspend fun getUserReservationsByStatus(
         userId: String,
         status: String
@@ -204,6 +87,7 @@ class ReservationRepository {
         }
     }
 
+    // ✅ 修改：捕获异常，返回 null
     suspend fun getReservationById(id: Long): Reservation? {
         return try {
             SupabaseClient.client.postgrest["reservations"]

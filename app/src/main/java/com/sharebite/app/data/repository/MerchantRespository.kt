@@ -3,60 +3,122 @@ package com.sharebite.app.data.repository
 import com.sharebite.app.data.model.CharityRequest
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.model.Reservation
+import com.sharebite.app.data.remote.SupabaseClient
+import com.sharebite.app.data.session.CurrentUser
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Order
 
 class MerchantRepository {
 
-    // Mock data goes here
-    fun getMerchantListings(): List<FoodListing> {
-        return listOf(
-            FoodListing(
-                id = 1,
-                merchantId = "merchant_123",
-                foodName = "Assorted Morning Pastries",
-                category = "Bakery",
-                quantity = "24 units",
-                status = "available"
-            ),
-            FoodListing(
-                id = 2,
-                merchantId = "merchant_123",
-                foodName = "Fresh Vegetables Box",
-                category = "Produce",
-                quantity = "12 kg",
-                status = "available"
-            )
+    // ✅ Get merchant's own listings from Supabase
+    suspend fun getMyListings(): List<FoodListing> {
+        val merchantId = CurrentUser.getUserId()
+        return try {
+            SupabaseClient.client.postgrest["food_listings"]
+                .select {
+                    filter { eq("merchant_id", merchantId) }
+                    order("created_at", Order.DESCENDING)
+                }
+                .decodeList<FoodListing>()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    // ✅ Get requests for merchant's listings (pending approvals)
+    suspend fun getMyPendingRequests(): List<CharityRequest> {
+        val merchantId = CurrentUser.getUserId()
+        return try {
+            SupabaseClient.client.postgrest["charity_requests"]
+                .select {
+                    filter {
+                        eq("merchant_id", merchantId)
+                        eq("status", "Pending")
+                    }
+                    order("created_at", Order.DESCENDING)
+                }
+                .decodeList<CharityRequest>()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    // ✅ Get all requests for merchant's listings
+    suspend fun getMyAllRequests(): List<CharityRequest> {
+        val merchantId = CurrentUser.getUserId()
+        return try {
+            SupabaseClient.client.postgrest["charity_requests"]
+                .select {
+                    filter { eq("merchant_id", merchantId) }
+                    order("created_at", Order.DESCENDING)
+                }
+                .decodeList<CharityRequest>()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    // ✅ Get reservations for merchant's listings
+    suspend fun getMyReservations(): List<Reservation> {
+        val merchantId = CurrentUser.getUserId()
+        return try {
+            SupabaseClient.client.postgrest["reservations"]
+                .select {
+                    filter { eq("merchant_id", merchantId) }
+                    order("created_at", Order.DESCENDING)
+                }
+                .decodeList<Reservation>()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    // ✅ Get reservation counts for merchant dashboard
+    suspend fun getMyReservationCounts(): Map<String, Int> {
+        val merchantId = CurrentUser.getUserId()
+        val allReservations = try {
+            SupabaseClient.client.postgrest["reservations"]
+                .select {
+                    filter { eq("merchant_id", merchantId) }
+                }
+                .decodeList<Reservation>()
+        } catch (e: Exception) {
+            emptyList()
+        }
+
+        return mapOf(
+            "pending" to allReservations.count { it.status == "Pending" },
+            "confirmed" to allReservations.count { it.status == "Confirmed" },
+            "completed" to allReservations.count { it.status == "Completed" },
+            "cancelled" to allReservations.count { it.status == "Cancelled" }
         )
     }
 
-
-
-    fun getMerchantRequests(): List<CharityRequest> {
-        return listOf(
-            CharityRequest(
-                id = 1,
-                merchantId = "merchant_123",
-                organisationName = "Hope Shelter",
-                foodName = "Assorted Pastries",
-                quantity = 10,
-                status = "Pending"
-            ),
-            CharityRequest(
-                id = 2,
-                merchantId = "merchant_123",
-                organisationName = "Downtown Mission",
-                foodName = "Fresh Vegetables",
-                quantity = 5,
-                status = "Pending"
-            )
-        )
+    // ✅ Update request status (accept/reject)
+    suspend fun updateRequestStatus(requestId: Long, status: String) {
+        val merchantId = CurrentUser.getUserId()
+        SupabaseClient.client.postgrest["charity_requests"]
+            .update(
+                { set("status", status) }
+            ) {
+                filter {
+                    eq("id", requestId)
+                    eq("merchant_id", merchantId) // ✅ Ensure it belongs to current merchant
+                }
+            }
     }
 
-    // NEW: Mock data for User Reservations
-    fun getMerchantReservations(): List<Reservation> {
-        return listOf(
-            Reservation(id = 1, merchantId = "merchant_123", userId = "user_456", foodName = "Fresh Produce Box", quantity = "1", pickupDate = "Today", pickupTime = "4:00 PM - 5:00 PM", status = "Pending"),
-            Reservation(id = 2, merchantId = "merchant_123", userId = "user_789", foodName = "Organic Veggie Box", quantity = "2", pickupDate = "Today", pickupTime = "5:30 PM - 6:30 PM", status = "Pending")
-        )
+    // ✅ Update reservation status (confirm/pickup/complete)
+    suspend fun updateReservationStatus(reservationId: Long, status: String) {
+        val merchantId = CurrentUser.getUserId()
+        SupabaseClient.client.postgrest["reservations"]
+            .update(
+                { set("status", status) }
+            ) {
+                filter {
+                    eq("id", reservationId)
+                    eq("merchant_id", merchantId) // ✅ Ensure it belongs to current merchant
+                }
+            }
     }
-
 }

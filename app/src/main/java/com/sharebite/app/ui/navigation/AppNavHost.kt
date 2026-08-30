@@ -19,29 +19,10 @@ import com.sharebite.app.ui.user.*
 import com.sharebite.app.ui.merchant.*
 import com.sharebite.app.ui.merchant.MerchantAddDonationScreen
 
-
-import com.sharebite.app.ui.navigation.Screen
-import com.sharebite.app.ui.navigation.UserFoodDetailRoute
-import com.sharebite.app.ui.navigation.UserMakeReservationRoute
-import com.sharebite.app.ui.navigation.UserReservationDetailRoute
-import com.sharebite.app.ui.navigation.UserSavedFoodRoute
-import com.sharebite.app.ui.navigation.UserEditProfileRoute
-import com.sharebite.app.ui.navigation.UserHelpRoute
-import com.sharebite.app.ui.navigation.FoodDetailRoute
-import com.sharebite.app.ui.navigation.RequestDetailRoute
-import com.sharebite.app.ui.navigation.PostRequestRoute
-import com.sharebite.app.ui.navigation.ApplyForFoodRoute
-import com.sharebite.app.ui.navigation.EditRequestRoute
-import com.sharebite.app.ui.navigation.NotificationsRoute
-import com.sharebite.app.ui.navigation.SavedItemsRoute
-import com.sharebite.app.ui.navigation.AboutRoute
-import com.sharebite.app.ui.navigation.MerchantDashboardRoute
-import com.sharebite.app.ui.navigation.MerchantAddDonationRoute
-import com.sharebite.app.ui.navigation.MerchantReservationsRoute
-
 @Composable
 fun AppNavHost(
-    role: String
+    role: String,
+    onLogout: () -> Unit = {}  // ✅ Added logout callback
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -120,7 +101,7 @@ fun AppNavHost(
                 else -> {}
             }
         },
-        role = role  // ✅ 关键：传递角色给 AppScaffold
+        onLogoutClick = onLogout  // ✅ Pass logout callback
     ) { paddingValues ->
         NavHost(
             navController = navController,
@@ -199,7 +180,7 @@ fun AppNavHost(
                         onSavedFood = { navController.navigate(UserSavedFoodRoute.route) },
                         onHelpClick = { navController.navigate(UserHelpRoute.route) },
                         onAboutClick = { navController.navigate(AboutRoute.route) },
-                        onLogout = { /* 待 Auth 实现 */ }
+                        onLogout = onLogout  // ✅ Pass logout callback
                     )
                     "charity" -> ProfileScreen(
                         paddingValues = paddingValues,
@@ -361,10 +342,6 @@ fun AppNavHost(
                     onItemClick = { id -> navController.navigate(FoodDetailRoute.createRoute(id)) }
                 )
             }
-
-            // ══════════════════════════════════════
-            // Merchant 特有路由
-            // ══════════════════════════════════════
 
             composable(MerchantAddDonationRoute.route) {
                 MerchantAddDonationScreen(

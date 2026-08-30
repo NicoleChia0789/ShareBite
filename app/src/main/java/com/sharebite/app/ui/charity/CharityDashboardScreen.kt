@@ -36,6 +36,7 @@ import com.sharebite.app.ui.theme.TextDark
 import com.sharebite.app.ui.theme.CardCream
 import androidx.compose.foundation.clickable
 import com.sharebite.app.data.repository.FoodListingRepository
+import com.sharebite.app.data.session.CurrentUser
 
 // 假的数据模型，之后会换成从 Supabase 拿真实数据
 data class ActivityItem(
@@ -54,6 +55,7 @@ fun CharityDashboardScreen(
 ) {
     val repository = remember { CharityRepository() }
     val listingRepository = remember { FoodListingRepository() }
+    val userName = CurrentUser.getUserName()
 
     var availableCount by remember { mutableStateOf(0) }
 
@@ -63,7 +65,7 @@ fun CharityDashboardScreen(
 
     LaunchedEffect(Unit) {
         try {
-            allRequests = repository.getAllRequests()
+            allRequests = repository.getMyRequests()
             availableCount = listingRepository.getAvailableCount()
         } catch (e: Exception) {
             errorMessage = e.message
@@ -116,7 +118,7 @@ fun CharityDashboardScreen(
             // ---------- HERO SECTION ----------
             Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                 Text(
-                    "Hi, Hope Charity Home 👋",
+                    "Hi, $userName 👋",
                     fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextDark

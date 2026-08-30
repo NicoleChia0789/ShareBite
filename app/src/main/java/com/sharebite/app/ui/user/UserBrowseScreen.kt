@@ -41,7 +41,6 @@ import com.google.maps.android.compose.*
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.data.repository.SavedListingRepository
-import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -70,26 +69,24 @@ fun UserBrowseScreen(
     val scope = rememberCoroutineScope()
     val repository = remember { FoodListingRepository() }
     val savedRepo = remember { SavedListingRepository() }
-
-    // ⚠️ 临时硬编码测试用户 ID，之后换成 CurrentUser.user?.id ?: ""
-    val userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3"
-
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
     var allListings by remember { mutableStateOf<List<FoodListing>>(emptyList()) }
     var filteredListings by remember { mutableStateOf<List<FoodListing>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-    var isDataLoaded by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<String?>(null) }
     var isListView by remember { mutableStateOf(true) }
+
     var showFilterSheet by remember { mutableStateOf(false) }
     var filterState by remember { mutableStateOf(FilterState()) }
 
     var selectedListingForMap by remember { mutableStateOf<FoodListing?>(null) }
     var showMapBottomSheet by remember { mutableStateOf(false) }
+
+    val userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3"
 
     val defaultLocation = LatLng(3.1390, 101.6869)
     val cameraPositionState = rememberCameraPositionState {
@@ -108,18 +105,15 @@ fun UserBrowseScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (!isDataLoaded) {
-            try {
-                val all = repository.getAvailableListings()
-                allListings = all.filter { !isFoodExpired(it.deadline) }
-                filteredListings = allListings
-                isDataLoaded = true
-            } catch (e: Exception) {
-                errorMessage = e.message
-            } finally {
-                isLoading = false
-            }
-        } else {
+        try {
+            val all = repository.getAvailableListings()
+            allListings = all.filter { !isFoodExpired(it.deadline) }
+            filteredListings = allListings
+            println("🔍 Browse - 找到 ${allListings.size} 个食物")  // ✅ 加在这里
+        } catch (e: Exception) {
+            errorMessage = e.message
+            println("🔴 Browse 错误: ${e.message}")
+        } finally {
             isLoading = false
         }
     }
@@ -135,8 +129,10 @@ fun UserBrowseScreen(
                 listing.category in filterState.categories
             } else true
 
+            // ✅ 距离筛选（真正应用）
             val matchesDistance = listing.distanceKm <= filterState.distance
 
+            // ✅ 饮食偏好筛选（如果 food_listings 表有 dietary_type 字段）
             val matchesDietary = when {
                 filterState.isVegetarian -> listing.dietaryType == "Vegetarian"
                 filterState.isVegan -> listing.dietaryType == "Vegan"
@@ -351,6 +347,7 @@ fun UserBrowseScreen(
                         }
                     }
 
+                    // ── 地图 + 渐显悬浮卡片 ──
                     Box(modifier = Modifier.fillMaxSize()) {
                         GoogleMap(
                             modifier = Modifier.fillMaxSize(),
@@ -375,6 +372,7 @@ fun UserBrowseScreen(
                             }
                         }
 
+                        // ✅ 渐显悬浮卡片（地图底部）
                         androidx.compose.animation.AnimatedVisibility(
                             visible = showMapBottomSheet && selectedListingForMap != null,
                             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -397,6 +395,7 @@ fun UserBrowseScreen(
                                             .padding(horizontal = 14.dp, vertical = 10.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
+                                        // 食物图片
                                         if (!item.photoUrl.isNullOrBlank()) {
                                             AsyncImage(
                                                 model = item.photoUrl,
@@ -455,6 +454,7 @@ fun UserBrowseScreen(
                                             )
                                         }
 
+                                        // View 按钮
                                         Button(
                                             onClick = {
                                                 showMapBottomSheet = false
@@ -474,6 +474,7 @@ fun UserBrowseScreen(
                                             )
                                         }
 
+                                        // 关闭按钮
                                         IconButton(
                                             onClick = { showMapBottomSheet = false },
                                             modifier = Modifier.size(24.dp)
@@ -561,6 +562,7 @@ fun UserBrowseScreen(
             }
         }
 
+        // ── FAB 定位按钮 ──
         if (!isListView) {
             FloatingActionButton(
                 onClick = {
@@ -886,6 +888,7 @@ private fun BrowseFoodCard(
         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
+            // ── 图片区域 ──
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -917,6 +920,7 @@ private fun BrowseFoodCard(
                     }
                 }
 
+                // 左上角标签
                 Row(
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -957,6 +961,7 @@ private fun BrowseFoodCard(
                     }
                 }
 
+                // 右上角收藏按钮
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -991,12 +996,13 @@ private fun BrowseFoodCard(
                                 imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                 contentDescription = if (isSaved) "Saved" else "Save",
                                 modifier = Modifier.size(18.dp),
-                                tint = if (isSaved) RedCancelled else TextDark  // ✅ 红色 / 灰色
+                                tint = if (isSaved) RedCancelled else TextDark
                             )
                         }
                     }
                 }
 
+                // 底部渐变
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1010,6 +1016,7 @@ private fun BrowseFoodCard(
                 )
             }
 
+            // ── 内容区域 ──
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1017,6 +1024,7 @@ private fun BrowseFoodCard(
                     .padding(top = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                // 第一行：食物名称 + 距离 + 到期时间
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1061,6 +1069,7 @@ private fun BrowseFoodCard(
                     }
                 }
 
+                // 第二行：商家名
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -1080,11 +1089,11 @@ private fun BrowseFoodCard(
                     )
                 }
 
-                // ✅ 修改：按钮上移（底部 padding 从 6dp 改为 14dp）
+                // ── 底部行：头像组 + Request 按钮 ──
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 6.dp, bottom = 14.dp),  // 👈 关键改动
+                        .padding(vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {

@@ -7,9 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,43 +22,32 @@ import coil.compose.AsyncImage
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.data.repository.SavedListingRepository
-import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
-import kotlinx.coroutines.launch
-import android.widget.Toast
 
 @Composable
 fun UserSavedFoodScreen(
     paddingValues: PaddingValues,
     onFoodClick: (Long) -> Unit
 ) {
-    // ⚠️ 临时硬编码测试用户 ID
     val userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3"
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
     val savedRepo = remember { SavedListingRepository() }
     val foodRepo = remember { FoodListingRepository() }
 
     var savedListings by remember { mutableStateOf<List<FoodListing>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-    var isDataLoaded by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        if (!isDataLoaded) {
-            try {
-                val savedIds = savedRepo.getSavedListingIds(userId)
-                savedListings = savedIds.mapNotNull { id ->
-                    try { foodRepo.getListingById(id) } catch (e: Exception) { null }
-                }
-                isDataLoaded = true
-            } catch (e: Exception) {
-                errorMessage = e.message
-            } finally {
-                isLoading = false
+        try {
+            val savedIds = savedRepo.getSavedListingIds(userId)
+            println("🔍 SavedFood - 找到 ${savedIds.size} 个收藏")  // ✅ 加在这里
+            savedListings = savedIds.mapNotNull { id ->
+                try { foodRepo.getListingById(id) } catch (e: Exception) { null }
             }
-        } else {
+        } catch (e: Exception) {
+            errorMessage = e.message
+            println("🔴 SavedFood 错误: ${e.message}")
+        } finally {
             isLoading = false
         }
     }
@@ -89,7 +75,7 @@ fun UserSavedFoodScreen(
             savedListings.isEmpty() -> Box(Modifier.fillMaxSize(), Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        imageVector = Icons.Default.FavoriteBorder,
+                        imageVector = Icons.Default.Favorite,
                         contentDescription = null,
                         modifier = Modifier.size(48.dp),
                         tint = TextGrey
@@ -108,18 +94,7 @@ fun UserSavedFoodScreen(
                 items(savedListings) { listing ->
                     SavedFoodCard(
                         listing = listing,
-                        onClick = { onFoodClick(listing.id) },
-                        onUnsave = {
-                            scope.launch {
-                                try {
-                                    savedRepo.unsaveListing(userId, listing.id)
-                                    savedListings = savedListings.filter { it.id != listing.id }
-                                    Toast.makeText(context, "Removed from saved", Toast.LENGTH_SHORT).show()
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        }
+                        onClick = { onFoodClick(listing.id) }
                     )
                 }
             }
@@ -130,8 +105,7 @@ fun UserSavedFoodScreen(
 @Composable
 private fun SavedFoodCard(
     listing: FoodListing,
-    onClick: () -> Unit,
-    onUnsave: () -> Unit
+    onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -198,17 +172,20 @@ private fun SavedFoodCard(
                 }
             }
 
-            // ✅ 红色爱心按钮，点击取消收藏
-            IconButton(
-                onClick = onUnsave,
-                modifier = Modifier.size(36.dp)
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = Color.White.copy(alpha = 0.9f),
+                modifier = Modifier.size(36.dp),
+                shadowElevation = 4.dp
             ) {
-                Icon(
-                    imageVector = Icons.Default.Favorite,
-                    contentDescription = "Unsave",
-                    modifier = Modifier.size(20.dp),
-                    tint = RedCancelled
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = "Saved",
+                        modifier = Modifier.size(20.dp),
+                        tint = OrangeAccent
+                    )
+                }
             }
         }
     }

@@ -23,7 +23,7 @@ fun UserEditProfileScreen(
     paddingValues: PaddingValues,
     onSaveSuccess: () -> Unit
 ) {
-    val userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3"
+    val userId = CurrentUser.getUserId()
     val repository = remember { UserRepository() }
     val scope = rememberCoroutineScope()
 

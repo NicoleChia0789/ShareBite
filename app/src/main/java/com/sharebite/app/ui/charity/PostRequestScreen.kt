@@ -26,6 +26,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.material3.SelectableDates
 import androidx.compose.ui.window.DialogProperties
+import com.sharebite.app.data.session.CurrentUser
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("UNUSED_PARAMETER")
@@ -37,6 +38,7 @@ fun PostRequestScreen(
 ) {
     val repository = remember { CharityRepository() }
     val coroutineScope = rememberCoroutineScope()
+    val organisationName = CurrentUser.getUserName()
 
     // 表单状态
     var foodName by remember { mutableStateOf("") }
@@ -298,13 +300,13 @@ fun PostRequestScreen(
                 isSubmitting = true
                 coroutineScope.launch {
                     try {
-                        repository.createRequest(
+                        repository.createMyRequest(
                             foodName = foodName,
                             category = selectedCategories.joinToString(","),
                             quantity = quantity.toInt(),
                             pickupDate = pickupDate,
                             pickupTime = pickupTime,
-                            organisationName = "Hope Charity Home",
+                            organisationName = organisationName,
                             peopleServed = 30,
                             note = note
                         )
