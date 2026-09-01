@@ -34,14 +34,8 @@ object UserFoodDetailRoute {
 }
 
 object UserMakeReservationRoute {
-    const val route = "user_make_reservation/{listingId}?reservationId={reservationId}"
-    fun createRoute(listingId: Long, reservationId: Long? = null): String {
-        return if (reservationId != null && reservationId != 0L) {
-            "user_make_reservation/$listingId?reservationId=$reservationId"
-        } else {
-            "user_make_reservation/$listingId"
-        }
-    }
+    const val route = "user_make_reservation/{listingId}"
+    fun createRoute(listingId: Long) = "user_make_reservation/$listingId"
 }
 
 object UserReservationDetailRoute {
@@ -67,7 +61,7 @@ object ForgotPasswordRoute { const val route = "forgot_password" }
 
 object ResetPasswordRoute {
     const val route = "reset_password"
-
+    fun createRoute(email: String) = "reset_password?email=$email"
 }
 
 // ──────────────────────────────────────────────

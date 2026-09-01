@@ -34,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import com.sharebite.app.ui.profile.NotificationSettingsScreen
 
-
 @Composable
 fun AppNavHost(
     role: String,
@@ -71,30 +70,31 @@ fun AppNavHost(
         currentRoute == UserEditProfileRoute.route -> "Edit Profile"
         currentRoute == SecurityRoute.route -> "Password & Security"
         currentRoute == ChangePasswordRoute.route -> "Change Password"
+        currentRoute == ForgotPasswordRoute.route -> "Forgot Password"
+        currentRoute == ResetPasswordRoute.route -> "Reset Password"
         currentRoute == NotificationsRoute.route -> "Notifications"
         currentRoute == NotificationSettingsRoute.route -> "Notification Settings"
-
         currentRoute == UserHelpRoute.route -> "Help & Support"
         currentRoute.startsWith("user_food_detail/") -> "Food Detail"
         currentRoute.startsWith("user_make_reservation/") -> "Make Reservation"
         currentRoute.startsWith("user_reservation_detail/") -> "Reservation Detail"
 
+        // Auth routes
+        currentRoute == SignInRoute.route -> "Sign In"
+        currentRoute == SignUpRoute.route -> "Sign Up"
+
         // Charity routes
         currentRoute == CharityEditProfileRoute.route -> "Edit Profile"
         currentRoute == CharityHelpRoute.route -> "Help & Support"
-
         currentRoute.startsWith("food_detail/") -> "Food Detail"
         currentRoute.startsWith("apply_for_food/") -> "Apply for Food"
         currentRoute.startsWith("edit_request/") -> "Edit Request"
         currentRoute == PostRequestRoute.route -> "Post a Food Request"
-
-
         currentRoute.startsWith("request_detail/") -> "Request Detail"
 
         // Merchant routes
         currentRoute == MerchantEditProfileRoute.route -> "Edit Profile"
         currentRoute == MerchantHelpRoute.route -> "Help & Support"
-
         currentRoute == MerchantDonationHistoryRoute.route -> "Donation History"
         currentRoute == MerchantDashboardRoute.route -> "Merchant Dashboard"
         currentRoute == MerchantAddDonationRoute.route -> "Add Donation"
@@ -116,13 +116,14 @@ fun AppNavHost(
             currentRoute == HistoryRoute.route ||
             currentRoute.startsWith("user_make_reservation/") ||
             currentRoute.startsWith("user_reservation_detail/") ||
-
             currentRoute == UserEditProfileRoute.route ||
             currentRoute == UserHelpRoute.route ||
             currentRoute == UserAddressesRoute.route ||
             currentRoute == UserAddEditAddressRoute.route ||
             currentRoute == SecurityRoute.route ||
             currentRoute == ChangePasswordRoute.route ||
+            currentRoute == ForgotPasswordRoute.route ||
+            currentRoute == ResetPasswordRoute.route ||
             currentRoute == NotificationsRoute.route ||
             currentRoute == NotificationSettingsRoute.route ||
             currentRoute == CharityEditProfileRoute.route ||
@@ -131,12 +132,13 @@ fun AppNavHost(
             currentRoute == MerchantHelpRoute.route ||
             currentRoute == MerchantDonationHistoryRoute.route ||
             currentRoute == MerchantImpactRoute.route ||
+            currentRoute == SignInRoute.route ||
+            currentRoute == SignUpRoute.route ||
             currentRoute.startsWith("food_detail/") ||
             currentRoute.startsWith("apply_for_food/") ||
             currentRoute.startsWith("edit_request/") ||
             currentRoute.startsWith("request_detail/") ||
             currentRoute == PostRequestRoute.route ||
-
             currentRoute == AboutRoute.route ||
             currentRoute == MerchantAddDonationRoute.route ||
             currentRoute == MerchantReservationsRoute.route ||
@@ -151,6 +153,9 @@ fun AppNavHost(
         currentRoute = currentRoute,
         onNavigate = { route ->
             navController.navigate(route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
                 launchSingleTop = true
                 restoreState = true
             }
@@ -160,13 +165,70 @@ fun AppNavHost(
         onBackClick = { navController.popBackStack() },
         onNotificationClick = { navController.navigate(NotificationsRoute.route) },
         onLogoutClick = onLogout,
-
-
     ) { paddingValues ->
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route
         ) {
+            // ══════════════════════════════════════
+            // Auth 路由
+            // ══════════════════════════════════════
+
+            composable(SignInRoute.route) {
+                SignIn(
+                    onSignInSuccess = { userRole ->
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(SignInRoute.route) { inclusive = true }
+                        }
+                    },
+                    onSignUpClick = {
+                        navController.navigate(SignUpRoute.route)
+                    },
+                    onForgotPasswordClick = {
+                        navController.navigate(ForgotPasswordRoute.route)
+                    }
+                )
+            }
+
+            composable(SignUpRoute.route) {
+                SignUp(
+                    onSignUpClick = { userRole ->
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(SignUpRoute.route) { inclusive = true }
+                        }
+                    },
+                    onLoginClick = {
+                        navController.navigate(SignInRoute.route) {
+                            popUpTo(SignUpRoute.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            composable(ForgotPasswordRoute.route) {
+                ForgotPasswordScreen(
+                    paddingValues = paddingValues,
+                    onBack = { navController.popBackStack() },
+                    onSendResetLink = { email ->
+                        navController.navigate(ResetPasswordRoute.createRoute(email))
+                    }
+                )
+            }
+
+            composable(ResetPasswordRoute.route) {
+                val email = it.arguments?.getString("email") ?: ""
+                ResetPasswordScreen(
+                    paddingValues = paddingValues,
+                    email = email,
+                    onBack = { navController.popBackStack() },
+                    onReset = { _, newPassword ->
+                        navController.navigate(SignInRoute.route) {
+                            popUpTo(SignInRoute.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
             // ══════════════════════════════════════
             // 底部导航路由
             // ══════════════════════════════════════
@@ -224,8 +286,8 @@ fun AppNavHost(
                     "user" -> UserMyReservationsScreen(
                         paddingValues = paddingValues,
                         onViewClick = { id -> navController.navigate(UserReservationDetailRoute.createRoute(id)) },
-                        onEditReservation = { listingId, reservationId ->
-                            navController.navigate(UserMakeReservationRoute.createRoute(listingId, reservationId))
+                        onEditReservation = { listingId, _ ->
+                            navController.navigate(UserMakeReservationRoute.createRoute(listingId))
                         },
                         onBrowseClick = { navController.navigate(Screen.Browse.route) }
                     )
@@ -259,8 +321,6 @@ fun AppNavHost(
                 when (role) {
                     "user" -> UserProfileScreen(
                         paddingValues = paddingValues,
-
-
                         onHelpClick = { navController.navigate(UserHelpRoute.route) },
                         onAboutClick = { navController.navigate(AboutRoute.route) },
                         onLogout = onLogout,
@@ -272,7 +332,6 @@ fun AppNavHost(
                     )
                     "charity" -> CharityProfileScreen(
                         paddingValues = paddingValues,
-
                         onHistoryClick = { navController.navigate(HistoryRoute.route) },
                         onHelpClick = { navController.navigate(CharityHelpRoute.route) },
                         onAboutClick = { navController.navigate(AboutRoute.route) },
@@ -313,21 +372,15 @@ fun AppNavHost(
 
             composable(
                 route = UserMakeReservationRoute.route,
-                arguments = listOf(
-                    navArgument("listingId") { type = NavType.LongType },
-                    navArgument("reservationId") { type = NavType.StringType; defaultValue = "" }  // ✅ 改为 String
-                )
+                arguments = listOf(navArgument("listingId") { type = NavType.LongType })
             ) { backStackEntry ->
                 val listingId = backStackEntry.arguments?.getLong("listingId") ?: 0L
-                val reservationIdStr = backStackEntry.arguments?.getString("reservationId")
-                val reservationId = reservationIdStr?.takeIf { it.isNotBlank() }?.toLongOrNull()
                 UserMakeReservationScreen(
                     listingId = listingId,
-                    reservationId = reservationId,
                     paddingValues = paddingValues,
-                    onSuccess = { id ->
-                        navController.navigate(UserReservationDetailRoute.createRoute(id)) {
-                            popUpTo(UserMakeReservationRoute.createRoute(listingId, reservationId)) { inclusive = true }
+                    onSuccess = { reservationId ->
+                        navController.navigate(UserReservationDetailRoute.createRoute(reservationId)) {
+                            popUpTo(UserMakeReservationRoute.createRoute(listingId)) { inclusive = true }
                         }
                     }
                 )
@@ -341,16 +394,14 @@ fun AppNavHost(
                 UserReservationDetailScreen(
                     reservationId = reservationId,
                     paddingValues = paddingValues,
-                    onEditClick = { listingId, resId ->
-                        navController.navigate(UserMakeReservationRoute.createRoute(listingId, resId)) {
+                    onEditClick = { listingId, _ ->
+                        navController.navigate(UserMakeReservationRoute.createRoute(listingId)) {
                             popUpTo(UserReservationDetailRoute.createRoute(reservationId)) { inclusive = true }
                         }
                     },
                     onBack = { navController.popBackStack() }
                 )
             }
-
-
 
             composable(UserEditProfileRoute.route) {
                 UserEditProfileScreen(
@@ -364,9 +415,9 @@ fun AppNavHost(
                 UserHelpScreen(paddingValues = paddingValues)
             }
 
-            // ══════════════════════════════════════════
+            // ══════════════════════════════════════
             // User 地址路由
-            // ══════════════════════════════════════════
+            // ══════════════════════════════════════
 
             composable(UserAddressesRoute.route) {
                 UserAddressesScreen(
@@ -419,7 +470,6 @@ fun AppNavHost(
                         paddingValues = paddingValues,
                         onBack = { navController.popBackStack() },
                         onSave = { label, street, city, state, zip, country, phone ->
-                            // ✅ 保存后刷新用户数据
                             navController.popBackStack()
                         },
                         existingAddress = existingAddress
@@ -449,7 +499,6 @@ fun AppNavHost(
                     onForgotPassword = { navController.navigate(ForgotPasswordRoute.route) }
                 )
             }
-
 
             // ══════════════════════════════════════
             // Charity 特有详情路由
@@ -681,18 +730,6 @@ fun AppNavHost(
             // 共用路由
             // ══════════════════════════════════════
 
-            // 1️⃣ 通知列表（点击 Top Bar 的 Bell 图标）
-
-
-            // 2️⃣ 通知设置（Profile 菜单进入）
-            composable(NotificationSettingsRoute.route) {
-                NotificationSettingsScreen(
-                    paddingValues = paddingValues,
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            // 共用路由
             composable(NotificationsRoute.route) {
                 UnifiedNotificationsScreen(
                     paddingValues = paddingValues,
@@ -717,14 +754,16 @@ fun AppNavHost(
                 )
             }
 
-
+            composable(NotificationSettingsRoute.route) {
+                NotificationSettingsScreen(
+                    paddingValues = paddingValues,
+                    onBack = { navController.popBackStack() }
+                )
+            }
 
             composable(AboutRoute.route) {
                 AboutScreen(paddingValues = paddingValues)
             }
-
-
-
         }
     }
 }
