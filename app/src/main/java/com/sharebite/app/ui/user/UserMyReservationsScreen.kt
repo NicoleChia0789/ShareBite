@@ -20,11 +20,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.repository.ReservationRepository
-import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
-import androidx.compose.ui.platform.LocalConfiguration  // ✅ 新增
 
 @Composable
 fun UserMyReservationsScreen(
@@ -32,11 +30,8 @@ fun UserMyReservationsScreen(
     onViewClick: (Long) -> Unit,
     onBrowseClick: () -> Unit = {}
 ) {
-    val userId = CurrentUser.getUserId()
+    val userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3"
     val repository = remember { ReservationRepository() }
-    val configuration = LocalConfiguration.current  // ✅ 新增
-    val locale = configuration.locales.get(0)       // ✅ 新增
-
 
     var allReservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
     var filteredReservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
@@ -48,7 +43,7 @@ fun UserMyReservationsScreen(
 
     LaunchedEffect(Unit) {
         try {
-            allReservations = repository.getMyReservations()
+            allReservations = repository.getUserReservations(userId)
             filteredReservations = allReservations
             println("🔍 MyReservations - 找到 ${allReservations.size} 条预订")
         } catch (e: Exception) {
@@ -180,8 +175,7 @@ fun UserMyReservationsScreen(
                 items(filteredReservations) { reservation ->
                     ReservationCard(
                         reservation = reservation,
-                        onViewClick = { onViewClick(reservation.id) },
-                        locale = locale
+                        onViewClick = { onViewClick(reservation.id) }
                     )
                 }
             }
@@ -193,8 +187,7 @@ fun UserMyReservationsScreen(
 @Composable
 private fun ReservationCard(
     reservation: Reservation,
-    onViewClick: () -> Unit,
-    locale: Locale
+    onViewClick: () -> Unit
 ) {
     val statusColor = when (reservation.status) {
         "Confirmed" -> GreenConfirmed
@@ -213,7 +206,7 @@ private fun ReservationCard(
 
     // 判断是否今天取餐
     val isToday = try {
-        val format = SimpleDateFormat("yyyy-MM-dd", locale)
+        val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val pickupDate = format.parse(reservation.pickupDate)
         val today = Date()
         pickupDate != null && format.format(pickupDate) == format.format(today)
