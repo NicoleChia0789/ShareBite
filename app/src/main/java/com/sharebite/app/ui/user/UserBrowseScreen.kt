@@ -19,14 +19,18 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,6 +56,24 @@ private data class FilterState(
     val sortBy: String = "distance"
 )
 
+// ✅ FilterState 的 Saver（用于 rememberSaveable）
+private val FilterStateSaver = Saver<FilterState, Map<String, Any>>(
+    save = {
+        mapOf(
+            "categories" to it.categories.toList(),
+            "dietaryTypes" to it.dietaryTypes.toList(),
+            "sortBy" to it.sortBy
+        )
+    },
+    restore = {
+        FilterState(
+            categories = (it["categories"] as? List<String>)?.toSet() ?: emptySet(),
+            dietaryTypes = (it["dietaryTypes"] as? List<String>)?.toSet() ?: emptySet(),
+            sortBy = it["sortBy"] as? String ?: "distance"
+        )
+    }
+)
+
 private val allDietaryTypes = listOf("Vegetarian", "Vegan", "Gluten-Free", "Nut-Free", "Regular")
 private val allCategories = listOf("Bakery", "Produce", "Dairy", "Meals", "Vegetables", "Fruits", "Canned Goods", "Prepared Meals", "Other")
 
@@ -65,6 +87,8 @@ fun UserBrowseScreen(
     val scope = rememberCoroutineScope()
     val repository = remember { FoodListingRepository() }
     val configuration = LocalConfiguration.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     // ── 位置相关 ──
     val locationUtils = remember { LocationUtils(context as android.app.Activity) }
@@ -117,17 +141,18 @@ fun UserBrowseScreen(
         }
     }
 
-    // ── 列表状态 ──
+    // ── 列表状态（✅ 全部使用 rememberSaveable） ──
     var allListings by remember { mutableStateOf<List<FoodListing>>(emptyList()) }
-    var filteredListings by remember { mutableStateOf<List<FoodListing>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf<String?>(null) }
-    var isListView by remember { mutableStateOf(true) }
-
+    var selectedCategory by rememberSaveable { mutableStateOf<String?>(null) }
+    var isListView by rememberSaveable { mutableStateOf(true) }
     var showFilterScreen by remember { mutableStateOf(false) }
-    var filterState by remember { mutableStateOf(FilterState()) }
+    var filterState by rememberSaveable(stateSaver = FilterStateSaver) {
+        mutableStateOf(FilterState())
+    }
+    var isDataLoaded by rememberSaveable { mutableStateOf(false) }
 
     val defaultLocation = LatLng(3.1390, 101.6869)
     val cameraPositionState = rememberCameraPositionState {
@@ -140,18 +165,27 @@ fun UserBrowseScreen(
         }
     }
 
-    // ── 1️⃣ 数据加载（仅一次） ──
+    // ✅ 屏幕旋转时关闭键盘
+    LaunchedEffect(configuration.orientation) {
+        focusManager.clearFocus()
+        keyboardController?.hide()
+    }
+
+    // ── 1️⃣ 数据加载（只执行一次） ──
     LaunchedEffect(Unit) {
-        try {
-            allListings = repository.getAvailableListings()
-        } catch (e: Exception) {
-            errorMessage = e.message
-        } finally {
-            isLoading = false
+        if (!isDataLoaded) {
+            isDataLoaded = true
+            try {
+                allListings = repository.getAvailableListings()
+            } catch (e: Exception) {
+                errorMessage = e.message
+            } finally {
+                isLoading = false
+            }
         }
     }
 
-    // ── 2️⃣ 权限和位置（仅一次） ──
+    // ── 2️⃣ 权限和位置（只执行一次） ──
     LaunchedEffect(Unit) {
         if (ContextCompat.checkSelfPermission(
                 context,
@@ -164,8 +198,10 @@ fun UserBrowseScreen(
         }
     }
 
-    // ── 3️⃣ 过滤逻辑（依赖用户操作和位置） ──
-    LaunchedEffect(searchQuery, selectedCategory, filterState, allListings, userLocation) {
+    // ── 3️⃣ 过滤逻辑（✅ 使用 remember 缓存，避免重复计算） ──
+    val filteredListings = remember(
+        searchQuery, selectedCategory, filterState, allListings, userLocation
+    ) {
         val baseListings = allListings
         val currentLocation = userLocation
 
@@ -209,7 +245,7 @@ fun UserBrowseScreen(
         }
 
         // 5. 排序
-        filteredListings = when (filterState.sortBy) {
+        when (filterState.sortBy) {
             "distance" -> listingsWithDistance.sortedBy { it.distanceKm }
             "expiry" -> listingsWithDistance.sortedBy { it.deadline }
             else -> listingsWithDistance
@@ -218,7 +254,16 @@ fun UserBrowseScreen(
 
     val currentLocale = configuration.locales.get(0)
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable(
+                onClick = {
+                    keyboardController?.hide()
+                    focusManager.clearFocus()
+                }
+            )
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -266,7 +311,11 @@ fun UserBrowseScreen(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .onFocusChanged { focusState ->
+                            // 可以在这里处理焦点变化
+                        },
                     placeholder = { Text("Search for food near you...", color = TextGrey) },
                     leadingIcon = {
                         Icon(
@@ -540,7 +589,7 @@ fun UserBrowseScreen(
         }
     }
 
-    // ── 在 UserBrowseScreen 中，用 FilterBottomSheet 替换 FilterFullScreen ──
+    // ── Filter Bottom Sheet ──
     if (showFilterScreen) {
         FilterBottomSheet(
             filterState = filterState,
@@ -559,7 +608,6 @@ private fun FilterBottomSheet(
 ) {
     var localFilterState by remember { mutableStateOf(filterState) }
 
-    // 当 filterState 外部变化时同步
     LaunchedEffect(filterState) {
         if (localFilterState != filterState) {
             localFilterState = filterState
@@ -579,7 +627,6 @@ private fun FilterBottomSheet(
                     .background(Color(0xFFDDC0B8), RoundedCornerShape(2.dp))
             )
         },
-        // 底部安全区域适配
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -725,7 +772,6 @@ private fun FilterBottomSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ── Apply Button ──
             Button(
                 onClick = {
                     onFilterChange(localFilterState)
@@ -795,7 +841,6 @@ private fun BrowseFoodCard(
     onClick: () -> Unit,
     locale: Locale
 ) {
-    // ✅ 使用统一的日期解析函数（和 isListingExpired 保持一致）
     val parsedDate = remember(listing.deadline) { tryParseDeadline(listing.deadline) }
 
     val daysRemaining = remember(listing.deadline, parsedDate) {
@@ -806,7 +851,6 @@ private fun BrowseFoodCard(
                 (diff / (1000 * 60 * 60 * 24)).toInt()
             } else 0
         } else {
-            // 解析失败（如 "today" 格式）→ 视为未过期
             999
         }
     }
@@ -819,7 +863,6 @@ private fun BrowseFoodCard(
                 ((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toInt()
             } else 0
         } else {
-            // 解析失败（如 "today" 格式）→ 视为未过期
             999
         }
     }
@@ -843,7 +886,6 @@ private fun BrowseFoodCard(
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
-            // ── 图片区域 ──
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -908,25 +950,6 @@ private fun BrowseFoodCard(
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
                             letterSpacing = 0.5.sp
-                        )
-                    }
-                }
-
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(12.dp)
-                        .size(36.dp),
-                    shape = RoundedCornerShape(50),
-                    color = Color.White.copy(alpha = 0.7f),
-                    shadowElevation = 4.dp
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.FavoriteBorder,
-                            contentDescription = "Save",
-                            tint = if (isExpired) TextGrey else Color.White,
-                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -1032,7 +1055,6 @@ private fun BrowseFoodCard(
 private fun tryParseDeadline(deadline: String): Date? {
     if (deadline.isBlank()) return null
 
-    // ✅ 处理 "today" 格式（如 "9:00 PM today"）
     if (deadline.contains("today", ignoreCase = true)) {
         val cal = Calendar.getInstance()
         cal.set(Calendar.HOUR_OF_DAY, 23)
