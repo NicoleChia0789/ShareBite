@@ -1,4 +1,4 @@
-package com.sharebite.app.ui.charity
+package com.sharebite.app.ui.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*

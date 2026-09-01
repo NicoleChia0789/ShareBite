@@ -4,6 +4,9 @@ import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.storage.Storage
 
+
+// 或者不导入，直接使用完整路径
+
 object SupabaseClient {
 
     val client = createSupabaseClient(
@@ -12,5 +15,6 @@ object SupabaseClient {
     ) {
         install(Postgrest)
         install(Storage)
+
     }
 }

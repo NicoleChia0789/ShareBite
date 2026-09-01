@@ -37,7 +37,7 @@ import java.util.*
 fun UserMakeReservationScreen(
     listingId: Long,
     paddingValues: PaddingValues,
-    onSuccess: () -> Unit
+    onSuccess: (Long) -> Unit
 ) {
     val context = LocalContext.current  // ✅ 添加
     val foodRepo = remember { FoodListingRepository() }
@@ -91,24 +91,41 @@ fun UserMakeReservationScreen(
         if (isSubmitting || listing == null || selectedDate == null || selectedTime == null) return
         scope.launch {
             isSubmitting = true
-            try {
-                reservationRepo.createMyReservation(
+            errorMessage = null  // Clear previous errors
 
+            try {
+                println("🚀 Submitting reservation for listingId: $listingId")
+
+                val newReservationId = reservationRepo.createMyReservation(
                     listingId = listingId,
                     merchantId = listing!!.merchantId ?: "",
                     foodName = listing!!.foodName,
                     quantity = listing!!.quantity,
                     pickupDate = selectedDate!!,
                     pickupTime = selectedTime!!,
-                    note = note
+                    note = note.ifBlank { null }
                 )
-                onSuccess()
+
+                println("📥 Received reservation ID: $newReservationId")
+                isSubmitting = false
+
+                if (newReservationId > 0) {
+                    println("✅ Reservation successful! ID: $newReservationId")
+                    onSuccess(newReservationId)
+                } else {
+                    errorMessage = "Failed to create reservation. Please try again."
+                    println("❌ Reservation creation failed - ID: $newReservationId")
+                }
+
             } catch (e: Exception) {
-                errorMessage = e.message
+                errorMessage = "Error: ${e.message}"
+                println("❌ Exception: ${e.message}")
+                e.printStackTrace()
                 isSubmitting = false
             }
         }
     }
+
 
     when {
         isLoading -> Box(Modifier.fillMaxSize().padding(paddingValues), Alignment.Center) {

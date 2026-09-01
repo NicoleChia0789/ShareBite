@@ -22,13 +22,8 @@ val bottomNavItems = listOf(Screen.Home, Screen.Browse, Screen.Requests, Screen.
 // ──────────────────────────────────────────────
 // 2. Auth 路由
 // ──────────────────────────────────────────────
-object SignUpRoute {
-    const val route = "sign_up"
-}
-
-object SignInRoute {
-    const val route = "sign_in"
-}
+object SignUpRoute { const val route = "sign_up" }
+object SignInRoute { const val route = "sign_in" }
 
 // ──────────────────────────────────────────────
 // 3. User 特有路由
@@ -48,20 +43,48 @@ object UserReservationDetailRoute {
     fun createRoute(id: Long) = "user_reservation_detail/$id"
 }
 
-object UserSavedFoodRoute {
-    const val route = "user_saved_food"
-}
+object UserSavedFoodRoute { const val route = "user_saved_food" }
+object UserEditProfileRoute { const val route = "user_edit_profile" }
+object UserHelpRoute { const val route = "help" }
 
-object UserEditProfileRoute {
-    const val route = "user_edit_profile"
-}
+// ──────────────────────────────────────────────
+// 4. User 地址路由
+// ──────────────────────────────────────────────
+object UserAddressesRoute { const val route = "user_addresses" }
+object UserAddEditAddressRoute { const val route = "user_add_edit_address" }
 
-object UserHelpRoute {
-    const val route = "help"
+// ──────────────────────────────────────────────
+// 5. User 安全路由（共用）
+// ──────────────────────────────────────────────
+object SecurityRoute {
+    const val route = "security"
+}
+object ChangePasswordRoute { const val route = "change_password" }
+object ForgotPasswordRoute { const val route = "forgot_password" }
+
+object ResetPasswordRoute {
+    const val route = "reset_password"
+    fun createRoute(email: String) = "reset_password?email=$email"
 }
 
 // ──────────────────────────────────────────────
-// 4. Charity 特有路由
+// 6. Charity 特有路由
+// ──────────────────────────────────────────────
+object CharityEditProfileRoute { const val route = "charity_edit_profile" }
+object CharityHelpRoute { const val route = "charity_help" }
+object CharityNotificationsRoute { const val route = "charity_notifications" }
+
+// ──────────────────────────────────────────────
+// 7. Merchant 特有路由
+// ──────────────────────────────────────────────
+object MerchantEditProfileRoute { const val route = "merchant_edit_profile" }
+object MerchantHelpRoute { const val route = "merchant_help" }
+object MerchantNotificationsRoute { const val route = "merchant_notifications" }
+object MerchantDonationHistoryRoute { const val route = "merchant_donation_history" }
+object MerchantImpactRoute { const val route = "merchant_impact" }
+
+// ──────────────────────────────────────────────
+// 8. Charity 食物路由
 // ──────────────────────────────────────────────
 object FoodDetailRoute {
     const val route = "food_detail/{listingId}"
@@ -73,9 +96,7 @@ object RequestDetailRoute {
     fun createRoute(id: Long) = "request_detail/$id"
 }
 
-object PostRequestRoute {
-    const val route = "post_request"
-}
+object PostRequestRoute { const val route = "post_request" }
 
 object ApplyForFoodRoute {
     const val route = "apply_for_food/{listingId}"
@@ -87,32 +108,35 @@ object EditRequestRoute {
     fun createRoute(id: Long) = "edit_request/$id"
 }
 
-object AboutRoute {
-    const val route = "about"
-}
+object AboutRoute { const val route = "about" }
 
 // ──────────────────────────────────────────────
-// 5. 共用路由
+// 9. 共用路由
 // ──────────────────────────────────────────────
-object NotificationsRoute {
-    const val route = "notifications"
-}
+object NotificationsRoute { const val route = "notifications" }
 
 // ──────────────────────────────────────────────
-// 6. Merchant 特有路由
+// 10. Merchant 特有路由
 // ──────────────────────────────────────────────
-object MerchantDashboardRoute {
-    const val route = "merchant_dashboard"
+object MerchantDashboardRoute { const val route = "merchant_dashboard" }
+object MerchantAddDonationRoute { const val route = "merchant_add_donation" }
+object MerchantReservationsRoute { const val route = "merchant_reservations" }
+object SavedItemsRoute { const val route = "saved_items" }
+object MerchantListingsRoute { const val route = "merchant_listings" }
+object MerchantCharityRequestsRoute { const val route = "merchant_charity_requests" }
+object MerchantAllRequestsRoute { const val route = "merchant_all_requests" }
+object MerchantUserReservationsRoute { const val route = "merchant_user_reservations" }
+
+object MerchantListingDetailRoute {
+    const val route = "merchant_listing_detail/{listingId}"
+    fun createRoute(id: Long) = "merchant_listing_detail/$id"
 }
 
-object MerchantAddDonationRoute {
-    const val route = "merchant_add_donation"
+object MerchantPickupDetailsRoute {
+    const val route = "merchant_pickup_details/{pickupItemId}"
+    fun createRoute(id: String) = "merchant_pickup_details/$id"
 }
 
-object MerchantReservationsRoute {
-    const val route = "merchant_reservations"
-}
-
-object SavedItemsRoute {
-    const val route = "saved_items"
+object HistoryRoute {
+    const val route = "history"
 }

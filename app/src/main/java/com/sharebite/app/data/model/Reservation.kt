@@ -31,8 +31,8 @@ data class Reservation(
     // 大写开头，跟 charity 统一
     val status: String = "Pending",
 
-    val note: String = "",
+    val note: String? = null,
 
     @SerialName("created_at")
-    val createdAt: String = ""
+    val createdAt: String? = null
 )

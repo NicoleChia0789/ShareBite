@@ -6,14 +6,14 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class AppUser(
     val id: String = "",
-    val email: String = "",
+    var email: String = "",
 
     @SerialName("password_hash")
     val passwordHash: String = "",
 
-    val name: String = "",
-    val phone: String? = null,
-    val address: String? = null,
+    var name: String = "",
+    var phone: String? = null,
+    var address: String? = null,
     val role: String = "charity",
 
     @SerialName("avatar_url")

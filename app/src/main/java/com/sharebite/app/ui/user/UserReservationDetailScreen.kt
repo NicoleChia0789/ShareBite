@@ -369,7 +369,7 @@ fun UserReservationDetailScreen(
                         }
 
                         // ── 商家备注（带左边框） ──
-                        if (item.note.isNotBlank()) {
+                        if (!item.note.isNullOrBlank()) {
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(8.dp),
@@ -390,7 +390,7 @@ fun UserReservationDetailScreen(
                                         color = TextGrey
                                     )
                                     Text(
-                                        text = item.note,
+                                        text = item.note ?: "",
                                         fontSize = 14.sp,
                                         color = TextDark
                                     )
@@ -422,7 +422,7 @@ fun UserReservationDetailScreen(
 
                                 TimelineStep(
                                     title = "Reservation Received",
-                                    time = item.createdAt.take(16).replace("T", " · "),
+                                    time = item.createdAt?.take(16)?.replace("T", " · ") ?: "Pending",  // ✅ Safe call with default
                                     isCompleted = step1Completed,
                                     isLast = false,
                                     icon = Icons.Default.CheckCircle
@@ -499,7 +499,10 @@ fun UserReservationDetailScreen(
                     ) {
                         if (item.status == "Pending") {
                             Button(
-                                onClick = { onEditClick(item.listingId) },
+                                onClick = {
+                                    // Pass the listing ID from the reservation
+                                    onEditClick(item.listingId)  // ✅ Use the listing ID from reservation
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp),
@@ -522,6 +525,7 @@ fun UserReservationDetailScreen(
                                 )
                             }
                         }
+
 
                         if (item.status == "Pending" || item.status == "Confirmed") {
                             Button(

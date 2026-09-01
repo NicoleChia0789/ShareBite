@@ -81,6 +81,7 @@ class ReservationRepository {
     }
 
     // ✅ Create reservation for current user
+    // ✅ Create reservation for current user and return the ID
     suspend fun createMyReservation(
         listingId: Long,
         merchantId: String,
@@ -88,9 +89,19 @@ class ReservationRepository {
         quantity: String,
         pickupDate: String,
         pickupTime: String,
-        note: String
-    ) {
+        note: String? = null
+    ): Long {
         val userId = CurrentUser.getUserId()
+        println("📝 Creating reservation with:")
+        println("  userId: $userId")
+        println("  listingId: $listingId")
+        println("  merchantId: $merchantId")
+        println("  foodName: $foodName")
+        println("  quantity: $quantity")
+        println("  pickupDate: $pickupDate")
+        println("  pickupTime: $pickupTime")
+        println("  note: $note")
+
         val newReservation = Reservation(
             userId = userId,
             listingId = listingId,
@@ -102,8 +113,23 @@ class ReservationRepository {
             status = "Pending",
             note = note
         )
-        SupabaseClient.client.postgrest["reservations"]
-            .insert(newReservation)
+
+        return try {
+            val result = SupabaseClient.client.postgrest["reservations"]
+                .insert(newReservation) {
+                    select()
+                }
+                .decodeList<Reservation>()
+                .firstOrNull()
+
+            val id = result?.id ?: 0L
+            println("✅ Reservation created with ID: $id")
+            id
+        } catch (e: Exception) {
+            println("❌ Error creating reservation: ${e.message}")
+            e.printStackTrace()
+            0L
+        }
     }
 
     // ✅ Update my pickup time
@@ -152,4 +178,6 @@ class ReservationRepository {
                 }
             }
     }
+
+
 }
