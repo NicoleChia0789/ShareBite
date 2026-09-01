@@ -283,4 +283,22 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
         _saveError.value = null
         _successMessage.value = null
     }
+
+    fun claimRequest(requestId: Long) {
+        if (!isUserAuthenticated()) {
+            _saveError.value = "Please login again"
+            return
+        }
+        viewModelScope.launch {
+            try {
+                repository.claimRequest(requestId, CurrentUser.getUserId())
+                // 刷新数据
+                loadMerchantData()
+                loadGeneralRequests()
+                _successMessage.value = "Request claimed successfully"
+            } catch (e: Exception) {
+                _saveError.value = e.message
+            }
+        }
+    }
 }

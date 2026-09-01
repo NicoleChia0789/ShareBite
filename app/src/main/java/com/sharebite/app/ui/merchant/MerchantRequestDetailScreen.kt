@@ -22,8 +22,8 @@ fun MerchantRequestDetailScreen(
     onDecline: () -> Unit
 ) {
     val requests by viewModel.requests.collectAsState()
-    val request = requests.find { it.id == requestId }
-
+    val generalRequests by viewModel.generalRequests.collectAsState()
+    val request = requests.find { it.id == requestId } ?: generalRequests.find { it.id == requestId }
     Column(
         modifier = Modifier
             .fillMaxSize()
