@@ -8,8 +8,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,24 +29,43 @@ import com.sharebite.app.data.repository.LoginRepository
 import com.sharebite.app.data.session.CurrentUser
 import kotlinx.coroutines.launch
 import android.widget.Toast
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material.icons.filled.Warning
+import com.sharebite.app.ui.theme.GreenConfirmed
+import com.sharebite.app.ui.theme.RedCancelled
+import com.sharebite.app.ui.theme.TextDark
+import com.sharebite.app.ui.theme.TextGrey
 
 @Composable
 fun SignUp(
-    onSignUpClick: (String) -> Unit = {}, // ✅ Pass role only
+    onSignUpClick: (String) -> Unit = {},
     onLoginClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val authRepository = remember { LoginRepository() }
     val coroutineScope = rememberCoroutineScope()
 
-    var fullName by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-    var agreed by remember { mutableStateOf(false) }
-    var selectedRole by remember { mutableStateOf("User") }
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var fullName by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var confirmPassword by rememberSaveable { mutableStateOf("") }
+    var selectedRole by rememberSaveable { mutableStateOf("User") }
+    var isLoading by rememberSaveable { mutableStateOf(false) }
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+
+    // ✅ 强密码验证
+    val hasMinLength = password.length >= 8
+    val hasUppercase = password.any { it.isUpperCase() }
+    val hasLowercase = password.any { it.isLowerCase() }
+    val hasDigit = password.any { it.isDigit() }
+    val hasSpecialChar = password.any { !it.isLetterOrDigit() }
+
+    val isPasswordStrong = hasMinLength && hasUppercase && hasLowercase && hasDigit && hasSpecialChar
+    val doPasswordsMatch = password.isNotEmpty() && password == confirmPassword
+    val canCreateAccount = fullName.isNotBlank() &&
+            email.isNotBlank() &&
+            isPasswordStrong &&
+            doPasswordsMatch
 
     val roles = listOf("User", "Merchant", "Charity")
 
@@ -55,7 +78,7 @@ fun SignUp(
     val borderGray = Color(0xFFE0E0E0)
     val placeholderGray = Color(0xFFBDC3C7)
     val blueAccent = Color(0xFF3498DB)
-    val textDark = Color(0xFF1E1B16) // ✅ Darker text color for input
+    val textDark = Color(0xFF1E1B16)
 
     val scrollState = rememberScrollState()
 
@@ -70,7 +93,8 @@ fun SignUp(
                 .verticalScroll(scrollState)
                 .padding(horizontal = 24.dp)
                 .padding(top = 40.dp)
-                .padding(bottom = 80.dp),
+                .padding(bottom = 80.dp)
+                .imePadding(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // ── App Header ──
@@ -178,15 +202,15 @@ fun SignUp(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = blueAccent,
                             unfocusedBorderColor = borderGray,
-                            focusedTextColor = textDark, // ✅ Darker text
-                            unfocusedTextColor = textDark, // ✅ Darker text
+                            focusedTextColor = textDark,
+                            unfocusedTextColor = textDark,
                             focusedPlaceholderColor = placeholderGray,
                             unfocusedPlaceholderColor = placeholderGray
                         ),
                         singleLine = true,
                         textStyle = TextStyle(
                             fontSize = 14.sp,
-                            color = textDark // ✅ Darker text
+                            color = textDark
                         )
                     )
 
@@ -217,8 +241,8 @@ fun SignUp(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = blueAccent,
                             unfocusedBorderColor = borderGray,
-                            focusedTextColor = textDark, // ✅ Darker text
-                            unfocusedTextColor = textDark, // ✅ Darker text
+                            focusedTextColor = textDark,
+                            unfocusedTextColor = textDark,
                             focusedPlaceholderColor = placeholderGray,
                             unfocusedPlaceholderColor = placeholderGray
                         ),
@@ -226,7 +250,7 @@ fun SignUp(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         textStyle = TextStyle(
                             fontSize = 14.sp,
-                            color = textDark // ✅ Darker text
+                            color = textDark
                         )
                     )
 
@@ -257,8 +281,8 @@ fun SignUp(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = blueAccent,
                             unfocusedBorderColor = borderGray,
-                            focusedTextColor = textDark, // ✅ Darker text
-                            unfocusedTextColor = textDark, // ✅ Darker text
+                            focusedTextColor = textDark,
+                            unfocusedTextColor = textDark,
                             focusedPlaceholderColor = placeholderGray,
                             unfocusedPlaceholderColor = placeholderGray
                         ),
@@ -267,9 +291,51 @@ fun SignUp(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         textStyle = TextStyle(
                             fontSize = 14.sp,
-                            color = textDark // ✅ Darker text
+                            color = textDark
                         )
                     )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // ✅ 密码强度要求
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isPasswordStrong) Color(0xFFE8F5E9) else Color(0xFFFFF8E1)
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                text = "🔐 Password Requirements:",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextDark
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+
+                            PasswordRequirement(
+                                text = "At least 8 characters",
+                                isMet = hasMinLength
+                            )
+                            PasswordRequirement(
+                                text = "One uppercase letter (A-Z)",
+                                isMet = hasUppercase
+                            )
+                            PasswordRequirement(
+                                text = "One lowercase letter (a-z)",
+                                isMet = hasLowercase
+                            )
+                            PasswordRequirement(
+                                text = "One number (0-9)",
+                                isMet = hasDigit
+                            )
+                            PasswordRequirement(
+                                text = "One special character (!@#$%^&*)",
+                                isMet = hasSpecialChar
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(6.dp))
 
@@ -298,8 +364,8 @@ fun SignUp(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = blueAccent,
                             unfocusedBorderColor = borderGray,
-                            focusedTextColor = textDark, // ✅ Darker text
-                            unfocusedTextColor = textDark, // ✅ Darker text
+                            focusedTextColor = textDark,
+                            unfocusedTextColor = textDark,
                             focusedPlaceholderColor = placeholderGray,
                             unfocusedPlaceholderColor = placeholderGray
                         ),
@@ -308,9 +374,27 @@ fun SignUp(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         textStyle = TextStyle(
                             fontSize = 14.sp,
-                            color = textDark // ✅ Darker text
+                            color = textDark
                         )
                     )
+
+                    if (confirmPassword.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (doPasswordsMatch) Icons.Default.CheckCircle else Icons.Default.Warning,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = if (doPasswordsMatch) GreenConfirmed else RedCancelled
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (doPasswordsMatch) "✅ Passwords match" else "⚠️ Passwords do not match",
+                                fontSize = 11.sp,
+                                color = if (doPasswordsMatch) GreenConfirmed else RedCancelled
+                            )
+                        }
+                    }
 
                     if (errorMessage != null) {
                         Spacer(modifier = Modifier.height(6.dp))
@@ -323,8 +407,6 @@ fun SignUp(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-
-
                     // ── Create Account Button ──
                     Button(
                         onClick = {
@@ -333,11 +415,10 @@ fun SignUp(
                                 email.isBlank() -> errorMessage = "Please enter your email"
                                 !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() ->
                                     errorMessage = "Please enter a valid email"
-                                password.length < 6 ->
-                                    errorMessage = "Password must be at least 6 characters"
-                                password != confirmPassword ->
-                                    errorMessage = "Passwords do not match"
-                                !agreed -> errorMessage = "Please agree to the Terms"
+                                !isPasswordStrong -> {
+                                    errorMessage = "Please create a strong password (8+ chars, uppercase, lowercase, number, special character)"
+                                }
+                                !doPasswordsMatch -> errorMessage = "Passwords do not match"
                                 else -> {
                                     errorMessage = null
                                     isLoading = true
@@ -345,32 +426,24 @@ fun SignUp(
                                     coroutineScope.launch {
                                         try {
                                             val roleLower = selectedRole.lowercase()
-
                                             val newUser = authRepository.register(
                                                 email = email,
                                                 password = password,
                                                 name = fullName,
                                                 role = roleLower
                                             )
-
                                             CurrentUser.user = newUser
-
                                             isLoading = false
-
-                                            // ✅ Clear fields after success
                                             fullName = ""
                                             email = ""
                                             password = ""
                                             confirmPassword = ""
-                                            agreed = false
 
                                             Toast.makeText(
                                                 context,
                                                 "Account created successfully!",
                                                 Toast.LENGTH_SHORT
                                             ).show()
-
-                                            // ✅ Navigate with role only
                                             onSignUpClick(newUser.role)
                                         } catch (e: Exception) {
                                             isLoading = false
@@ -390,11 +463,11 @@ fun SignUp(
                             .height(48.dp)
                             .clip(RoundedCornerShape(14.dp)),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = accentOrange,
+                            containerColor = if (canCreateAccount && !isLoading) accentOrange else Color.Gray,
                             contentColor = Color.White
                         ),
                         shape = RoundedCornerShape(14.dp),
-                        enabled = !isLoading
+                        enabled = canCreateAccount && !isLoading
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(
@@ -435,5 +508,29 @@ fun SignUp(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun PasswordRequirement(
+    text: String,
+    isMet: Boolean
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 1.dp)
+    ) {
+        Icon(
+            imageVector = if (isMet) Icons.Default.CheckCircle else Icons.Default.Circle,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = if (isMet) GreenConfirmed else TextGrey
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = text,
+            fontSize = 11.sp,
+            color = if (isMet) GreenConfirmed else TextGrey
+        )
     }
 }

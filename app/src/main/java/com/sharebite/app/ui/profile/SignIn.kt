@@ -23,6 +23,7 @@ import com.sharebite.app.data.repository.LoginRepository
 import com.sharebite.app.data.session.CurrentUser
 import kotlinx.coroutines.launch
 import android.widget.Toast
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.navigation.NavController
 
 @Composable
@@ -36,10 +37,10 @@ fun SignIn(
     val authRepository = remember { LoginRepository() }
     val coroutineScope = rememberCoroutineScope()
 
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var isLoading by rememberSaveable { mutableStateOf(false) }
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     val textDark = Color(0xFF1E1B16) // ✅ Darker text color for input
 

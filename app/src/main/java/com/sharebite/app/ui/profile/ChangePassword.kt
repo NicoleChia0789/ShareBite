@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,23 +37,30 @@ fun ChangePasswordScreen(
     val scope = rememberCoroutineScope()
     val loginRepo = remember { LoginRepository() }
 
-    var currentPassword by remember { mutableStateOf("") }
-    var newPassword by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
+    var currentPassword by rememberSaveable { mutableStateOf("") }
+    var newPassword by rememberSaveable { mutableStateOf("") }
+    var confirmPassword by rememberSaveable { mutableStateOf("") }
 
-    var showCurrentPassword by remember { mutableStateOf(false) }
-    var showNewPassword by remember { mutableStateOf(false) }
-    var showConfirmPassword by remember { mutableStateOf(false) }
+    var showCurrentPassword by rememberSaveable { mutableStateOf(false) }
+    var showNewPassword by rememberSaveable { mutableStateOf(false) }
+    var showConfirmPassword by rememberSaveable { mutableStateOf(false) }
 
-    var isSaving by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var successMessage by remember { mutableStateOf<String?>(null) }
+    var isSaving by rememberSaveable { mutableStateOf(false) }
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var successMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // 验证条件
-    val isCurrentPasswordValid = currentPassword.length >= 6
-    val isNewPasswordValid = newPassword.length >= 6
+    // ✅ 强密码验证
+    val hasMinLength = newPassword.length >= 8
+    val hasUppercase = newPassword.any { it.isUpperCase() }
+    val hasLowercase = newPassword.any { it.isLowerCase() }
+    val hasDigit = newPassword.any { it.isDigit() }
+    val hasSpecialChar = newPassword.any { !it.isLetterOrDigit() }
+
+    val isPasswordStrong = hasMinLength && hasUppercase && hasLowercase && hasDigit && hasSpecialChar
+
+    val isCurrentPasswordValid = currentPassword.length >= 8
     val doPasswordsMatch = newPassword.isNotEmpty() && newPassword == confirmPassword
-    val canSave = isCurrentPasswordValid && isNewPasswordValid && doPasswordsMatch
+    val canSave = isCurrentPasswordValid && isPasswordStrong && doPasswordsMatch
 
     Column(
         modifier = Modifier
@@ -61,11 +69,12 @@ fun ChangePasswordScreen(
             .padding(paddingValues)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
+            .imePadding(),
     ) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Ensure your account is using a long, random password to stay secure.",
+            text = "Ensure your account is using a strong, secure password.",
             fontSize = 14.sp,
             color = TextGrey,
             lineHeight = 20.sp
@@ -137,9 +146,9 @@ fun ChangePasswordScreen(
             )
         )
 
-        if (currentPassword.isNotEmpty() && currentPassword.length < 6) {
+        if (currentPassword.isNotEmpty() && currentPassword.length < 8) {
             Text(
-                text = "⚠️ Password must be at least 6 characters",
+                text = "⚠️ Current password must be at least 8 characters",
                 color = RedCancelled,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)
@@ -158,7 +167,7 @@ fun ChangePasswordScreen(
             },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("New Password", color = TextGrey) },
-            placeholder = { Text("Create new password (min 6 characters)", color = TextGrey) },
+            placeholder = { Text("Create strong password", color = TextGrey) },
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
             visualTransformation = if (showNewPassword) VisualTransformation.None else PasswordVisualTransformation(),
@@ -179,20 +188,46 @@ fun ChangePasswordScreen(
             )
         )
 
-        Spacer(modifier = Modifier.height(4.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = if (isNewPasswordValid) Icons.Default.CheckCircle else Icons.Default.Info,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = if (isNewPasswordValid) GreenConfirmed else TextGrey
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // ✅ 密码强度要求
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isPasswordStrong) Color(0xFFE8F5E9) else Color(0xFFFFF8E1)
             )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = if (isNewPasswordValid) "✅ Strong password" else "Must be at least 6 characters",
-                fontSize = 12.sp,
-                color = if (isNewPasswordValid) GreenConfirmed else TextGrey
-            )
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = "🔐 Password Requirements:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextDark
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                PasswordRequirement(
+                    text = "At least 8 characters",
+                    isMet = hasMinLength
+                )
+                PasswordRequirement(
+                    text = "One uppercase letter (A-Z)",
+                    isMet = hasUppercase
+                )
+                PasswordRequirement(
+                    text = "One lowercase letter (a-z)",
+                    isMet = hasLowercase
+                )
+                PasswordRequirement(
+                    text = "One number (0-9)",
+                    isMet = hasDigit
+                )
+                PasswordRequirement(
+                    text = "One special character (!@#$%^&*)",
+                    isMet = hasSpecialChar
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -275,7 +310,6 @@ fun ChangePasswordScreen(
                             return@launch
                         }
 
-                        // ✅ 调用 Repository 更新密码
                         val success = loginRepo.updatePassword(
                             userId = userId,
                             currentPassword = currentPassword,
@@ -286,7 +320,6 @@ fun ChangePasswordScreen(
                             successMessage = "✅ Password updated successfully!"
                             Toast.makeText(context, "Password updated successfully!", Toast.LENGTH_SHORT).show()
                             isSaving = false
-                            // 清空字段
                             currentPassword = ""
                             newPassword = ""
                             confirmPassword = ""
@@ -318,37 +351,37 @@ fun ChangePasswordScreen(
                 )
             } else {
                 Text(
-                    text = "Save New Password",
+                    text = "Update Password",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1))
-        ) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                Text(
-                    text = "📋 Password Requirements:",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextDark
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "• Minimum 6 characters",
-                    fontSize = 12.sp,
-                    color = TextGrey
-                )
-
-            }
-        }
-
         Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun PasswordRequirement(
+    text: String,
+    isMet: Boolean
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 2.dp)
+    ) {
+        Icon(
+            imageVector = if (isMet) Icons.Default.CheckCircle else Icons.Default.Circle,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = if (isMet) GreenConfirmed else TextGrey
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = text,
+            fontSize = 12.sp,
+            color = if (isMet) GreenConfirmed else TextGrey
+        )
     }
 }

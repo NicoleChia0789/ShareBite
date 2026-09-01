@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable  // ✅ 添加
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,24 +34,25 @@ fun UserEditAddressScreen(
     val scope = rememberCoroutineScope()
     val addressRepo = remember { AddressRepository() }
 
-    var label by remember { mutableStateOf(existingAddress?.label ?: "") }
-    var street by remember { mutableStateOf(existingAddress?.street ?: "") }
-    var city by remember { mutableStateOf(existingAddress?.city ?: "") }
-    var state by remember { mutableStateOf(existingAddress?.state ?: "") }
-    var zip by remember { mutableStateOf(existingAddress?.zip ?: "") }
-    var country by remember { mutableStateOf(existingAddress?.country ?: "Malaysia") }
-    var phone by remember { mutableStateOf(existingAddress?.phone ?: "") }
-    var isDefault by remember { mutableStateOf(existingAddress?.isDefault ?: false) }
-    var isSaving by remember { mutableStateOf(false) }
+    // ✅ 使用 rememberSaveable
+    var label by rememberSaveable { mutableStateOf(existingAddress?.label ?: "") }
+    var street by rememberSaveable { mutableStateOf(existingAddress?.street ?: "") }
+    var city by rememberSaveable { mutableStateOf(existingAddress?.city ?: "") }
+    var state by rememberSaveable { mutableStateOf(existingAddress?.state ?: "") }
+    var zip by rememberSaveable { mutableStateOf(existingAddress?.zip ?: "") }
+    var country by rememberSaveable { mutableStateOf(existingAddress?.country ?: "Malaysia") }
+    var phone by rememberSaveable { mutableStateOf(existingAddress?.phone ?: "") }
+    var isDefault by rememberSaveable { mutableStateOf(existingAddress?.isDefault ?: false) }
+    var isSaving by rememberSaveable { mutableStateOf(false) }
 
     // Validation states
-    var labelError by remember { mutableStateOf<String?>(null) }
-    var streetError by remember { mutableStateOf<String?>(null) }
-    var cityError by remember { mutableStateOf<String?>(null) }
-    var stateError by remember { mutableStateOf<String?>(null) }
-    var zipError by remember { mutableStateOf<String?>(null) }
-    var countryError by remember { mutableStateOf<String?>(null) }
-    var phoneError by remember { mutableStateOf<String?>(null) }
+    var labelError by rememberSaveable { mutableStateOf<String?>(null) }
+    var streetError by rememberSaveable { mutableStateOf<String?>(null) }
+    var cityError by rememberSaveable { mutableStateOf<String?>(null) }
+    var stateError by rememberSaveable { mutableStateOf<String?>(null) }
+    var zipError by rememberSaveable { mutableStateOf<String?>(null) }
+    var countryError by rememberSaveable { mutableStateOf<String?>(null) }
+    var phoneError by rememberSaveable { mutableStateOf<String?>(null) }
 
     val isEditMode = existingAddress != null
 
@@ -197,6 +199,7 @@ fun UserEditAddressScreen(
             .padding(paddingValues)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
+            .imePadding()  // ✅ 添加键盘适配
     ) {
         // ── Back Button + Title ──
         Row(
