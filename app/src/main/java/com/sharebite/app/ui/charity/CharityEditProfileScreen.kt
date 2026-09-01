@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable  // ✅ 添加
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,21 +48,22 @@ fun CharityEditProfileScreen(
     val currentName = CurrentUser.getUserName()
     val currentEmail = CurrentUser.getUserEmail()
 
-    var organisationName by remember { mutableStateOf(currentName) }
-    var phoneNumber by remember { mutableStateOf("") }
-    var organisationAddress by remember { mutableStateOf("") }
-    var missionStatement by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf(currentEmail) }
-    var isLoading by remember { mutableStateOf(true) }
-    var isSaving by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    // ✅ 使用 rememberSaveable
+    var organisationName by rememberSaveable { mutableStateOf(currentName) }
+    var phoneNumber by rememberSaveable { mutableStateOf("") }
+    var organisationAddress by rememberSaveable { mutableStateOf("") }
+    var missionStatement by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf(currentEmail) }
+    var isLoading by rememberSaveable { mutableStateOf(true) }
+    var isSaving by rememberSaveable { mutableStateOf(false) }
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     // 验证错误状态
-    var nameError by remember { mutableStateOf<String?>(null) }
-    var emailError by remember { mutableStateOf<String?>(null) }
-    var phoneError by remember { mutableStateOf<String?>(null) }
-    var addressError by remember { mutableStateOf<String?>(null) }
-    var missionError by remember { mutableStateOf<String?>(null) }
+    var nameError by rememberSaveable { mutableStateOf<String?>(null) }
+    var emailError by rememberSaveable { mutableStateOf<String?>(null) }
+    var phoneError by rememberSaveable { mutableStateOf<String?>(null) }
+    var addressError by rememberSaveable { mutableStateOf<String?>(null) }
+    var missionError by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Load user data
     LaunchedEffect(Unit) {
@@ -170,8 +172,6 @@ fun CharityEditProfileScreen(
                 }
             )
     ) {
-
-
         Spacer(modifier = Modifier.height(8.dp))
 
         Box(

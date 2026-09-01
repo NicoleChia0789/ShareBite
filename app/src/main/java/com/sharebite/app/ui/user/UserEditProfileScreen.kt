@@ -13,7 +13,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveable  // ✅ 添加
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,21 +49,22 @@ fun UserEditProfileScreen(
     val currentName = CurrentUser.getUserName()
     val currentEmail = CurrentUser.getUserEmail()
 
+    // ✅ 使用 rememberSaveable
     var fullName by rememberSaveable { mutableStateOf(currentName) }
     var bio by rememberSaveable { mutableStateOf("Neighborhood Food Sharer") }
     var email by rememberSaveable { mutableStateOf(currentEmail) }
     var phone by rememberSaveable { mutableStateOf("") }
     var address by rememberSaveable { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(true) }
-    var isSaving by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isLoading by rememberSaveable { mutableStateOf(true) }
+    var isSaving by rememberSaveable { mutableStateOf(false) }
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     // 验证错误状态
-    var nameError by remember { mutableStateOf<String?>(null) }
-    var emailError by remember { mutableStateOf<String?>(null) }
-    var phoneError by remember { mutableStateOf<String?>(null) }
-    var addressError by remember { mutableStateOf<String?>(null) }
-    var bioError by remember { mutableStateOf<String?>(null) }
+    var nameError by rememberSaveable { mutableStateOf<String?>(null) }
+    var emailError by rememberSaveable { mutableStateOf<String?>(null) }
+    var phoneError by rememberSaveable { mutableStateOf<String?>(null) }
+    var addressError by rememberSaveable { mutableStateOf<String?>(null) }
+    var bioError by rememberSaveable { mutableStateOf<String?>(null) }
 
     // 加载用户数据
     LaunchedEffect(Unit) {
@@ -164,7 +165,7 @@ fun UserEditProfileScreen(
             .verticalScroll(scrollState)
             .padding(horizontal = 20.dp)
             .padding(bottom = 24.dp)
-            .imePadding()
+            .imePadding()  // ✅ 添加键盘适配
             .clickable(
                 onClick = {
                     keyboardController?.hide()
@@ -172,8 +173,6 @@ fun UserEditProfileScreen(
                 }
             )
     ) {
-
-
         Spacer(modifier = Modifier.height(8.dp))
 
         Box(

@@ -9,14 +9,13 @@ import kotlinx.serialization.Serializable
 
 class LoginRepository {
 
-    // ---------- 注册（新增 role 参数）----------
+    // ---------- 注册 ----------
     suspend fun register(
         email: String,
         password: String,
         name: String,
-        role: String  // ← 新增
+        role: String
     ): AppUser {
-        // 检查 email 是否已注册
         val existing = SupabaseClient.client.postgrest["users"]
             .select {
                 filter { eq("email", email) }
@@ -34,7 +33,7 @@ class LoginRepository {
             val email: String,
             @SerialName("password_hash") val passwordHash: String,
             val name: String,
-            val role: String  // ← 新增
+            val role: String
         )
 
         val payload = NewUserPayload(email = email, passwordHash = hashed, name = name, role = role)
@@ -63,21 +62,20 @@ class LoginRepository {
             }
 
             println("🔍 3. 密码验证通过！")
-            return user  // ← 这里要返回 user，而不是 TODO()
+            return user
         } catch (e: Exception) {
             println("🔴 登录异常: ${e.message}")
             throw e
         }
-
     }
 
+    // ---------- 已登录用户修改密码 ----------
     suspend fun updatePassword(
         userId: String,
         currentPassword: String,
         newPassword: String
     ): Boolean {
         return try {
-            // 1. 先验证当前密码是否正确
             val user = SupabaseClient.client.postgrest["users"]
                 .select {
                     filter { eq("id", userId) }
@@ -91,28 +89,92 @@ class LoginRepository {
                 return false
             }
 
-            // 2. 验证当前密码
             val isCurrentPasswordCorrect = PasswordUtils.verifyPassword(currentPassword, user.passwordHash)
             if (!isCurrentPasswordCorrect) {
                 println("❌ Current password is incorrect")
                 return false
             }
 
-            // 3. 加密新密码
             val newPasswordHash = PasswordUtils.hashPassword(newPassword)
 
-            // 4. 更新数据库中的密码
-            SupabaseClient.client.postgrest["users"]
+            // ✅ 更新后验证是否成功
+            val updateResult = SupabaseClient.client.postgrest["users"]
                 .update(
                     { set("password_hash", newPasswordHash) }
                 ) {
                     filter { eq("id", userId) }
                 }
 
-            println("✅ Password updated successfully")
-            true
+            // ✅ 验证更新是否真的生效
+            val updatedUser = SupabaseClient.client.postgrest["users"]
+                .select {
+                    filter { eq("id", userId) }
+                    limit(1)
+                }
+                .decodeList<AppUser>()
+                .firstOrNull()
+
+            if (updatedUser != null && updatedUser.passwordHash == newPasswordHash) {
+                println("✅ Password updated successfully")
+                true
+            } else {
+                println("❌ Password update verification failed")
+                false
+            }
         } catch (e: Exception) {
             println("❌ Failed to update password: ${e.message}")
+            false
+        }
+    }
+
+    // ---------- 通过邮箱重置密码（忘记密码用） ----------
+    suspend fun updatePasswordByEmail(email: String, newPassword: String): Boolean {
+        return try {
+            // 1️⃣ 先确认用户存在
+            val user = SupabaseClient.client.postgrest["users"]
+                .select {
+                    filter { eq("email", email) }
+                    limit(1)
+                }
+                .decodeList<AppUser>()
+                .firstOrNull()
+
+            if (user == null) {
+                println("❌ updatePasswordByEmail: User not found with email: $email")
+                return false
+            }
+
+            println("🔍 updatePasswordByEmail: 找到用户 ${user.id}")
+
+            // 2️⃣ 加密新密码
+            val hashed = PasswordUtils.hashPassword(newPassword)
+
+            // 3️⃣ 更新密码（使用 id 更可靠）
+            SupabaseClient.client.postgrest["users"]
+                .update(
+                    { set("password_hash", hashed) }
+                ) {
+                    filter { eq("id", user.id) }
+                }
+
+            // 4️⃣ 验证更新是否成功
+            val updatedUser = SupabaseClient.client.postgrest["users"]
+                .select {
+                    filter { eq("id", user.id) }
+                    limit(1)
+                }
+                .decodeList<AppUser>()
+                .firstOrNull()
+
+            if (updatedUser != null && updatedUser.passwordHash == hashed) {
+                println("✅ updatePasswordByEmail: Password updated successfully")
+                true
+            } else {
+                println("❌ updatePasswordByEmail: Password update verification failed")
+                false
+            }
+        } catch (e: Exception) {
+            println("❌ updatePasswordByEmail error: ${e.message}")
             false
         }
     }

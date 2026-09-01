@@ -26,6 +26,7 @@ import com.sharebite.app.data.session.CurrentUser
 import kotlinx.coroutines.launch
 import android.widget.Toast
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.runtime.saveable.rememberSaveable
 
 @Composable
 fun SignUp(
@@ -36,14 +37,13 @@ fun SignUp(
     val authRepository = remember { LoginRepository() }
     val coroutineScope = rememberCoroutineScope()
 
-    var fullName by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-
-    var selectedRole by remember { mutableStateOf("User") }
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var fullName by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var confirmPassword by rememberSaveable { mutableStateOf("") }
+    var selectedRole by rememberSaveable { mutableStateOf("User") }
+    var isLoading by rememberSaveable { mutableStateOf(false) }
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     val roles = listOf("User", "Merchant", "Charity")
 

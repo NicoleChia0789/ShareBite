@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable  // ✅ 添加
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,23 +48,24 @@ fun MerchantEditProfileScreen(
     val currentName = CurrentUser.getUserName()
     val currentEmail = CurrentUser.getUserEmail()
 
-    var businessName by remember { mutableStateOf(currentName) }
-    var category by remember { mutableStateOf("") }
-    var businessAddress by remember { mutableStateOf("") }
-    var phoneNumber by remember { mutableStateOf("") }
-    var briefDescription by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf(currentEmail) }
-    var isLoading by remember { mutableStateOf(true) }
-    var isSaving by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    // ✅ 使用 rememberSaveable
+    var businessName by rememberSaveable { mutableStateOf(currentName) }
+    var category by rememberSaveable { mutableStateOf("") }
+    var businessAddress by rememberSaveable { mutableStateOf("") }
+    var phoneNumber by rememberSaveable { mutableStateOf("") }
+    var briefDescription by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf(currentEmail) }
+    var isLoading by rememberSaveable { mutableStateOf(true) }
+    var isSaving by rememberSaveable { mutableStateOf(false) }
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     // 验证错误状态
-    var nameError by remember { mutableStateOf<String?>(null) }
-    var emailError by remember { mutableStateOf<String?>(null) }
-    var phoneError by remember { mutableStateOf<String?>(null) }
-    var addressError by remember { mutableStateOf<String?>(null) }
-    var categoryError by remember { mutableStateOf<String?>(null) }
-    var descriptionError by remember { mutableStateOf<String?>(null) }
+    var nameError by rememberSaveable { mutableStateOf<String?>(null) }
+    var emailError by rememberSaveable { mutableStateOf<String?>(null) }
+    var phoneError by rememberSaveable { mutableStateOf<String?>(null) }
+    var addressError by rememberSaveable { mutableStateOf<String?>(null) }
+    var categoryError by rememberSaveable { mutableStateOf<String?>(null) }
+    var descriptionError by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Load user data
     LaunchedEffect(Unit) {
@@ -182,8 +184,6 @@ fun MerchantEditProfileScreen(
                 }
             )
     ) {
-
-
         Spacer(modifier = Modifier.height(8.dp))
 
         Box(

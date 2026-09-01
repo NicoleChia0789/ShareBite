@@ -8,8 +8,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.*
@@ -26,14 +24,10 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
-import com.sharebite.app.data.repository.SavedListingRepository
-import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.components.SimpleMapView
 import com.sharebite.app.ui.theme.*
-import kotlinx.coroutines.launch
 import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
 
 @Composable
 fun FoodDetailScreen(
@@ -42,22 +36,15 @@ fun FoodDetailScreen(
     onApplyClick: (Long) -> Unit
 ) {
     val repository = remember { FoodListingRepository() }
-    val savedRepository = remember { SavedListingRepository() }
-    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
     var listing by remember { mutableStateOf<FoodListing?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var isSaved by remember { mutableStateOf(false) }
 
     LaunchedEffect(listingId) {
         try {
             listing = repository.getListingById(listingId)
-            // ✅ Check if saved for current user (no userId needed)
-            listing?.let {
-                isSaved = savedRepository.isSaved(it.id)
-            }
         } catch (e: Exception) {
             errorMessage = e.message
         } finally {
@@ -306,7 +293,7 @@ fun FoodDetailScreen(
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // ---------- BUTTONS ----------
+                        // ---------- APPLY BUTTON ----------
                         Button(
                             onClick = { onApplyClick(data.id) },
                             modifier = Modifier
@@ -318,47 +305,7 @@ fun FoodDetailScreen(
                             Text("Apply for this food", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        OutlinedButton(
-                            onClick = {
-                                coroutineScope.launch {
-                                    try {
-                                        if (isSaved) {
-                                            // ✅ saveListing() and unsaveListing() already use CurrentUser internally
-                                            savedRepository.unsaveListing(data.id)
-                                            isSaved = false
-                                            Toast.makeText(context, "Removed from saved.", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            savedRepository.saveListing(data.id)
-                                            isSaved = true
-                                            Toast.makeText(context, "Saved to your list!", Toast.LENGTH_SHORT).show()
-                                        }
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(
-                                if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = null,
-                                tint = if (isSaved) RedCancelled else TextDark,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                if (isSaved) "Saved" else "Save for later",
-                                color = if (isSaved) RedCancelled else TextDark,
-                                fontSize = 15.sp
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         // ---------- IMPACT CARD ----------
                         Card(

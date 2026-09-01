@@ -71,8 +71,6 @@ fun AppNavHost(
         currentRoute == UserEditProfileRoute.route -> "Edit Profile"
         currentRoute == SecurityRoute.route -> "Password & Security"
         currentRoute == ChangePasswordRoute.route -> "Change Password"
-        currentRoute == ForgotPasswordRoute.route -> "Forgot Password"
-        currentRoute == ResetPasswordRoute.route -> "Reset Password"
         currentRoute == NotificationsRoute.route -> "Notifications"
         currentRoute == NotificationSettingsRoute.route -> "Notification Settings"
 
@@ -125,8 +123,6 @@ fun AppNavHost(
             currentRoute == UserAddEditAddressRoute.route ||
             currentRoute == SecurityRoute.route ||
             currentRoute == ChangePasswordRoute.route ||
-            currentRoute == ForgotPasswordRoute.route ||
-            currentRoute == ResetPasswordRoute.route ||
             currentRoute == NotificationsRoute.route ||
             currentRoute == NotificationSettingsRoute.route ||
             currentRoute == CharityEditProfileRoute.route ||
@@ -454,29 +450,6 @@ fun AppNavHost(
                 )
             }
 
-            composable(ForgotPasswordRoute.route) {
-                ForgotPasswordScreen(
-                    paddingValues = paddingValues,
-                    onBack = { navController.popBackStack() },
-                    onSendResetLink = { email ->
-                        navController.navigate(ResetPasswordRoute.route) {
-                            popUpTo(ForgotPasswordRoute.route) { inclusive = true }
-                        }
-                    }
-                )
-            }
-
-            composable(ResetPasswordRoute.route) {
-                ResetPasswordScreen(
-                    paddingValues = paddingValues,
-                    onBack = { navController.popBackStack() },
-                    onReset = { newPassword ->
-                        navController.navigate(Screen.Profile.route) {
-                            popUpTo(Screen.Profile.route) { inclusive = true }
-                        }
-                    }
-                )
-            }
 
             // ══════════════════════════════════════
             // Charity 特有详情路由

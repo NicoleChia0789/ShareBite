@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable  // ✅ 添加
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,17 +37,18 @@ fun ChangePasswordScreen(
     val scope = rememberCoroutineScope()
     val loginRepo = remember { LoginRepository() }
 
-    var currentPassword by remember { mutableStateOf("") }
-    var newPassword by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
+    // ✅ 使用 rememberSaveable
+    var currentPassword by rememberSaveable { mutableStateOf("") }
+    var newPassword by rememberSaveable { mutableStateOf("") }
+    var confirmPassword by rememberSaveable { mutableStateOf("") }
 
-    var showCurrentPassword by remember { mutableStateOf(false) }
-    var showNewPassword by remember { mutableStateOf(false) }
-    var showConfirmPassword by remember { mutableStateOf(false) }
+    var showCurrentPassword by rememberSaveable { mutableStateOf(false) }
+    var showNewPassword by rememberSaveable { mutableStateOf(false) }
+    var showConfirmPassword by rememberSaveable { mutableStateOf(false) }
 
-    var isSaving by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var successMessage by remember { mutableStateOf<String?>(null) }
+    var isSaving by rememberSaveable { mutableStateOf(false) }
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var successMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     // 验证条件
     val isCurrentPasswordValid = currentPassword.length >= 6
@@ -61,6 +63,7 @@ fun ChangePasswordScreen(
             .padding(paddingValues)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
+            .imePadding(),  // ✅ 添加键盘适配
     ) {
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -275,7 +278,6 @@ fun ChangePasswordScreen(
                             return@launch
                         }
 
-                        // ✅ 调用 Repository 更新密码
                         val success = loginRepo.updatePassword(
                             userId = userId,
                             currentPassword = currentPassword,
@@ -286,7 +288,6 @@ fun ChangePasswordScreen(
                             successMessage = "✅ Password updated successfully!"
                             Toast.makeText(context, "Password updated successfully!", Toast.LENGTH_SHORT).show()
                             isSaving = false
-                            // 清空字段
                             currentPassword = ""
                             newPassword = ""
                             confirmPassword = ""
@@ -345,7 +346,6 @@ fun ChangePasswordScreen(
                     fontSize = 12.sp,
                     color = TextGrey
                 )
-
             }
         }
 
