@@ -17,7 +17,7 @@ data class FoodListing(
     val foodName: String = "",
 
     val category: String = "",
-    val description: String = "",
+    val description: String? = null,
     val quantity: String = "",
 
     @SerialName("photo_url")
@@ -30,7 +30,7 @@ data class FoodListing(
     val address: String = "",
 
     @SerialName("distance_km")
-    val distanceKm: Double = 0.0,
+    var distanceKm: Double = 0.0,
 
     @SerialName("latitude")
     val latitude: Double? = null,
@@ -45,9 +45,8 @@ data class FoodListing(
     val portionInfo: String? = null,
 
     @SerialName("created_at")
-    val createdAt: String = ""
+    val createdAt: String = "",
 
-
-) {
-
-}
+    @SerialName("dietary_type")
+    val dietaryType: String? = null
+)

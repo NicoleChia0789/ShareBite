@@ -85,7 +85,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-maps:18.2.0")
 
     // 定位服务
-    implementation("com.google.android.gms:play-services-location:21.1.0")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 
     implementation("io.ktor:ktor-client-core:3.0.0")
     implementation("io.ktor:ktor-client-java:3.0.0")

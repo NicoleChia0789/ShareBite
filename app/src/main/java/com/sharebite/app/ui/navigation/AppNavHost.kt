@@ -141,9 +141,6 @@ fun AppNavHost(
         currentRoute = currentRoute,
         onNavigate = { route ->
             navController.navigate(route) {
-                popUpTo(navController.graph.findStartDestination().id) {
-                    saveState = true
-                }
                 launchSingleTop = true
                 restoreState = true
             }
@@ -222,6 +219,9 @@ fun AppNavHost(
                     "user" -> UserMyReservationsScreen(
                         paddingValues = paddingValues,
                         onViewClick = { id -> navController.navigate(UserReservationDetailRoute.createRoute(id)) },
+                        onEditReservation = { listingId, reservationId ->
+                            navController.navigate(UserMakeReservationRoute.createRoute(listingId, reservationId))
+                        },
                         onBrowseClick = { navController.navigate(Screen.Browse.route) }
                     )
                     "charity" -> MyRequestsScreen(
@@ -307,16 +307,21 @@ fun AppNavHost(
 
             composable(
                 route = UserMakeReservationRoute.route,
-                arguments = listOf(navArgument("listingId") { type = NavType.LongType })
+                arguments = listOf(
+                    navArgument("listingId") { type = NavType.LongType },
+                    navArgument("reservationId") { type = NavType.StringType; defaultValue = "" }  // ✅ 改为 String
+                )
             ) { backStackEntry ->
                 val listingId = backStackEntry.arguments?.getLong("listingId") ?: 0L
+                val reservationIdStr = backStackEntry.arguments?.getString("reservationId")
+                val reservationId = reservationIdStr?.takeIf { it.isNotBlank() }?.toLongOrNull()
                 UserMakeReservationScreen(
                     listingId = listingId,
+                    reservationId = reservationId,
                     paddingValues = paddingValues,
-                    onSuccess = { reservationId ->
-                        println("🚀 Going to detail page, ID = $reservationId")
-                        navController.navigate(UserReservationDetailRoute.createRoute(reservationId)) {
-                            popUpTo(UserMakeReservationRoute.createRoute(listingId)) { inclusive = true }
+                    onSuccess = { id ->
+                        navController.navigate(UserReservationDetailRoute.createRoute(id)) {
+                            popUpTo(UserMakeReservationRoute.createRoute(listingId, reservationId)) { inclusive = true }
                         }
                     }
                 )
@@ -330,10 +335,8 @@ fun AppNavHost(
                 UserReservationDetailScreen(
                     reservationId = reservationId,
                     paddingValues = paddingValues,
-                    onEditClick = { listingId ->
-                        // Navigate to make reservation with the listing ID
-                        navController.navigate(UserMakeReservationRoute.createRoute(listingId)) {
-                            // This ensures we don't keep the detail screen in back stack
+                    onEditClick = { listingId, resId ->
+                        navController.navigate(UserMakeReservationRoute.createRoute(listingId, resId)) {
                             popUpTo(UserReservationDetailRoute.createRoute(reservationId)) { inclusive = true }
                         }
                     },

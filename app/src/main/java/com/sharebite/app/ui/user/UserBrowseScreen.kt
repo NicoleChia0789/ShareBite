@@ -2,6 +2,9 @@ package com.sharebite.app.ui.user
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.location.Location
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -35,20 +38,20 @@ import com.google.maps.android.compose.*
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.ui.theme.*
+import com.sharebite.app.util.LocationUtils
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
+// ✅ FilterState：分类、膳食类型、排序
+@Stable
 private data class FilterState(
     val categories: Set<String> = emptySet(),
-    val distance: Float = 5.0f,
-    val isVegetarian: Boolean = false,
-    val isVegan: Boolean = false,
-    val isGlutenFree: Boolean = false,
-    val isNutFree: Boolean = false,
+    val dietaryTypes: Set<String> = emptySet(),
     val sortBy: String = "distance"
 )
 
+private val allDietaryTypes = listOf("Vegetarian", "Vegan", "Gluten-Free", "Nut-Free", "Regular")
 private val allCategories = listOf("Bakery", "Produce", "Dairy", "Meals", "Vegetables", "Fruits", "Canned Goods", "Prepared Meals", "Other")
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,8 +63,60 @@ fun UserBrowseScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repository = remember { FoodListingRepository() }
-    val configuration = LocalConfiguration.current  // ✅ 修复：使用 LocalConfiguration
+    val configuration = LocalConfiguration.current
 
+    // ── 位置相关 ──
+    val locationUtils = remember { LocationUtils(context as android.app.Activity) }
+    var userLocation by remember { mutableStateOf<Location?>(null) }
+    var isLocationLoading by remember { mutableStateOf(false) }
+    var locationError by remember { mutableStateOf<String?>(null) }
+    var isGettingLocation by remember { mutableStateOf(false) }
+
+    fun fetchLocation() {
+        if (isGettingLocation) return
+        isGettingLocation = true
+        scope.launch {
+            try {
+                isLocationLoading = true
+                locationError = null
+
+                val settingsOk = locationUtils.checkLocationSettings()
+                if (!settingsOk) {
+                    locationError = "GPS is required. Please enable it in settings."
+                    isLocationLoading = false
+                    isGettingLocation = false
+                    return@launch
+                }
+
+                userLocation = locationUtils.getCurrentLocation()
+                if (userLocation == null) {
+                    userLocation = locationUtils.getLastKnownLocation()
+                }
+                if (userLocation == null) {
+                    locationError = "Cannot get your location. Please try again."
+                } else {
+                    locationError = null
+                }
+            } catch (e: Exception) {
+                locationError = "Location error: ${e.message}"
+            } finally {
+                isLocationLoading = false
+                isGettingLocation = false
+            }
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            fetchLocation()
+        } else {
+            locationError = "Location permission denied. Please enable in settings."
+        }
+    }
+
+    // ── 列表状态 ──
     var allListings by remember { mutableStateOf<List<FoodListing>>(emptyList()) }
     var filteredListings by remember { mutableStateOf<List<FoodListing>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -70,7 +125,7 @@ fun UserBrowseScreen(
     var selectedCategory by remember { mutableStateOf<String?>(null) }
     var isListView by remember { mutableStateOf(true) }
 
-    var showFilterSheet by remember { mutableStateOf(false) }
+    var showFilterScreen by remember { mutableStateOf(false) }
     var filterState by remember { mutableStateOf(FilterState()) }
 
     val defaultLocation = LatLng(3.1390, 101.6869)
@@ -78,12 +133,16 @@ fun UserBrowseScreen(
         position = CameraPosition.fromLatLngZoom(defaultLocation, 11f)
     }
 
-    // ✅ 删除未使用的 hasLocationPermission
+    val categories by remember {
+        derivedStateOf {
+            allListings.map { it.category }.distinct()
+        }
+    }
 
+    // ── 1️⃣ 数据加载（仅一次） ──
     LaunchedEffect(Unit) {
         try {
             allListings = repository.getAvailableListings()
-            filteredListings = allListings
         } catch (e: Exception) {
             errorMessage = e.message
         } finally {
@@ -91,32 +150,71 @@ fun UserBrowseScreen(
         }
     }
 
-    LaunchedEffect(searchQuery, selectedCategory, filterState, allListings) {
-        filteredListings = allListings.filter { listing ->
+    // ── 2️⃣ 权限和位置（仅一次） ──
+    LaunchedEffect(Unit) {
+        if (ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            fetchLocation()
+        } else {
+            permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
+    // ── 3️⃣ 过滤逻辑（依赖用户操作和位置） ──
+    LaunchedEffect(searchQuery, selectedCategory, filterState, allListings, userLocation) {
+        val baseListings = allListings
+        val currentLocation = userLocation
+
+        // 1. 过滤过期食物
+        val validListings = baseListings.filter { listing ->
+            !isListingExpired(listing.deadline)
+        }
+
+        // 2. 搜索 + 分类
+        val filteredBySearchAndCategory = validListings.filter { listing ->
             val matchesSearch = listing.foodName.contains(searchQuery, ignoreCase = true) ||
                     listing.merchantName.contains(searchQuery, ignoreCase = true)
-
             val matchesCategory = selectedCategory == null || listing.category == selectedCategory
-
-            val matchesFilter = if (filterState.categories.isNotEmpty()) {
-                listing.category in filterState.categories
-            } else true
-
+            val matchesFilter = filterState.categories.isEmpty() || listing.category in filterState.categories
             matchesSearch && matchesCategory && matchesFilter
         }
 
-        when (filterState.sortBy) {
-            "distance" -> filteredListings = filteredListings.sortedBy { it.distanceKm }
-            "expiry" -> filteredListings = filteredListings.sortedBy { it.deadline }
-            else -> {}
+        // 3. 膳食类型
+        val filteredByDietary = if (filterState.dietaryTypes.isNotEmpty()) {
+            filteredBySearchAndCategory.filter { listing ->
+                val dietaryType = listing.dietaryType ?: "Regular"
+                filterState.dietaryTypes.contains(dietaryType)
+            }
+        } else {
+            filteredBySearchAndCategory
+        }
+
+        // 4. 动态计算距离
+        val listingsWithDistance = filteredByDietary.map { listing ->
+            val distance = if (currentLocation != null && listing.latitude != null && listing.longitude != null) {
+                locationUtils.calculateDistance(
+                    currentLocation.latitude.toDouble(),
+                    currentLocation.longitude.toDouble(),
+                    listing.latitude.toDouble(),
+                    listing.longitude.toDouble()
+                )
+            } else {
+                listing.distanceKm
+            }
+            listing.copy(distanceKm = distance)
+        }
+
+        // 5. 排序
+        filteredListings = when (filterState.sortBy) {
+            "distance" -> listingsWithDistance.sortedBy { it.distanceKm }
+            "expiry" -> listingsWithDistance.sortedBy { it.deadline }
+            else -> listingsWithDistance
         }
     }
 
-    val categories = remember(allListings) {
-        allListings.map { it.category }.distinct()
-    }
-
-    // ✅ 修复：使用 LocalConfiguration 获取当前 Locale
     val currentLocale = configuration.locales.get(0)
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -126,6 +224,36 @@ fun UserBrowseScreen(
                 .background(BgCream)
                 .padding(paddingValues)
         ) {
+            // ── 位置状态 ──
+            if (isLocationLoading) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = OrangeAccent)
+                    Text("Getting your location...", fontSize = 12.sp, color = TextGrey)
+                }
+            }
+            if (locationError != null) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFFFF3E0)
+                ) {
+                    Text(
+                        text = "⚠️ $locationError",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        fontSize = 12.sp,
+                        color = Color(0xFFE65100)
+                    )
+                }
+            }
+
             // ── Search Bar + Filter ──
             Row(
                 modifier = Modifier
@@ -159,7 +287,7 @@ fun UserBrowseScreen(
                 Surface(
                     modifier = Modifier
                         .size(56.dp)
-                        .clickable { showFilterSheet = true },
+                        .clickable { showFilterScreen = true },
                     shape = RoundedCornerShape(50),
                     color = Color.White,
                     shadowElevation = 2.dp
@@ -297,15 +425,26 @@ fun UserBrowseScreen(
                         ) listing else null
                     }
 
-                    LaunchedEffect(filteredListings) {
-                        if (locations.isNotEmpty()) {
-                            cameraPositionState.animate(
-                                CameraUpdateFactory.newLatLngZoom(
-                                    LatLng(locations.first().latitude!!, locations.first().longitude!!),
-                                    13f
-                                ),
-                                500
-                            )
+                    LaunchedEffect(filteredListings, userLocation) {
+                        when {
+                            userLocation != null -> {
+                                cameraPositionState.animate(
+                                    CameraUpdateFactory.newLatLngZoom(
+                                        LatLng(userLocation!!.latitude, userLocation!!.longitude),
+                                        14f
+                                    ),
+                                    500
+                                )
+                            }
+                            locations.isNotEmpty() -> {
+                                cameraPositionState.animate(
+                                    CameraUpdateFactory.newLatLngZoom(
+                                        LatLng(locations.first().latitude!!, locations.first().longitude!!),
+                                        13f
+                                    ),
+                                    500
+                                )
+                            }
                         }
                     }
 
@@ -314,15 +453,16 @@ fun UserBrowseScreen(
                         cameraPositionState = cameraPositionState,
                         uiSettings = MapUiSettings(
                             zoomControlsEnabled = true,
-                            myLocationButtonEnabled = true
-                        )
+                            myLocationButtonEnabled = false
+                        ),
+                        properties = MapProperties(isMyLocationEnabled = true)
                     ) {
                         locations.forEach { listing ->
                             val location = LatLng(listing.latitude!!, listing.longitude!!)
                             Marker(
                                 state = MarkerState(position = location),
                                 title = listing.foodName,
-                                snippet = "${listing.merchantName} · ${listing.distanceKm}km",
+                                snippet = "${listing.merchantName} · ${formatDistance(listing.distanceKm)}",
                                 onClick = {
                                     onFoodClick(listing.id)
                                     true
@@ -351,7 +491,10 @@ fun UserBrowseScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    items(filteredListings) { listing ->
+                    items(
+                        items = filteredListings,
+                        key = { it.id }
+                    ) { listing ->
                         BrowseFoodCard(
                             listing = listing,
                             onClick = { onFoodClick(listing.id) },
@@ -366,11 +509,16 @@ fun UserBrowseScreen(
         if (!isListView) {
             FloatingActionButton(
                 onClick = {
-                    scope.launch {
-                        cameraPositionState.animate(
-                            CameraUpdateFactory.newLatLngZoom(defaultLocation, 15f),
-                            1000
-                        )
+                    if (ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ) {
+                        if (!isGettingLocation) {
+                            fetchLocation()
+                        }
+                    } else {
+                        permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
                     }
                 },
                 modifier = Modifier
@@ -383,7 +531,7 @@ fun UserBrowseScreen(
                 elevation = FloatingActionButtonDefaults.elevation(4.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.MyLocation,
+                    imageVector = if (userLocation != null) Icons.Default.MyLocation else Icons.Default.GpsNotFixed,
                     contentDescription = "My Location",
                     tint = OrangeAccent
                 )
@@ -391,16 +539,16 @@ fun UserBrowseScreen(
         }
     }
 
-    if (showFilterSheet) {
+    // ── 在 UserBrowseScreen 中，用 FilterBottomSheet 替换 FilterFullScreen ──
+    if (showFilterScreen) {
         FilterBottomSheet(
             filterState = filterState,
             onFilterChange = { filterState = it },
-            onDismiss = { showFilterSheet = false }
+            onDismiss = { showFilterScreen = false }
         )
     }
 }
 
-// ── ✅ 滚动版 Filter Bottom Sheet ──
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FilterBottomSheet(
@@ -408,9 +556,14 @@ private fun FilterBottomSheet(
     onFilterChange: (FilterState) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val categories = allCategories
     var localFilterState by remember { mutableStateOf(filterState) }
-    val scrollState = rememberScrollState()
+
+    // 当 filterState 外部变化时同步
+    LaunchedEffect(filterState) {
+        if (localFilterState != filterState) {
+            localFilterState = filterState
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -424,18 +577,20 @@ private fun FilterBottomSheet(
                     .height(4.dp)
                     .background(Color(0xFFDDC0B8), RoundedCornerShape(2.dp))
             )
-        }
+        },
+        // 底部安全区域适配
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.9f)
+                .fillMaxHeight(0.85f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 16.dp)
         ) {
-            // ── Header ──
+            // ── 头部标题 + 关闭按钮 ──
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -445,205 +600,151 @@ private fun FilterBottomSheet(
                     fontWeight = FontWeight.Bold,
                     color = TextDark
                 )
-                TextButton(
-                    onClick = { localFilterState = FilterState() }
-                ) {
-                    Text(
-                        text = "Reset",
-                        color = OrangeAccent,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            // ── 可滚动内容 ──
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = 20.dp)
-            ) {
-                // Food Categories
-                Text(
-                    text = "Food Categories",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextDark,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                androidx.compose.foundation.layout.FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    categories.forEach { category ->
-                        val isSelected = localFilterState.categories.contains(category)
-                        FilterChip(
-                            onClick = {
-                                localFilterState = localFilterState.copy(
-                                    categories = if (isSelected) {
-                                        localFilterState.categories - category
-                                    } else {
-                                        localFilterState.categories + category
-                                    }
-                                )
-                            },
-                            label = { Text(category, fontSize = 13.sp) },
-                            selected = isSelected,
-                            shape = RoundedCornerShape(50),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = OrangeAccent,
-                                selectedLabelColor = Color.White,
-                                disabledContainerColor = Color(0xFFE8E2D8),
-                                disabledLabelColor = TextGrey
-                            )
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Distance
-                Text(
-                    text = "Distance",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextDark
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(text = "0.5 km", fontSize = 12.sp, color = TextGrey)
-                    Text(
-                        text = "${localFilterState.distance} km",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = OrangeAccent
-                    )
-                    Text(text = "10 km", fontSize = 12.sp, color = TextGrey)
-                }
-                Slider(
-                    value = localFilterState.distance,
-                    onValueChange = { localFilterState = localFilterState.copy(distance = it) },
-                    valueRange = 0.5f..10f,
-                    steps = 19,
-                    colors = SliderDefaults.colors(
-                        thumbColor = OrangeAccent,
-                        activeTrackColor = OrangeAccent,
-                        inactiveTrackColor = Color(0xFFDDC0B8)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Dietary Needs
-                Text(
-                    text = "Dietary Needs",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextDark,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                val dietaryOptions = listOf(
-                    "Vegetarian" to { localFilterState = localFilterState.copy(isVegetarian = !localFilterState.isVegetarian) },
-                    "Vegan" to { localFilterState = localFilterState.copy(isVegan = !localFilterState.isVegan) },
-                    "Gluten-Free" to { localFilterState = localFilterState.copy(isGlutenFree = !localFilterState.isGlutenFree) },
-                    "Nut-Free" to { localFilterState = localFilterState.copy(isNutFree = !localFilterState.isNutFree) }
-                )
-
-                dietaryOptions.forEach { (label, onClick) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onClick() }
-                            .padding(vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                Row {
+                    TextButton(
+                        onClick = {
+                            localFilterState = FilterState()
+                            onFilterChange(localFilterState)
+                            onDismiss()
+                        }
                     ) {
-                        Text(text = label, fontSize = 14.sp, color = TextDark)
-                        Checkbox(
-                            checked = when (label) {
-                                "Vegetarian" -> localFilterState.isVegetarian
-                                "Vegan" -> localFilterState.isVegan
-                                "Gluten-Free" -> localFilterState.isGlutenFree
-                                "Nut-Free" -> localFilterState.isNutFree
-                                else -> false
-                            },
-                            onCheckedChange = { onClick() },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = OrangeAccent,
-                                uncheckedColor = Color(0xFFDDC0B8)
-                            )
-                        )
+                        Text("Reset", color = OrangeAccent, fontWeight = FontWeight.Bold)
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = TextDark)
                     }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Sort By
-                Text(
-                    text = "Sort By",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextDark,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                SortOption(
-                    label = "Distance (Closest)",
-                    description = "Show items nearest to your location first",
-                    isSelected = localFilterState.sortBy == "distance",
-                    onClick = { localFilterState = localFilterState.copy(sortBy = "distance") }
-                )
-                SortOption(
-                    label = "Expiry (Soonest)",
-                    description = "Prioritize items that need to be rescued quickly",
-                    isSelected = localFilterState.sortBy == "expiry",
-                    onClick = { localFilterState = localFilterState.copy(sortBy = "expiry") }
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // ── 底部固定按钮 ──
-            Row(
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ── Food Categories ──
+            Text(
+                text = "Food Categories",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextDark,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                allCategories.forEach { category ->
+                    val isSelected = localFilterState.categories.contains(category)
+                    FilterChip(
+                        onClick = {
+                            localFilterState = localFilterState.copy(
+                                categories = if (isSelected) {
+                                    localFilterState.categories - category
+                                } else {
+                                    localFilterState.categories + category
+                                }
+                            )
+                        },
+                        label = { Text(category, fontSize = 13.sp) },
+                        selected = isSelected,
+                        shape = RoundedCornerShape(50),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = OrangeAccent,
+                            selectedLabelColor = Color.White,
+                            disabledContainerColor = Color(0xFFF0EDE6),
+                            disabledLabelColor = TextDark
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // ── Dietary Types ──
+            Text(
+                text = "Dietary Preferences",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextDark,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                allDietaryTypes.forEach { dietary ->
+                    val isSelected = localFilterState.dietaryTypes.contains(dietary)
+                    FilterChip(
+                        onClick = {
+                            localFilterState = localFilterState.copy(
+                                dietaryTypes = if (isSelected) {
+                                    localFilterState.dietaryTypes - dietary
+                                } else {
+                                    localFilterState.dietaryTypes + dietary
+                                }
+                            )
+                        },
+                        label = { Text(dietary, fontSize = 13.sp) },
+                        selected = isSelected,
+                        shape = RoundedCornerShape(50),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = OrangeAccent,
+                            selectedLabelColor = Color.White,
+                            disabledContainerColor = Color(0xFFF0EDE6),
+                            disabledLabelColor = TextDark
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // ── Sort By ──
+            Text(
+                text = "Sort By",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextDark,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            SortOption(
+                label = "Distance (Closest)",
+                description = "Show items nearest to your location first",
+                isSelected = localFilterState.sortBy == "distance",
+                onClick = { localFilterState = localFilterState.copy(sortBy = "distance") }
+            )
+            SortOption(
+                label = "Expiry (Soonest)",
+                description = "Prioritize items that need to be rescued quickly",
+                isSelected = localFilterState.sortBy == "expiry",
+                onClick = { localFilterState = localFilterState.copy(sortBy = "expiry") }
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // ── Apply Button ──
+            Button(
+                onClick = {
+                    onFilterChange(localFilterState)
+                    onDismiss()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .height(52.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                OutlinedButton(
-                    onClick = {
-                        localFilterState = FilterState()
-                        onFilterChange(localFilterState)
-                        onDismiss()
-                    },
-                    modifier = Modifier.weight(1f).height(50.dp),
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = OrangeAccent
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, OrangeAccent)
-                ) {
-                    Text(text = "Clear All", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                }
-
-                Button(
-                    onClick = {
-                        onFilterChange(localFilterState)
-                        onDismiss()
-                    },
-                    modifier = Modifier.weight(2f).height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
-                    shape = RoundedCornerShape(50)
-                ) {
-                    Text(text = "Apply Filters", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                }
+                Text(
+                    text = "Apply Filters",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -680,7 +781,7 @@ private fun SortOption(
             Text(
                 text = description,
                 fontSize = 12.sp,
-                color = TextGrey,
+                color = TextDark.copy(alpha = 0.7f),
                 maxLines = 2
             )
         }
@@ -693,56 +794,61 @@ private fun BrowseFoodCard(
     onClick: () -> Unit,
     locale: Locale
 ) {
-    // 计算剩余天数（用于显示 "X days left"）
-    val daysRemaining = remember(listing.deadline, locale) {
-        try {
-            val format = SimpleDateFormat("yyyy-MM-dd", locale)
-            val deadline = format.parse(listing.deadline)
+    // ✅ 使用统一的日期解析函数（和 isListingExpired 保持一致）
+    val parsedDate = remember(listing.deadline) { tryParseDeadline(listing.deadline) }
+
+    val daysRemaining = remember(listing.deadline, parsedDate) {
+        if (parsedDate != null) {
             val now = Date()
-            if (deadline != null && deadline.after(now)) {
-                val diff = deadline.time - now.time
+            if (parsedDate.after(now)) {
+                val diff = parsedDate.time - now.time
                 (diff / (1000 * 60 * 60 * 24)).toInt()
             } else 0
-        } catch (_: Exception) {
-            0
+        } else {
+            // 解析失败（如 "today" 格式）→ 视为未过期
+            999
         }
     }
 
-    // 计算剩余小时（用于显示 "Expires in Xh"）
-    val hoursRemaining = remember(listing.deadline, locale) {
-        try {
-            val format = SimpleDateFormat("yyyy-MM-dd", locale)
-            val deadline = format.parse(listing.deadline)
+    val hoursRemaining = remember(listing.deadline, parsedDate) {
+        if (parsedDate != null) {
             val now = Date()
-            if (deadline != null && deadline.after(now)) {
-                val diff = deadline.time - now.time
-                (diff / (1000 * 60 * 60)).toInt()
+            if (parsedDate.after(now)) {
+                val diff = parsedDate.time - now.time
+                ((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toInt()
             } else 0
-        } catch (_: Exception) {
-            0
+        } else {
+            // 解析失败（如 "today" 格式）→ 视为未过期
+            999
         }
     }
+
+    val isExpired = daysRemaining <= 0 && hoursRemaining <= 0
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable(enabled = !isExpired) { onClick() },
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isExpired) Color(0xFFE8E2D8) else Color(0xFFFBE9E7)
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isExpired) Color(0xFFD0C8BC) else Color(0xFFFBE9E7)
+        )
     ) {
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
-            // ── 图片区域（带叠加标签） ──
+            // ── 图片区域 ──
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(160.dp)
                     .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp))
             ) {
-                // 图片
                 if (!listing.photoUrl.isNullOrBlank()) {
                     AsyncImage(
                         model = listing.photoUrl,
@@ -756,33 +862,31 @@ private fun BrowseFoodCard(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFFEFE6D9)),
+                            .background(if (isExpired) Color(0xFFD8D0C4) else Color(0xFFEFE6D9)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Fastfood,
                             contentDescription = "Food",
                             modifier = Modifier.size(48.dp),
-                            tint = Color(0xFFD8C4A8)
+                            tint = if (isExpired) Color(0xFFB0A898) else Color(0xFFD8C4A8)
                         )
                     }
                 }
 
-                // ── 左上角状态标签 ──
                 Row(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // "AVAILABLE" 标签
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = GreenConfirmed,
+                        color = if (isExpired) TextGrey else GreenConfirmed,
                         shadowElevation = 4.dp
                     ) {
                         Text(
-                            text = "AVAILABLE",
+                            text = if (isExpired) "EXPIRED" else "AVAILABLE",
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -791,10 +895,9 @@ private fun BrowseFoodCard(
                         )
                     }
 
-                    // 分类标签（如 "BAKERY"）
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = Color(0xFFFF8A65).copy(alpha = 0.9f),
+                        color = if (isExpired) TextGrey.copy(alpha = 0.6f) else Color(0xFFFF8A65).copy(alpha = 0.9f),
                         shadowElevation = 4.dp
                     ) {
                         Text(
@@ -808,7 +911,6 @@ private fun BrowseFoodCard(
                     }
                 }
 
-                // ── 右上角收藏按钮 ──
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -822,20 +924,18 @@ private fun BrowseFoodCard(
                         Icon(
                             imageVector = Icons.Default.FavoriteBorder,
                             contentDescription = "Save",
-                            tint = Color.White,
+                            tint = if (isExpired) TextGrey else Color.White,
                             modifier = Modifier.size(18.dp)
                         )
                     }
                 }
             }
 
-            // ── 内容区域 ──
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
-                // 标题行：食物名称 + 距离 + 到期时间（右上角）
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -846,7 +946,7 @@ private fun BrowseFoodCard(
                             text = listing.foodName,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextDark
+                            color = if (isExpired) TextGrey else TextDark
                         )
 
                         Row(
@@ -867,16 +967,14 @@ private fun BrowseFoodCard(
                         }
                     }
 
-                    // 右侧：距离 + 到期时间（右上角）
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = "${listing.distanceKm} km away",
+                            text = formatDistance(listing.distanceKm),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            color = OrangeAccent
+                            color = if (isExpired) TextGrey else OrangeAccent
                         )
 
-                        // ── ✅ 智能倒计时：超过 1 天显示天数，否则显示小时 ──
                         when {
                             daysRemaining >= 1 -> {
                                 Text(
@@ -885,7 +983,6 @@ private fun BrowseFoodCard(
                                     color = if (daysRemaining <= 2) OrangeAccent else TextGrey
                                 )
                             }
-
                             hoursRemaining > 0 -> {
                                 Text(
                                     text = "Expires in ${hoursRemaining}h",
@@ -893,7 +990,6 @@ private fun BrowseFoodCard(
                                     color = if (hoursRemaining <= 3) RedCancelled else TextGrey
                                 )
                             }
-
                             else -> {
                                 Text(
                                     text = "Expired",
@@ -907,18 +1003,20 @@ private fun BrowseFoodCard(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // ── Request 按钮 ──
                 Button(
                     onClick = onClick,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isExpired) TextGrey else OrangeAccent
+                    ),
                     shape = RoundedCornerShape(50),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
+                    enabled = !isExpired
                 ) {
                     Text(
-                        text = "Request",
+                        text = if (isExpired) "Expired" else "Request",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -927,4 +1025,48 @@ private fun BrowseFoodCard(
             }
         }
     }
+}
+
+// ── 统一的日期解析函数 ──
+private fun tryParseDeadline(deadline: String): Date? {
+    if (deadline.isBlank()) return null
+
+    // ✅ 处理 "today" 格式（如 "9:00 PM today"）
+    if (deadline.contains("today", ignoreCase = true)) {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 23)
+        cal.set(Calendar.MINUTE, 59)
+        cal.set(Calendar.SECOND, 59)
+        cal.set(Calendar.MILLISECOND, 999)
+        return cal.time
+    }
+
+    val formats = listOf(
+        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()),
+        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()),
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()),
+        SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()),
+        SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()),
+        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()),
+        SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault()),
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+    )
+
+    formats.forEach { format ->
+        try {
+            return format.parse(deadline)
+        } catch (_: Exception) { }
+    }
+    return null
+}
+
+// ── 判断食物是否过期 ──
+private fun isListingExpired(deadline: String): Boolean {
+    val parsed = tryParseDeadline(deadline) ?: return false
+    return parsed.before(Date())
+}
+
+// ── 辅助函数：格式化距离 ──
+private fun formatDistance(distance: Double): String {
+    return String.format(Locale.US, "%.1f km", distance)
 }

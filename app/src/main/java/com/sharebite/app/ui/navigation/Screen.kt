@@ -34,8 +34,14 @@ object UserFoodDetailRoute {
 }
 
 object UserMakeReservationRoute {
-    const val route = "user_make_reservation/{listingId}"
-    fun createRoute(id: Long) = "user_make_reservation/$id"
+    const val route = "user_make_reservation/{listingId}?reservationId={reservationId}"
+    fun createRoute(listingId: Long, reservationId: Long? = null): String {
+        return if (reservationId != null && reservationId != 0L) {
+            "user_make_reservation/$listingId?reservationId=$reservationId"
+        } else {
+            "user_make_reservation/$listingId"
+        }
+    }
 }
 
 object UserReservationDetailRoute {
