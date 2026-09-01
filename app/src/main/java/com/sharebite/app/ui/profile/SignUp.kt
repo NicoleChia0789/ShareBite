@@ -323,28 +323,7 @@ fun SignUp(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // ── Terms Checkbox ──
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = agreed,
-                            onCheckedChange = { agreed = it },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = primaryNavy,
-                                uncheckedColor = placeholderGray
-                            ),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            text = "I agree to the Terms of Service and Privacy Policy.",
-                            fontSize = 12.sp,
-                            color = mutedGray
-                        )
-                    }
 
-                    Spacer(modifier = Modifier.height(16.dp))
 
                     // ── Create Account Button ──
                     Button(

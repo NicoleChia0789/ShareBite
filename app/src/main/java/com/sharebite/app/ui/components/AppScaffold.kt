@@ -31,8 +31,7 @@ fun AppScaffold(
     onNavigate: (String) -> Unit,
     topBarTitle: String = "ShareBite",
     onNotificationClick: () -> Unit = {},
-    showSavedButton: Boolean = false,
-    onSavedFoodClick: () -> Unit = {},
+
     showBackButton: Boolean = false,
     onBackClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},  // ✅ Added logout callback
@@ -53,11 +52,7 @@ fun AppScaffold(
             },
             actions = {
                 if (!showBackButton) {
-                    if (showSavedButton) {
-                        IconButton(onClick = onSavedFoodClick) {
-                            Icon(Icons.Default.Favorite, contentDescription = "Saved Food")
-                        }
-                    }
+
                     IconButton(onClick = onNotificationClick) {
                         Icon(Icons.Default.Notifications, contentDescription = "Notifications")
                     }

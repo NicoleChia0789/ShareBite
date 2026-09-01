@@ -1,10 +1,17 @@
 package com.sharebite.app.ui.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -14,12 +21,19 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.sharebite.app.data.model.UserAddress
+import com.sharebite.app.data.repository.AddressRepository
 import com.sharebite.app.ui.charity.*
 import com.sharebite.app.ui.components.AppScaffold
-import com.sharebite.app.ui.user.*
 import com.sharebite.app.ui.merchant.*
 import com.sharebite.app.ui.merchant.MerchantAddDonationScreen
 import com.sharebite.app.ui.profile.*
+import com.sharebite.app.ui.theme.OrangeAccent
+import com.sharebite.app.ui.user.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import com.sharebite.app.ui.profile.NotificationSettingsScreen
+
 
 @Composable
 fun AppNavHost(
@@ -60,7 +74,8 @@ fun AppNavHost(
         currentRoute == ForgotPasswordRoute.route -> "Forgot Password"
         currentRoute == ResetPasswordRoute.route -> "Reset Password"
         currentRoute == NotificationsRoute.route -> "Notifications"
-        currentRoute == UserSavedFoodRoute.route -> "Saved Food"
+        currentRoute == NotificationSettingsRoute.route -> "Notification Settings"
+
         currentRoute == UserHelpRoute.route -> "Help & Support"
         currentRoute.startsWith("user_food_detail/") -> "Food Detail"
         currentRoute.startsWith("user_make_reservation/") -> "Make Reservation"
@@ -69,18 +84,19 @@ fun AppNavHost(
         // Charity routes
         currentRoute == CharityEditProfileRoute.route -> "Edit Profile"
         currentRoute == CharityHelpRoute.route -> "Help & Support"
-        currentRoute == CharityNotificationsRoute.route -> "Notifications"
+
         currentRoute.startsWith("food_detail/") -> "Food Detail"
         currentRoute.startsWith("apply_for_food/") -> "Apply for Food"
         currentRoute.startsWith("edit_request/") -> "Edit Request"
         currentRoute == PostRequestRoute.route -> "Post a Food Request"
-        currentRoute == SavedItemsRoute.route -> "Saved Items"
+
+
         currentRoute.startsWith("request_detail/") -> "Request Detail"
 
         // Merchant routes
         currentRoute == MerchantEditProfileRoute.route -> "Edit Profile"
         currentRoute == MerchantHelpRoute.route -> "Help & Support"
-        currentRoute == MerchantNotificationsRoute.route -> "Notifications"
+
         currentRoute == MerchantDonationHistoryRoute.route -> "Donation History"
         currentRoute == MerchantDashboardRoute.route -> "Merchant Dashboard"
         currentRoute == MerchantAddDonationRoute.route -> "Add Donation"
@@ -102,7 +118,7 @@ fun AppNavHost(
             currentRoute == HistoryRoute.route ||
             currentRoute.startsWith("user_make_reservation/") ||
             currentRoute.startsWith("user_reservation_detail/") ||
-            currentRoute == UserSavedFoodRoute.route ||
+
             currentRoute == UserEditProfileRoute.route ||
             currentRoute == UserHelpRoute.route ||
             currentRoute == UserAddressesRoute.route ||
@@ -112,12 +128,11 @@ fun AppNavHost(
             currentRoute == ForgotPasswordRoute.route ||
             currentRoute == ResetPasswordRoute.route ||
             currentRoute == NotificationsRoute.route ||
+            currentRoute == NotificationSettingsRoute.route ||
             currentRoute == CharityEditProfileRoute.route ||
             currentRoute == CharityHelpRoute.route ||
-            currentRoute == CharityNotificationsRoute.route ||
             currentRoute == MerchantEditProfileRoute.route ||
             currentRoute == MerchantHelpRoute.route ||
-            currentRoute == MerchantNotificationsRoute.route ||
             currentRoute == MerchantDonationHistoryRoute.route ||
             currentRoute == MerchantImpactRoute.route ||
             currentRoute.startsWith("food_detail/") ||
@@ -125,7 +140,7 @@ fun AppNavHost(
             currentRoute.startsWith("edit_request/") ||
             currentRoute.startsWith("request_detail/") ||
             currentRoute == PostRequestRoute.route ||
-            currentRoute == SavedItemsRoute.route ||
+
             currentRoute == AboutRoute.route ||
             currentRoute == MerchantAddDonationRoute.route ||
             currentRoute == MerchantReservationsRoute.route ||
@@ -135,7 +150,6 @@ fun AppNavHost(
             currentRoute == MerchantUserReservationsRoute.route ||
             currentRoute == MerchantListingDetailRoute.route ||
             currentRoute == MerchantPickupDetailsRoute.route
-
 
     AppScaffold(
         currentRoute = currentRoute,
@@ -149,14 +163,9 @@ fun AppNavHost(
         showBackButton = isDetailScreen,
         onBackClick = { navController.popBackStack() },
         onNotificationClick = { navController.navigate(NotificationsRoute.route) },
-        showSavedButton = role == "user" || role == "charity",
-        onSavedFoodClick = {
-            when (role) {
-                "user" -> navController.navigate(UserSavedFoodRoute.route)
-                "charity" -> navController.navigate(SavedItemsRoute.route)
-                else -> {}
-            }
-        }
+        onLogoutClick = onLogout,
+
+
     ) { paddingValues ->
         NavHost(
             navController = navController,
@@ -254,26 +263,27 @@ fun AppNavHost(
                 when (role) {
                     "user" -> UserProfileScreen(
                         paddingValues = paddingValues,
-                        onSavedFood = { navController.navigate(UserSavedFoodRoute.route) },
+
+
                         onHelpClick = { navController.navigate(UserHelpRoute.route) },
                         onAboutClick = { navController.navigate(AboutRoute.route) },
                         onLogout = onLogout,
-                        onReservationHistory = { navController.navigate(HistoryRoute.route) } ,
+                        onReservationHistory = { navController.navigate(HistoryRoute.route) },
                         onEditProfile = { navController.navigate(UserEditProfileRoute.route) },
                         onAddressClick = { navController.navigate(UserAddressesRoute.route) },
                         onSecurityClick = { navController.navigate(SecurityRoute.route) },
-                        onNotificationClick = { navController.navigate(NotificationsRoute.route) }
+                        onNotificationSettingsClick = { navController.navigate(NotificationSettingsRoute.route) }
                     )
                     "charity" -> CharityProfileScreen(
                         paddingValues = paddingValues,
-                        onSavedItemsClick = { navController.navigate(SavedItemsRoute.route) },
-                        onHistoryClick = { navController.navigate(HistoryRoute.route) } ,
+
+                        onHistoryClick = { navController.navigate(HistoryRoute.route) },
                         onHelpClick = { navController.navigate(CharityHelpRoute.route) },
                         onAboutClick = { navController.navigate(AboutRoute.route) },
                         onLogout = onLogout,
                         onEditProfile = { navController.navigate(CharityEditProfileRoute.route) },
                         onSecurityClick = { navController.navigate(SecurityRoute.route) },
-                        onNotificationClick = { navController.navigate(CharityNotificationsRoute.route) }
+                        onNotificationSettingsClick = { navController.navigate(NotificationSettingsRoute.route) }
                     )
                     "merchant" -> MerchantProfileScreen(
                         paddingValues = paddingValues,
@@ -281,9 +291,9 @@ fun AppNavHost(
                         onEditProfile = { navController.navigate(MerchantEditProfileRoute.route) },
                         onDonationHistory = { navController.navigate(MerchantDonationHistoryRoute.route) },
                         onSecurityClick = { navController.navigate(SecurityRoute.route) },
-                        onNotificationClick = { navController.navigate(MerchantNotificationsRoute.route) },
                         onHelpClick = { navController.navigate(MerchantHelpRoute.route) },
-                        onAboutClick = { navController.navigate(AboutRoute.route) }
+                        onAboutClick = { navController.navigate(AboutRoute.route) },
+                        onNotificationSettingsClick = { navController.navigate(NotificationSettingsRoute.route) }
                     )
                     else -> Text("Unknown role: $role")
                 }
@@ -344,12 +354,7 @@ fun AppNavHost(
                 )
             }
 
-            composable(UserSavedFoodRoute.route) {
-                UserSavedFoodScreen(
-                    paddingValues = paddingValues,
-                    onFoodClick = { id -> navController.navigate(UserFoodDetailRoute.createRoute(id)) }
-                )
-            }
+
 
             composable(UserEditProfileRoute.route) {
                 UserEditProfileScreen(
@@ -363,9 +368,9 @@ fun AppNavHost(
                 UserHelpScreen(paddingValues = paddingValues)
             }
 
-            // ══════════════════════════════════════
+            // ══════════════════════════════════════════
             // User 地址路由
-            // ══════════════════════════════════════
+            // ══════════════════════════════════════════
 
             composable(UserAddressesRoute.route) {
                 UserAddressesScreen(
@@ -375,24 +380,55 @@ fun AppNavHost(
                     onEditAddress = { addressId ->
                         navController.navigate("${UserAddEditAddressRoute.route}?addressId=$addressId")
                     },
-                    onDeleteAddress = { /* TODO: 删除地址 */ },
-                    onSetDefault = { /* TODO: 设为默认地址 */ }
+                    onDeleteAddress = { /* 内部已处理 */ },
+                    onSetDefault = { /* 内部已处理 */ }
                 )
             }
 
-            composable(UserAddEditAddressRoute.route) {
-                val addressId = it.arguments?.getString("addressId")
-                val existingAddress = null // TODO: 根据 addressId 获取地址
+            composable(
+                route = UserAddEditAddressRoute.route,
+                arguments = listOf(navArgument("addressId") {
+                    type = NavType.StringType
+                    defaultValue = null
+                    nullable = true
+                })
+            ) { backStackEntry ->
+                val addressId = backStackEntry.arguments?.getString("addressId")?.toLongOrNull()
+                var existingAddress by remember { mutableStateOf<UserAddress?>(null) }
+                var isLoading by remember { mutableStateOf<Boolean>(true) }
+                val addressRepo = remember { AddressRepository() }
 
-                UserEditAddressScreen(
-                    paddingValues = paddingValues,
-                    onBack = { navController.popBackStack() },
-                    onSave = { label, street, city, state, zip, country, phone ->
-                        // TODO: 保存地址
-                        navController.popBackStack()
-                    },
-                    existingAddress = existingAddress
-                )
+                LaunchedEffect(addressId) {
+                    if (addressId != null && addressId > 0) {
+                        try {
+                            existingAddress = addressRepo.getAddressById(addressId)
+                        } catch (e: Exception) {
+                            // 忽略
+                        }
+                    }
+                    isLoading = false
+                }
+
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = OrangeAccent)
+                    }
+                } else {
+                    UserEditAddressScreen(
+                        paddingValues = paddingValues,
+                        onBack = { navController.popBackStack() },
+                        onSave = { label, street, city, state, zip, country, phone ->
+                            // ✅ 保存后刷新用户数据
+                            navController.popBackStack()
+                        },
+                        existingAddress = existingAddress
+                    )
+                }
             }
 
             // ══════════════════════════════════════
@@ -403,8 +439,7 @@ fun AppNavHost(
                 SecurityScreen(
                     paddingValues = paddingValues,
                     onBack = { navController.popBackStack() },
-                    onChangePassword = { navController.navigate(ChangePasswordRoute.route) },
-
+                    onChangePassword = { navController.navigate(ChangePasswordRoute.route) }
                 )
             }
 
@@ -413,7 +448,6 @@ fun AppNavHost(
                     paddingValues = paddingValues,
                     onBack = { navController.popBackStack() },
                     onSave = { newPassword, currentPassword ->
-                        // TODO: 保存新密码
                         navController.popBackStack()
                     },
                     onForgotPassword = { navController.navigate(ForgotPasswordRoute.route) }
@@ -425,12 +459,10 @@ fun AppNavHost(
                     paddingValues = paddingValues,
                     onBack = { navController.popBackStack() },
                     onSendResetLink = { email ->
-                        // 🟢 This is all you need!
                         navController.navigate(ResetPasswordRoute.route) {
                             popUpTo(ForgotPasswordRoute.route) { inclusive = true }
                         }
-                        // Optionally: Call API here to send reset email
-                    },
+                    }
                 )
             }
 
@@ -439,38 +471,11 @@ fun AppNavHost(
                     paddingValues = paddingValues,
                     onBack = { navController.popBackStack() },
                     onReset = { newPassword ->
-                        // TODO: Call API with new password
-                        // On success, navigate to Profile
                         navController.navigate(Screen.Profile.route) {
                             popUpTo(Screen.Profile.route) { inclusive = true }
                         }
-                    },
+                    }
                 )
-            }
-
-            // ══════════════════════════════════════
-            // User 通知路由
-            // ══════════════════════════════════════
-
-            composable(NotificationsRoute.route) {
-                when (role) {
-                    "user" -> UserNotificationsScreen(
-                        paddingValues = paddingValues,
-                        onBack = { navController.popBackStack() }
-                    )
-                    "charity" -> CharityNotificationsScreen(
-                        paddingValues = paddingValues,
-                        onBack = { navController.popBackStack() }
-                    )
-                    "merchant" -> MerchantNotificationsScreen(
-                        paddingValues = paddingValues,
-                        onBack = { navController.popBackStack() }
-                    )
-                    else -> UserNotificationsScreen(
-                        paddingValues = paddingValues,
-                        onBack = { navController.popBackStack() }
-                    )
-                }
             }
 
             // ══════════════════════════════════════
@@ -487,13 +492,6 @@ fun AppNavHost(
 
             composable(CharityHelpRoute.route) {
                 CharityHelpScreen(
-                    paddingValues = paddingValues,
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            composable(CharityNotificationsRoute.route) {
-                CharityNotificationsScreen(
                     paddingValues = paddingValues,
                     onBack = { navController.popBackStack() }
                 )
@@ -594,19 +592,9 @@ fun AppNavHost(
                 )
             }
 
-            composable(MerchantNotificationsRoute.route) {
-                MerchantNotificationsScreen(
-                    paddingValues = paddingValues,
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
             composable(MerchantDonationHistoryRoute.route) {
-                // TODO: Add Donation History Screen
                 Text("Donation History", modifier = Modifier.padding(paddingValues))
             }
-
-
 
             composable(MerchantAddDonationRoute.route) {
                 MerchantAddDonationScreen(
@@ -720,16 +708,50 @@ fun AppNavHost(
             // 共用路由
             // ══════════════════════════════════════
 
+            // 1️⃣ 通知列表（点击 Top Bar 的 Bell 图标）
+
+
+            // 2️⃣ 通知设置（Profile 菜单进入）
+            composable(NotificationSettingsRoute.route) {
+                NotificationSettingsScreen(
+                    paddingValues = paddingValues,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            // 共用路由
+            composable(NotificationsRoute.route) {
+                UnifiedNotificationsScreen(
+                    paddingValues = paddingValues,
+                    onBack = { navController.popBackStack() },
+                    onNotificationClick = { id, type ->
+                        when (type) {
+                            "reservation" -> {
+                                navController.navigate(
+                                    UserReservationDetailRoute.createRoute(id)
+                                )
+                            }
+                            "request" -> {
+                                navController.navigate(
+                                    RequestDetailRoute.createRoute(id)
+                                )
+                            }
+                            else -> {
+                                navController.navigate(Screen.Home.route)
+                            }
+                        }
+                    }
+                )
+            }
+
+
+
             composable(AboutRoute.route) {
                 AboutScreen(paddingValues = paddingValues)
             }
 
-            composable(SavedItemsRoute.route) {
-                SavedItemsScreen(
-                    paddingValues = paddingValues,
-                    onItemClick = { id -> navController.navigate(FoodDetailRoute.createRoute(id)) }
-                )
-            }
+
+
         }
     }
 }

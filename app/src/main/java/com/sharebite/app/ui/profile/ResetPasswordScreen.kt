@@ -53,19 +53,6 @@ fun ResetPasswordScreen(
             .padding(top = 40.dp)
     ) {
 
-
-        Spacer(modifier = Modifier.height(40.dp))
-
-        // ── 标题 ──
-        Text(
-            text = "Reset Password",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextDark
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
         Text(
             text = "Enter a new password for your account.",
             fontSize = 14.sp,

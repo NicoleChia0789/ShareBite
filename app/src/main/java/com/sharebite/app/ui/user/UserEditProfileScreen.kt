@@ -1,6 +1,8 @@
 package com.sharebite.app.ui.user
 
+import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -15,16 +17,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.repository.UserRepository
 import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 import kotlinx.coroutines.launch
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun UserEditProfileScreen(
@@ -36,6 +38,11 @@ fun UserEditProfileScreen(
     val userId = CurrentUser.getUserId()
     val userRepo = remember { UserRepository() }
     val scope = rememberCoroutineScope()
+
+    // 键盘控制
+    val scrollState = rememberScrollState()
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
 
     // 获取当前用户信息
     val currentName = CurrentUser.getUserName()
@@ -50,6 +57,13 @@ fun UserEditProfileScreen(
     var isSaving by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // 验证错误状态
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var phoneError by remember { mutableStateOf<String?>(null) }
+    var addressError by remember { mutableStateOf<String?>(null) }
+    var bioError by remember { mutableStateOf<String?>(null) }
+
     // 加载用户数据
     LaunchedEffect(Unit) {
         try {
@@ -59,8 +73,6 @@ fun UserEditProfileScreen(
                 email = user.email.ifBlank { currentEmail }
                 phone = user.phone ?: ""
                 address = user.address ?: ""
-                // 如果用户有自定义 bio，可以在这里设置
-                // bio = user.bio ?: "Neighborhood Food Sharer"
             }
         } catch (e: Exception) {
             errorMessage = e.message
@@ -69,7 +81,67 @@ fun UserEditProfileScreen(
         }
     }
 
-    val canSave = fullName.isNotBlank() && email.isNotBlank()
+    // 验证函数
+    fun validateName(): Boolean {
+        nameError = when {
+            fullName.isBlank() -> "Full name is required"
+            fullName.length < 2 -> "Name must be at least 2 characters"
+            fullName.length > 50 -> "Name must be less than 50 characters"
+            else -> null
+        }
+        return nameError == null
+    }
+
+    fun validateEmail(): Boolean {
+        val emailRegex = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
+        emailError = when {
+            email.isBlank() -> "Email address is required"
+            !emailRegex.matches(email) -> "Please enter a valid email address"
+            else -> null
+        }
+        return emailError == null
+    }
+
+    fun validatePhone(): Boolean {
+        val phoneRegex = Regex("^(\\+?[0-9]{1,4}[-.\\s]?)?[0-9]{7,15}$")
+        phoneError = when {
+            phone.isBlank() -> null
+            !phoneRegex.matches(phone) -> "Please enter a valid phone number"
+            phone.length < 7 -> "Phone number is too short"
+            else -> null
+        }
+        return phoneError == null
+    }
+
+    fun validateAddress(): Boolean {
+        addressError = when {
+            address.isBlank() -> null
+            address.length < 5 -> "Please enter a more complete address"
+            else -> null
+        }
+        return addressError == null
+    }
+
+    fun validateBio(): Boolean {
+        bioError = when {
+            bio.isBlank() -> null
+            bio.length > 100 -> "Bio must be less than 100 characters"
+            else -> null
+        }
+        return bioError == null
+    }
+
+    fun validateAll(): Boolean {
+        return listOf(
+            validateName(),
+            validateEmail(),
+            validatePhone(),
+            validateAddress(),
+            validateBio()
+        ).all { it }
+    }
+
+    val canSave = fullName.isNotBlank() && email.isNotBlank() && !isSaving
 
     if (isLoading) {
         Box(
@@ -88,13 +160,21 @@ fun UserEditProfileScreen(
             .fillMaxSize()
             .background(BgCream)
             .padding(paddingValues)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
             .padding(horizontal = 20.dp)
+            .padding(bottom = 24.dp)
+            .imePadding()
+            .clickable(
+                onClick = {
+                    keyboardController?.hide()
+                    focusManager.clearFocus()
+                }
+            )
     ) {
 
-        Spacer(modifier = Modifier.height(16.dp))
 
-        // ── Avatar ──
+        Spacer(modifier = Modifier.height(8.dp))
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -114,7 +194,6 @@ fun UserEditProfileScreen(
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
-                // 相机图标（覆盖层）
                 Box(
                     modifier = Modifier
                         .size(80.dp)
@@ -141,9 +220,8 @@ fun UserEditProfileScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // ── 姓名和角色显示 ──
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.fillMaxWidth()
@@ -163,7 +241,6 @@ fun UserEditProfileScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // ── 错误信息 ──
         if (errorMessage != null) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -180,90 +257,164 @@ fun UserEditProfileScreen(
             Spacer(modifier = Modifier.height(12.dp))
         }
 
-        // ── Full Name ──
         OutlinedTextField(
             value = fullName,
-            onValueChange = { fullName = it },
+            onValueChange = {
+                fullName = it
+                if (nameError != null) validateName()
+            },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Full Name", color = TextGrey) },
             placeholder = { Text("Alex Johnson", color = TextGrey) },
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
+            isError = nameError != null,
+            supportingText = {
+                if (nameError != null) {
+                    Text(nameError!!, color = RedCancelled)
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = OrangeAccent,
                 unfocusedBorderColor = Color(0xFFDDC0B8),
                 focusedTextColor = TextDark,
                 unfocusedTextColor = TextDark,
-                focusedLabelColor = OrangeAccent
+                focusedLabelColor = OrangeAccent,
+                errorBorderColor = RedCancelled,
+                errorLabelColor = RedCancelled
             )
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ── Display Title / Bio ──
         OutlinedTextField(
             value = bio,
-            onValueChange = { bio = it },
+            onValueChange = {
+                bio = it
+                if (bioError != null) validateBio()
+            },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Display Title / Bio", color = TextGrey) },
             placeholder = { Text("Neighborhood Food Sharer", color = TextGrey) },
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
+            isError = bioError != null,
+            supportingText = {
+                if (bioError != null) {
+                    Text(bioError!!, color = RedCancelled)
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = OrangeAccent,
                 unfocusedBorderColor = Color(0xFFDDC0B8),
                 focusedTextColor = TextDark,
                 unfocusedTextColor = TextDark,
-                focusedLabelColor = OrangeAccent
+                focusedLabelColor = OrangeAccent,
+                errorBorderColor = RedCancelled,
+                errorLabelColor = RedCancelled
             )
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ── Email Address ──
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it },
+            onValueChange = {
+                email = it
+                if (emailError != null) validateEmail()
+            },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Email Address", color = TextGrey) },
             placeholder = { Text("alex.j@example.com", color = TextGrey) },
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
+            isError = emailError != null,
+            supportingText = {
+                if (emailError != null) {
+                    Text(emailError!!, color = RedCancelled)
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = OrangeAccent,
                 unfocusedBorderColor = Color(0xFFDDC0B8),
                 focusedTextColor = TextDark,
                 unfocusedTextColor = TextDark,
-                focusedLabelColor = OrangeAccent
+                focusedLabelColor = OrangeAccent,
+                errorBorderColor = RedCancelled,
+                errorLabelColor = RedCancelled
             )
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ── Phone Number ──
         OutlinedTextField(
             value = phone,
-            onValueChange = { phone = it },
+            onValueChange = {
+                phone = it
+                if (phoneError != null) validatePhone()
+            },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Phone Number", color = TextGrey) },
-            placeholder = { Text("+1 (555) 123-4567", color = TextGrey) },
+            placeholder = { Text("012-3456789", color = TextGrey) },
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
+            isError = phoneError != null,
+            supportingText = {
+                if (phoneError != null) {
+                    Text(phoneError!!, color = RedCancelled)
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = OrangeAccent,
                 unfocusedBorderColor = Color(0xFFDDC0B8),
                 focusedTextColor = TextDark,
                 unfocusedTextColor = TextDark,
-                focusedLabelColor = OrangeAccent
+                focusedLabelColor = OrangeAccent,
+                errorBorderColor = RedCancelled,
+                errorLabelColor = RedCancelled
+            )
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = address,
+            onValueChange = {
+                address = it
+                if (addressError != null) validateAddress()
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp),
+            label = { Text("Address", color = TextGrey) },
+            placeholder = { Text("123 Main Street, City, State, ZIP", color = TextGrey) },
+            shape = RoundedCornerShape(12.dp),
+            maxLines = 3,
+            isError = addressError != null,
+            supportingText = {
+                if (addressError != null) {
+                    Text(addressError!!, color = RedCancelled)
+                }
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = OrangeAccent,
+                unfocusedBorderColor = Color(0xFFDDC0B8),
+                focusedTextColor = TextDark,
+                unfocusedTextColor = TextDark,
+                focusedLabelColor = OrangeAccent,
+                errorBorderColor = RedCancelled,
+                errorLabelColor = RedCancelled
             )
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // ── Save Changes Button ──
         Button(
             onClick = {
-                if (!canSave) return@Button
+                if (!validateAll()) {
+                    Toast.makeText(context, "Please fix all errors", Toast.LENGTH_SHORT).show()
+                    return@Button
+                }
                 isSaving = true
                 scope.launch {
                     try {
@@ -274,7 +425,6 @@ fun UserEditProfileScreen(
                             phone = phone,
                             address = address
                         )
-                        // 更新 CurrentUser
                         CurrentUser.user?.let { user ->
                             user.name = fullName
                             user.email = email
@@ -295,11 +445,11 @@ fun UserEditProfileScreen(
                 .fillMaxWidth()
                 .height(52.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (canSave && !isSaving) OrangeAccent else Color.Gray,
+                containerColor = if (canSave) OrangeAccent else Color.Gray,
                 contentColor = Color.White
             ),
             shape = RoundedCornerShape(12.dp),
-            enabled = canSave && !isSaving
+            enabled = canSave
         ) {
             if (isSaving) {
                 CircularProgressIndicator(

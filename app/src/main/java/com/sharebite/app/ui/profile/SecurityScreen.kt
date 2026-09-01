@@ -172,11 +172,7 @@ fun SecurityScreen(
                         fontWeight = FontWeight.SemiBold,
                         color = TextDark
                     )
-                    Text(
-                        text = "Last changed 3 months ago",
-                        fontSize = 12.sp,
-                        color = TextGrey
-                    )
+
                 }
                 Icon(
                     imageVector = Icons.Default.ChevronRight,

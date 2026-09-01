@@ -13,22 +13,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sharebite.app.data.model.UserAddress
+import com.sharebite.app.data.repository.AddressRepository
 import com.sharebite.app.ui.theme.*
-
-data class Address(
-    val id: String,
-    val label: String,
-    val street: String,
-    val city: String,
-    val state: String,
-    val zip: String,
-    val country: String,
-    val phone: String,
-    val isDefault: Boolean = false
-)
+import kotlinx.coroutines.launch
+import android.widget.Toast
 
 @Composable
 fun UserAddressesScreen(
@@ -39,8 +32,30 @@ fun UserAddressesScreen(
     onDeleteAddress: (String) -> Unit,
     onSetDefault: (String) -> Unit
 ) {
-    val addresses = remember {
-        emptyList<Address>()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val addressRepo = remember { AddressRepository() }
+
+    var addresses by remember { mutableStateOf<List<UserAddress>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // 加载地址
+    fun loadAddresses() {
+        scope.launch {
+            isLoading = true
+            try {
+                addresses = addressRepo.getMyAddresses()
+                errorMessage = null
+            } catch (e: Exception) {
+                errorMessage = e.message
+            }
+            isLoading = false
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        loadAddresses()
     }
 
     Column(
@@ -51,83 +66,140 @@ fun UserAddressesScreen(
     ) {
 
 
-        Spacer(modifier = Modifier.height(8.dp))
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-
-                    // ✅ 使用 Button 替代 TextButton
-                    Button(
-                        onClick = onAddAddress,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Transparent,
-                            contentColor = OrangeAccent
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add Address",
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "Add New",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+        when {
+            isLoading -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = OrangeAccent)
                 }
             }
-
-            if (addresses.isEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
+            errorMessage != null -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("❌", fontSize = 32.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(errorMessage ?: "Error loading addresses", color = RedCancelled)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { loadAddresses() },
+                            colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.LocationOn,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = TextGrey
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "No addresses saved yet",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = TextDark
-                            )
-                            Text(
-                                text = "Tap 'Add New' to add your first address",
-                                fontSize = 14.sp,
-                                color = TextGrey
-                            )
+                            Text("Retry", color = Color.White)
                         }
                     }
                 }
-            } else {
-                items(addresses) { address ->
-                    AddressCard(
-                        address = address,
-                        onEdit = { onEditAddress(address.id) },
-                        onDelete = { onDeleteAddress(address.id) },
-                        onSetDefault = { onSetDefault(address.id) }
-                    )
+            }
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "${addresses.size} address${if (addresses.size != 1) "es" else ""} saved",
+                                fontSize = 14.sp,
+                                color = TextGrey
+                            )
+                            Button(
+                                onClick = onAddAddress,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.Transparent,
+                                    contentColor = OrangeAccent
+                                ),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Add Address",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = "Add New",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    if (addresses.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(48.dp),
+                                        tint = TextGrey
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "No addresses saved yet",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = TextDark
+                                    )
+                                    Text(
+                                        text = "Tap 'Add New' to add your first address",
+                                        fontSize = 14.sp,
+                                        color = TextGrey
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        items(addresses) { address ->
+                            AddressCard(
+                                address = address,
+                                onEdit = {
+                                    onEditAddress(address.id.toString())
+                                },
+                                onDelete = {
+                                    scope.launch {
+                                        try {
+                                            val deleted = addressRepo.deleteAddress(address.id)
+                                            if (deleted) {
+                                                loadAddresses()
+                                                Toast.makeText(context, "Address deleted", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "Failed to delete address", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                },
+                                onSetDefault = {
+                                    scope.launch {
+                                        try {
+                                            val updated = addressRepo.setDefaultAddress(address.id)
+                                            if (updated) {
+                                                loadAddresses()
+                                                Toast.makeText(context, "Default address updated", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "Failed to set default", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -136,7 +208,7 @@ fun UserAddressesScreen(
 
 @Composable
 private fun AddressCard(
-    address: Address,
+    address: UserAddress,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onSetDefault: () -> Unit
@@ -202,19 +274,19 @@ private fun AddressCard(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = address.street.ifBlank { "Not set yet" },
+                text = address.street,
                 fontSize = 14.sp,
-                color = if (address.street.isBlank()) TextGrey else TextDark
+                color = TextDark
             )
             Text(
-                text = if (address.city.isNotBlank()) "${address.city}, ${address.state} ${address.zip}" else "Not set yet",
+                text = "${address.city}, ${address.state} ${address.zip}",
                 fontSize = 14.sp,
-                color = if (address.city.isBlank()) TextGrey else TextDark
+                color = TextDark
             )
             Text(
-                text = address.country.ifBlank { "Not set yet" },
+                text = address.country,
                 fontSize = 14.sp,
-                color = if (address.country.isBlank()) TextGrey else TextDark
+                color = TextDark
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -226,14 +298,14 @@ private fun AddressCard(
                     imageVector = Icons.Default.Phone,
                     contentDescription = null,
                     modifier = Modifier.size(14.dp),
-                    tint = if (address.phone.isBlank()) TextGrey else TextGrey
+                    tint = TextGrey
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = address.phone.ifBlank { "Not set yet" },
+                    text = address.phone,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = if (address.phone.isBlank()) TextGrey else TextDark
+                    color = TextDark
                 )
             }
 

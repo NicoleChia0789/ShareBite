@@ -25,14 +25,14 @@ import com.sharebite.app.ui.theme.*
 @Composable
 fun CharityProfileScreen(
     paddingValues: PaddingValues,
-    onSavedItemsClick: () -> Unit,
+
     onHistoryClick: () -> Unit = {},
     onHelpClick: () -> Unit,
     onAboutClick: () -> Unit,
     onLogout: () -> Unit,
     onEditProfile: () -> Unit = {},
     onSecurityClick: () -> Unit = {},
-    onNotificationClick: () -> Unit = {}
+    onNotificationSettingsClick: () -> Unit = {}
 ) {
     val userId = CurrentUser.getUserId()
     val userName = CurrentUser.getUserName()
@@ -219,14 +219,7 @@ fun CharityProfileScreen(
                 )
                 Divider(color = Color(0xFFEFE6D9), modifier = Modifier.padding(horizontal = 16.dp))
 
-                // 2. Saved Items
-                ProfileMenuItem(
-                    icon = Icons.Default.Favorite,
-                    title = "Saved Items",
-                    subtitle = "Your saved food listings",
-                    onClick = onSavedItemsClick
-                )
-                Divider(color = Color(0xFFEFE6D9), modifier = Modifier.padding(horizontal = 16.dp))
+
 
                 // 3. Account Security
                 ProfileMenuItem(
@@ -242,7 +235,7 @@ fun CharityProfileScreen(
                     icon = Icons.Default.Notifications,
                     title = "Notification Settings",
                     subtitle = "Alerts for available food donations",
-                    onClick = onNotificationClick
+                    onClick = onNotificationSettingsClick
                 )
                 Divider(color = Color(0xFFEFE6D9), modifier = Modifier.padding(horizontal = 16.dp))
 
