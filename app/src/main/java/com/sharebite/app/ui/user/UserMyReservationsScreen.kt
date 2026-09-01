@@ -1,7 +1,6 @@
 package com.sharebite.app.ui.user
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -13,30 +12,42 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.repository.ReservationRepository
 import com.sharebite.app.data.session.CurrentUser
+import com.sharebite.app.ui.components.WithdrawConfirmDialog
 import com.sharebite.app.ui.theme.*
-import java.text.SimpleDateFormat
+import kotlinx.coroutines.launch
 import java.util.*
-import androidx.compose.ui.platform.LocalConfiguration  // ✅ 新增
+
+// ✅ 状态优先级函数（定义在顶层，供整个文件使用）
+private fun getStatusPriority(status: String): Int {
+    return when (status) {
+        "Pending" -> 0
+        "Confirmed" -> 1
+        "Completed" -> 2
+        "Cancelled" -> 3
+        else -> 999
+    }
+}
 
 @Composable
 fun UserMyReservationsScreen(
     paddingValues: PaddingValues,
     onViewClick: (Long) -> Unit,
+    onEditReservation: (Long, Long) -> Unit,
     onBrowseClick: () -> Unit = {}
 ) {
     val userId = CurrentUser.getUserId()
     val repository = remember { ReservationRepository() }
-    val configuration = LocalConfiguration.current  // ✅ 新增
-    val locale = configuration.locales.get(0)       // ✅ 新增
-
+    val configuration = LocalConfiguration.current
+    val locale = configuration.locales.get(0)
+    val coroutineScope = rememberCoroutineScope()
 
     var allReservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
     var filteredReservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
@@ -44,12 +55,13 @@ fun UserMyReservationsScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var selectedStatus by remember { mutableStateOf<String?>(null) }
 
+    var cancelTargetId by remember { mutableStateOf<Long?>(null) }
+
     val statuses = listOf("All", "Pending", "Confirmed", "Completed", "Cancelled")
 
-    LaunchedEffect(Unit) {
+    suspend fun loadReservations() {
         try {
             allReservations = repository.getMyReservations()
-            filteredReservations = allReservations
             println("🔍 MyReservations - 找到 ${allReservations.size} 条预订")
         } catch (e: Exception) {
             errorMessage = e.message
@@ -59,12 +71,20 @@ fun UserMyReservationsScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        loadReservations()
+    }
+
     LaunchedEffect(selectedStatus, allReservations) {
-        filteredReservations = if (selectedStatus == null || selectedStatus == "All") {
+        // ✅ 先按状态过滤
+        val filtered = if (selectedStatus == null || selectedStatus == "All") {
             allReservations
         } else {
             allReservations.filter { it.status == selectedStatus }
         }
+
+        // ✅ 按状态优先级排序：Pending -> Confirmed -> Completed -> Cancelled
+        filteredReservations = filtered.sortedBy { getStatusPriority(it.status) }
     }
 
     Column(
@@ -73,7 +93,6 @@ fun UserMyReservationsScreen(
             .background(BgCream)
             .padding(paddingValues)
     ) {
-        // ── 标题 ──
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Text(
                 text = "My Reservations",
@@ -88,7 +107,6 @@ fun UserMyReservationsScreen(
             )
         }
 
-        // ── ✅ 横向可滚动的 pill 样式 Filter Tabs ──
         LazyRow(
             modifier = Modifier.padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -118,7 +136,6 @@ fun UserMyReservationsScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ── Content ──
         when {
             isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) {
                 CircularProgressIndicator(color = OrangeAccent)
@@ -129,17 +146,13 @@ fun UserMyReservationsScreen(
             }
 
             filteredReservations.isEmpty() -> {
-                // ── ✅ 空状态：emoji + 提示文字 + Browse Food 按钮 ──
                 Box(Modifier.fillMaxSize(), Alignment.Center) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.padding(horizontal = 32.dp)
                     ) {
-                        Text(
-                            text = "📋",
-                            fontSize = 48.sp
-                        )
+                        Text(text = "📋", fontSize = 48.sp)
                         Text(
                             text = "No reservations yet",
                             fontSize = 18.sp,
@@ -177,25 +190,69 @@ fun UserMyReservationsScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(filteredReservations) { reservation ->
+                items(
+                    items = filteredReservations,
+                    key = { it.id }
+                ) { reservation ->
                     ReservationCard(
                         reservation = reservation,
                         onViewClick = { onViewClick(reservation.id) },
+                        onEditClick = { onEditReservation(reservation.listingId, reservation.id) },
+                        onCancelClick = { cancelTargetId = reservation.id },
                         locale = locale
                     )
                 }
             }
         }
     }
+
+    cancelTargetId?.let { targetId ->
+        WithdrawConfirmDialog(
+            onKeep = { cancelTargetId = null },
+            onWithdraw = {
+                coroutineScope.launch {
+                    try {
+                        repository.cancelMyReservation(targetId)
+                        allReservations = allReservations.map { reservation ->
+                            if (reservation.id == targetId) {
+                                reservation.copy(status = "Cancelled")
+                            } else {
+                                reservation
+                            }
+                        }
+                        filteredReservations = filteredReservations.map { reservation ->
+                            if (reservation.id == targetId) {
+                                reservation.copy(status = "Cancelled")
+                            } else {
+                                reservation
+                            }
+                        }
+                        // ✅ 取消后重新排序
+                        filteredReservations = filteredReservations.sortedBy { getStatusPriority(it.status) }
+                        cancelTargetId = null
+                    } catch (e: Exception) {
+                        errorMessage = e.message
+                        cancelTargetId = null
+                    }
+                }
+            }
+        )
+    }
 }
 
-// ── ✅ 卡片：左边信息，右边只保留 View 按钮 ──
 @Composable
 private fun ReservationCard(
     reservation: Reservation,
     onViewClick: () -> Unit,
+    onEditClick: () -> Unit,
+    onCancelClick: () -> Unit,
     locale: Locale
 ) {
+    val isPending = reservation.status == "Pending"
+    val isConfirmed = reservation.status == "Confirmed"
+    val isCompleted = reservation.status == "Completed"
+    val isCancelled = reservation.status == "Cancelled"
+
     val statusColor = when (reservation.status) {
         "Confirmed" -> GreenConfirmed
         "Pending" -> OrangeAccent
@@ -211,104 +268,153 @@ private fun ReservationCard(
         else -> Color(0xFFEEEEEE)
     }
 
-    // 判断是否今天取餐
-    val isToday = try {
-        val format = SimpleDateFormat("yyyy-MM-dd", locale)
-        val pickupDate = format.parse(reservation.pickupDate)
-        val today = Date()
-        pickupDate != null && format.format(pickupDate) == format.format(today)
-    } catch (e: Exception) {
-        false
-    }
-
-    // 状态描述文字
     val statusHeadline = when {
-        reservation.status == "Pending" && isToday -> "PICK UP TODAY"
-        reservation.status == "Pending" -> "REQUESTED"
-        reservation.status == "Confirmed" && isToday -> "PICK UP TODAY"
-        reservation.status == "Confirmed" -> "PICK UP"
-        reservation.status == "Completed" -> "COLLECTED"
-        reservation.status == "Cancelled" -> "CANCELLED"
+        isPending -> "PENDING"
+        isConfirmed -> "CONFIRMED"
+        isCompleted -> "COMPLETED"
+        isCancelled -> "CANCELLED"
         else -> ""
     }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onViewClick() },
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
+            .padding(vertical = 6.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp)
         ) {
-            // ── 左侧信息 ──
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // 状态行
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                Text(
+                    text = statusHeadline,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = statusColor
+                )
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = statusBg
                 ) {
                     Text(
-                        text = statusHeadline,
+                        text = reservation.status.uppercase(),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (reservation.status == "Cancelled") TextGrey else OrangeAccent
+                        color = statusColor
                     )
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = statusBg
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "${reservation.foodName} × ${reservation.quantity}",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextDark
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "${reservation.pickupDate} · ${reservation.pickupTime}",
+                fontSize = 13.sp,
+                color = TextGrey
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Divider(
+                color = Color(0xFFE8E2D8),
+                thickness = 1.dp,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            when {
+                isPending -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = reservation.status,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = statusColor
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = onViewClick, modifier = Modifier.size(40.dp)) {
+                                Icon(Icons.Default.Visibility, contentDescription = "View", tint = OrangeAccent)
+                            }
+                            Text("View", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = OrangeAccent)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = onEditClick,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = GreenConfirmed)
+                            }
+                            IconButton(onClick = onCancelClick, modifier = Modifier.size(40.dp)) {
+                                Icon(Icons.Default.Delete, contentDescription = "Cancel", tint = RedCancelled)
+                            }
+                        }
                     }
                 }
 
-                // 食物名称 + 数量
-                Text(
-                    text = "${reservation.foodName} × ${reservation.quantity}",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextDark
-                )
+                isConfirmed -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = onViewClick, modifier = Modifier.size(40.dp)) {
+                                Icon(Icons.Default.Visibility, contentDescription = "View", tint = OrangeAccent)
+                            }
+                            Text("View", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = OrangeAccent)
+                        }
+                        Text("Confirmed", fontSize = 12.sp, color = TextGrey)
+                    }
+                }
 
-                // 取餐日期时间
-                Text(
-                    text = "${reservation.pickupDate} · ${reservation.pickupTime}",
-                    fontSize = 13.sp,
-                    color = TextGrey
-                )
-            }
+                isCompleted -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = onViewClick, modifier = Modifier.size(40.dp)) {
+                                Icon(Icons.Default.Visibility, contentDescription = "View", tint = OrangeAccent)
+                            }
+                            Text("View", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = OrangeAccent)
+                        }
+                        Text("Completed", fontSize = 12.sp, color = TextGrey)
+                    }
+                }
 
-            // ── ✅ 右侧只保留 View 按钮（pill 形状，大小合理） ──
-            Button(
-                onClick = onViewClick,
-                modifier = Modifier
-                    .height(36.dp)
-                    .padding(start = 8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
-                shape = RoundedCornerShape(50)
-            ) {
-                Text(
-                    text = "View",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+                isCancelled -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = onViewClick, modifier = Modifier.size(40.dp)) {
+                                Icon(Icons.Default.Visibility, contentDescription = "View", tint = OrangeAccent)
+                            }
+                            Text("View", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = OrangeAccent)
+                        }
+                        Text("Cancelled", fontSize = 12.sp, color = TextGrey)
+                    }
+                }
             }
         }
     }

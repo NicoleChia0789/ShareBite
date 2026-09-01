@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 fun UserReservationDetailScreen(
     reservationId: Long,
     paddingValues: PaddingValues,
-    onEditClick: (Long) -> Unit,
+    onEditClick: (Long, Long) -> Unit,  // ✅ 改为 (listingId, reservationId)
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -47,7 +47,6 @@ fun UserReservationDetailScreen(
     var showCancelDialog by remember { mutableStateOf(false) }
     var foodImage by remember { mutableStateOf<String?>(null) }
 
-    // ✅ 修改：使用 getMyReservationById 确保只获取当前用户的预约
     LaunchedEffect(reservationId) {
         try {
             reservation = repository.getMyReservationById(reservationId)
@@ -66,7 +65,6 @@ fun UserReservationDetailScreen(
         }
     }
 
-    // ✅ 修改：使用 cancelMyReservation 确保只能取消自己的预约
     fun cancelReservation() {
         if (isCancelling) return
         scope.launch {
@@ -160,7 +158,6 @@ fun UserReservationDetailScreen(
                             }
                         }
 
-                        // ── Status Overlay Badge ──
                         Surface(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
@@ -194,7 +191,6 @@ fun UserReservationDetailScreen(
                             }
                         }
 
-                        // 渐变覆盖 + 标题
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -288,7 +284,6 @@ fun UserReservationDetailScreen(
                                     .padding(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                // 日期时间
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -323,7 +318,6 @@ fun UserReservationDetailScreen(
 
                                 Divider(color = Color(0xFFDDC0B8).copy(alpha = 0.3f))
 
-                                // 地址 + View on Map
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -368,7 +362,6 @@ fun UserReservationDetailScreen(
                             }
                         }
 
-                        // ── 商家备注（带左边框） ──
                         if (!item.note.isNullOrBlank()) {
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
@@ -422,7 +415,7 @@ fun UserReservationDetailScreen(
 
                                 TimelineStep(
                                     title = "Reservation Received",
-                                    time = item.createdAt?.take(16)?.replace("T", " · ") ?: "Pending",  // ✅ Safe call with default
+                                    time = item.createdAt?.take(16)?.replace("T", " · ") ?: "Pending",
                                     isCompleted = step1Completed,
                                     isLast = false,
                                     icon = Icons.Default.CheckCircle
@@ -500,8 +493,8 @@ fun UserReservationDetailScreen(
                         if (item.status == "Pending") {
                             Button(
                                 onClick = {
-                                    // Pass the listing ID from the reservation
-                                    onEditClick(item.listingId)  // ✅ Use the listing ID from reservation
+                                    // ✅ 传递 listingId 和 reservationId
+                                    onEditClick(item.listingId, item.id)
                                 },
                                 modifier = Modifier
                                     .weight(1f)
@@ -525,7 +518,6 @@ fun UserReservationDetailScreen(
                                 )
                             }
                         }
-
 
                         if (item.status == "Pending" || item.status == "Confirmed") {
                             Button(

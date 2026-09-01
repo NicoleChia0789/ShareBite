@@ -40,13 +40,24 @@ fun UserDashboardScreen(
 
     var nearbyListings by remember { mutableStateOf<List<FoodListing>>(emptyList()) }
     var recentReservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
+    var activeReservationsCount by remember { mutableStateOf(0) }  // ✅ 改为非 Cancelled 数量
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         try {
             nearbyListings = foodRepo.getAvailableListings().take(5)
-            recentReservations = reservationRepo.getMyReservations().take(3)
+
+            val allReservations = reservationRepo.getMyReservations()
+
+            // ✅ 统计非 Cancelled 的预订数量
+            activeReservationsCount = allReservations.count { it.status != "Cancelled" }
+
+            // ✅ Recent Reservations 只显示非 Cancelled 的，取前3条
+            recentReservations = allReservations
+                .filter { it.status != "Cancelled" }
+                .take(3)
+
         } catch (e: Exception) {
             errorMessage = e.message
         } finally {
@@ -121,7 +132,7 @@ fun UserDashboardScreen(
                 )
                 DashboardStatCard(
                     "My Reservations",
-                    recentReservations.size.toString(),
+                    activeReservationsCount.toString(),  // ✅ 显示非 Cancelled 的数量
                     GreenConfirmed,
                     Modifier.weight(1f)
                 )
@@ -192,7 +203,7 @@ fun UserDashboardScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No reservations yet. Start browsing!", color = TextGrey, fontSize = 13.sp)
+                    Text("No active reservations. Start browsing!", color = TextGrey, fontSize = 13.sp)
                 }
             }
         }

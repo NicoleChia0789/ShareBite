@@ -71,8 +71,6 @@ fun AppNavHost(
         currentRoute == UserEditProfileRoute.route -> "Edit Profile"
         currentRoute == SecurityRoute.route -> "Password & Security"
         currentRoute == ChangePasswordRoute.route -> "Change Password"
-        currentRoute == ForgotPasswordRoute.route -> "Forgot Password"
-        currentRoute == ResetPasswordRoute.route -> "Reset Password"
         currentRoute == NotificationsRoute.route -> "Notifications"
         currentRoute == NotificationSettingsRoute.route -> "Notification Settings"
 
@@ -125,8 +123,6 @@ fun AppNavHost(
             currentRoute == UserAddEditAddressRoute.route ||
             currentRoute == SecurityRoute.route ||
             currentRoute == ChangePasswordRoute.route ||
-            currentRoute == ForgotPasswordRoute.route ||
-            currentRoute == ResetPasswordRoute.route ||
             currentRoute == NotificationsRoute.route ||
             currentRoute == NotificationSettingsRoute.route ||
             currentRoute == CharityEditProfileRoute.route ||
@@ -155,9 +151,6 @@ fun AppNavHost(
         currentRoute = currentRoute,
         onNavigate = { route ->
             navController.navigate(route) {
-                popUpTo(navController.graph.findStartDestination().id) {
-                    saveState = true
-                }
                 launchSingleTop = true
                 restoreState = true
             }
@@ -231,6 +224,9 @@ fun AppNavHost(
                     "user" -> UserMyReservationsScreen(
                         paddingValues = paddingValues,
                         onViewClick = { id -> navController.navigate(UserReservationDetailRoute.createRoute(id)) },
+                        onEditReservation = { listingId, reservationId ->
+                            navController.navigate(UserMakeReservationRoute.createRoute(listingId, reservationId))
+                        },
                         onBrowseClick = { navController.navigate(Screen.Browse.route) }
                     )
                     "charity" -> MyRequestsScreen(
@@ -317,16 +313,21 @@ fun AppNavHost(
 
             composable(
                 route = UserMakeReservationRoute.route,
-                arguments = listOf(navArgument("listingId") { type = NavType.LongType })
+                arguments = listOf(
+                    navArgument("listingId") { type = NavType.LongType },
+                    navArgument("reservationId") { type = NavType.StringType; defaultValue = "" }  // ✅ 改为 String
+                )
             ) { backStackEntry ->
                 val listingId = backStackEntry.arguments?.getLong("listingId") ?: 0L
+                val reservationIdStr = backStackEntry.arguments?.getString("reservationId")
+                val reservationId = reservationIdStr?.takeIf { it.isNotBlank() }?.toLongOrNull()
                 UserMakeReservationScreen(
                     listingId = listingId,
+                    reservationId = reservationId,
                     paddingValues = paddingValues,
-                    onSuccess = { reservationId ->
-                        println("🚀 Going to detail page, ID = $reservationId")
-                        navController.navigate(UserReservationDetailRoute.createRoute(reservationId)) {
-                            popUpTo(UserMakeReservationRoute.createRoute(listingId)) { inclusive = true }
+                    onSuccess = { id ->
+                        navController.navigate(UserReservationDetailRoute.createRoute(id)) {
+                            popUpTo(UserMakeReservationRoute.createRoute(listingId, reservationId)) { inclusive = true }
                         }
                     }
                 )
@@ -340,8 +341,8 @@ fun AppNavHost(
                 UserReservationDetailScreen(
                     reservationId = reservationId,
                     paddingValues = paddingValues,
-                    onEditClick = { listingId ->
-                        navController.navigate(UserMakeReservationRoute.createRoute(listingId)) {
+                    onEditClick = { listingId, resId ->
+                        navController.navigate(UserMakeReservationRoute.createRoute(listingId, resId)) {
                             popUpTo(UserReservationDetailRoute.createRoute(reservationId)) { inclusive = true }
                         }
                     },
@@ -449,29 +450,6 @@ fun AppNavHost(
                 )
             }
 
-            composable(ForgotPasswordRoute.route) {
-                ForgotPasswordScreen(
-                    paddingValues = paddingValues,
-                    onBack = { navController.popBackStack() },
-                    onSendResetLink = { email ->
-                        navController.navigate(ResetPasswordRoute.route) {
-                            popUpTo(ForgotPasswordRoute.route) { inclusive = true }
-                        }
-                    }
-                )
-            }
-
-            composable(ResetPasswordRoute.route) {
-                ResetPasswordScreen(
-                    paddingValues = paddingValues,
-                    onBack = { navController.popBackStack() },
-                    onReset = { newPassword ->
-                        navController.navigate(Screen.Profile.route) {
-                            popUpTo(Screen.Profile.route) { inclusive = true }
-                        }
-                    }
-                )
-            }
 
             // ══════════════════════════════════════
             // Charity 特有详情路由

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,8 +24,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.sharebite.app.data.model.FoodListing
+import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.data.repository.ReservationRepository
 import com.sharebite.app.data.session.CurrentUser
@@ -36,23 +40,31 @@ import java.util.*
 @Composable
 fun UserMakeReservationScreen(
     listingId: Long,
+    reservationId: Long? = null,
     paddingValues: PaddingValues,
     onSuccess: (Long) -> Unit
 ) {
-    val context = LocalContext.current  // ✅ 添加
+    val context = LocalContext.current
     val foodRepo = remember { FoodListingRepository() }
     val userId = CurrentUser.getUserId()
     val reservationRepo = remember { ReservationRepository() }
     val scope = rememberCoroutineScope()
 
     var listing by remember { mutableStateOf<FoodListing?>(null) }
+    var existingReservation by remember { mutableStateOf<Reservation?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isSubmitting by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var note by remember { mutableStateOf("") }
+    var note by rememberSaveable { mutableStateOf("") }
 
-    var selectedDate by remember { mutableStateOf<String?>(null) }
-    var selectedTime by remember { mutableStateOf<String?>(null) }
+    var selectedDate by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedTime by rememberSaveable { mutableStateOf<String?>(null) }
+
+    // ✅ 确认弹窗状态
+    var showConfirmDialog by remember { mutableStateOf(false) }
+
+    // ✅ 是否为编辑模式
+    val isEditMode = reservationId != null
 
     val dateList = remember {
         val calendar = Calendar.getInstance()
@@ -75,11 +87,25 @@ fun UserMakeReservationScreen(
 
     val timeSlots = listOf("10:00 AM", "12:30 PM", "02:00 PM", "04:30 PM")
 
-    LaunchedEffect(listingId) {
+    LaunchedEffect(listingId, reservationId) {
         try {
             listing = foodRepo.getListingById(listingId)
-            selectedDate = dateList.firstOrNull()?.first
-            selectedTime = timeSlots.firstOrNull()
+
+            if (reservationId != null) {
+                existingReservation = reservationRepo.getMyReservationById(reservationId)
+                existingReservation?.let { res ->
+                    selectedDate = res.pickupDate
+                    selectedTime = res.pickupTime
+                    note = res.note ?: ""
+                }
+            }
+
+            if (selectedDate == null) {
+                selectedDate = dateList.firstOrNull()?.first
+            }
+            if (selectedTime == null) {
+                selectedTime = timeSlots.firstOrNull()
+            }
         } catch (e: Exception) {
             errorMessage = e.message
         } finally {
@@ -87,45 +113,47 @@ fun UserMakeReservationScreen(
         }
     }
 
+    // ✅ 实际提交函数
     fun submitReservation() {
         if (isSubmitting || listing == null || selectedDate == null || selectedTime == null) return
+        showConfirmDialog = false
         scope.launch {
             isSubmitting = true
-            errorMessage = null  // Clear previous errors
+            errorMessage = null
 
             try {
-                println("🚀 Submitting reservation for listingId: $listingId")
-
-                val newReservationId = reservationRepo.createMyReservation(
-                    listingId = listingId,
-                    merchantId = listing!!.merchantId ?: "",
-                    foodName = listing!!.foodName,
-                    quantity = listing!!.quantity,
-                    pickupDate = selectedDate!!,
-                    pickupTime = selectedTime!!,
-                    note = note.ifBlank { null }
-                )
-
-                println("📥 Received reservation ID: $newReservationId")
-                isSubmitting = false
-
-                if (newReservationId > 0) {
-                    println("✅ Reservation successful! ID: $newReservationId")
-                    onSuccess(newReservationId)
+                if (isEditMode && existingReservation != null) {
+                    reservationRepo.updateMyPickupTime(
+                        reservationId = reservationId!!,
+                        newDate = selectedDate!!,
+                        newTime = selectedTime!!
+                    )
+                    isSubmitting = false
+                    onSuccess(reservationId!!)
                 } else {
-                    errorMessage = "Failed to create reservation. Please try again."
-                    println("❌ Reservation creation failed - ID: $newReservationId")
+                    val newReservationId = reservationRepo.createMyReservation(
+                        listingId = listingId,
+                        merchantId = listing!!.merchantId ?: "",
+                        foodName = listing!!.foodName,
+                        quantity = "1",  // ✅ 固定为 1
+                        pickupDate = selectedDate!!,
+                        pickupTime = selectedTime!!,
+                        note = note.ifBlank { null }
+                    )
+                    isSubmitting = false
+                    if (newReservationId > 0) {
+                        onSuccess(newReservationId)
+                    } else {
+                        errorMessage = "Failed to create reservation. Please try again."
+                    }
                 }
-
             } catch (e: Exception) {
                 errorMessage = "Error: ${e.message}"
-                println("❌ Exception: ${e.message}")
                 e.printStackTrace()
                 isSubmitting = false
             }
         }
     }
-
 
     when {
         isLoading -> Box(Modifier.fillMaxSize().padding(paddingValues), Alignment.Center) {
@@ -267,7 +295,6 @@ fun UserMakeReservationScreen(
                                         fontWeight = FontWeight.Medium,
                                         color = TextDark
                                     )
-                                    // ✅ 修复：添加 context 引用
                                     Text(
                                         text = "View on Map",
                                         fontSize = 12.sp,
@@ -387,7 +414,7 @@ fun UserMakeReservationScreen(
                             }
                         }
 
-                        // ── 数量选择 ──
+                        // ── 数量选择（固定显示 1 Unit） ──
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
@@ -415,14 +442,15 @@ fun UserMakeReservationScreen(
                                     )
                                 }
                                 Text(
-                                    text = "Max limit per reservation",
+                                    text = "Max 1 per reservation",
                                     fontSize = 11.sp,
                                     color = TextGrey
                                 )
                             }
                         }
 
-                        // ── 备注输入框 ──
+                        // ── 备注输入框（编辑模式下只读） ──
+                        // ── 备注输入框（始终可编辑） ──
                         OutlinedTextField(
                             value = note,
                             onValueChange = { note = it },
@@ -435,7 +463,11 @@ fun UserMakeReservationScreen(
                             maxLines = 3,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = OrangeAccent,
-                                unfocusedBorderColor = Color(0xFFDDC0B8)
+                                unfocusedBorderColor = Color(0xFFDDC0B8),
+                                focusedTextColor = TextDark,      // ✅ 输入文字黑色
+                                unfocusedTextColor = TextDark,    // ✅ 输入文字黑色
+                                focusedLabelColor = OrangeAccent,
+                                unfocusedLabelColor = TextGrey
                             )
                         )
 
@@ -460,7 +492,11 @@ fun UserMakeReservationScreen(
                     shadowElevation = 8.dp
                 ) {
                     Button(
-                        onClick = { submitReservation() },
+                        onClick = {
+                            if (!isSubmitting && selectedDate != null && selectedTime != null) {
+                                showConfirmDialog = true
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 12.dp)
@@ -480,13 +516,319 @@ fun UserMakeReservationScreen(
                             )
                         } else {
                             Text(
-                                text = "Confirm",
+                                text = if (isEditMode) "Update" else "Confirm",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                     }
                 }
+            }
+
+            // ✅ 确认弹窗
+            if (showConfirmDialog) {
+                // ✅ 获取正确的 quantity：编辑模式用 existingReservation 的，新建模式用 "1 Unit"
+                val displayQuantity = if (isEditMode && existingReservation != null) {
+                    "${existingReservation!!.quantity} Unit${if (existingReservation!!.quantity != "1") "s" else ""}"
+                } else {
+                    "1 Unit"
+                }
+
+                ConfirmReservationDialog(
+                    foodName = item.foodName,
+                    merchantName = item.merchantName,
+                    address = item.address,
+                    date = selectedDate ?: "N/A",
+                    time = selectedTime ?: "N/A",
+                    note = note,
+                    quantity = displayQuantity,  // ✅ 使用正确的 quantity
+                    isEditMode = isEditMode,
+                    onConfirm = { submitReservation() },
+                    onDismiss = { showConfirmDialog = false }
+                )
+            }
+        }
+    }
+}
+
+// ── ✅ 确认预订弹窗 ──
+@Composable
+private fun ConfirmReservationDialog(
+    foodName: String,
+    merchantName: String,
+    address: String,
+    date: String,
+    time: String,
+    note: String,
+    quantity: String,
+    isEditMode: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+            ) {
+                // ── 标题 ──
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(OrangeAccent.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isEditMode) Icons.Default.Edit else Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = OrangeAccent,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = if (isEditMode) "Update Reservation" else "Confirm Reservation",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextDark
+                        )
+                        Text(
+                            text = "Please review your reservation details",
+                            fontSize = 13.sp,
+                            color = TextGrey
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // ── 详情卡片 ──
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Restaurant,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = TextGrey
+                            )
+                            Column {
+                                Text("Food", fontSize = 11.sp, color = TextGrey)
+                                Text(
+                                    foodName,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextDark
+                                )
+                            }
+                        }
+
+                        Divider(color = Color(0xFFDDC0B8).copy(alpha = 0.3f))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Storefront,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = TextGrey
+                            )
+                            Column {
+                                Text("Merchant", fontSize = 11.sp, color = TextGrey)
+                                Text(
+                                    merchantName,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextDark
+                                )
+                            }
+                        }
+
+                        Divider(color = Color(0xFFDDC0B8).copy(alpha = 0.3f))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = TextGrey
+                            )
+                            Column {
+                                Text("Pickup Address", fontSize = 11.sp, color = TextGrey)
+                                Text(
+                                    address.ifBlank { "Not available" },
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextDark
+                                )
+                            }
+                        }
+
+                        Divider(color = Color(0xFFDDC0B8).copy(alpha = 0.3f))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DateRange,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = TextGrey
+                                )
+                                Column {
+                                    Text("Date", fontSize = 11.sp, color = TextGrey)
+                                    Text(
+                                        date,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = TextDark
+                                    )
+                                }
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Schedule,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = TextGrey
+                                )
+                                Column {
+                                    Text("Time", fontSize = 11.sp, color = TextGrey)
+                                    Text(
+                                        time,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = TextDark
+                                    )
+                                }
+                            }
+                        }
+
+                        Divider(color = Color(0xFFDDC0B8).copy(alpha = 0.3f))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Category,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = TextGrey
+                            )
+                            Column {
+                                Text("Quantity", fontSize = 11.sp, color = TextGrey)
+                                Text(
+                                    quantity,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextDark
+                                )
+                            }
+                        }
+
+                        if (note.isNotBlank()) {
+                            Divider(color = Color(0xFFDDC0B8).copy(alpha = 0.3f))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Message,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = TextGrey
+                                )
+                                Column {
+                                    Text("Note", fontSize = 11.sp, color = TextGrey)
+                                    Text(
+                                        note,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = TextDark
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(50)
+                    ) {
+                        Text("Cancel", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier.weight(1.5f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                        shape = RoundedCornerShape(50)
+                    ) {
+                        Text(
+                            text = if (isEditMode) "Confirm Update" else "Confirm",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
             }
         }
     }

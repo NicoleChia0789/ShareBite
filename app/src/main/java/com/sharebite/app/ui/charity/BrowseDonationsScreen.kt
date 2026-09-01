@@ -226,7 +226,7 @@ private fun FoodListingCard(listing: FoodListing, onCardClick: () -> Unit) {
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    listing.description?: "",
+                    listing.description ?: "",
                     fontSize = 12.sp,
                     color = TextGrey,
                     maxLines = 2

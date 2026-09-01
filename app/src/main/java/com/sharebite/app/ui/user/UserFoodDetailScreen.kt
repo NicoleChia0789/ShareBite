@@ -26,6 +26,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
+import com.sharebite.app.data.repository.ReservationRepository
 import com.sharebite.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -38,14 +39,21 @@ fun UserFoodDetailScreen(
 ) {
     val context = LocalContext.current
     val repository = remember { FoodListingRepository() }
+    val reservationRepo = remember { ReservationRepository() }  // ✅ 新增
     var listing by remember { mutableStateOf<FoodListing?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isSaved by remember { mutableStateOf(false) }
+    var hasActiveReservation by remember { mutableStateOf(false) }  // ✅ 新增
 
     LaunchedEffect(listingId) {
         try {
             listing = repository.getListingById(listingId)
+            // ✅ 检查是否已有活跃预订
+            val allReservations = reservationRepo.getMyReservations()
+            hasActiveReservation = allReservations.any {
+                it.listingId == listingId && (it.status == "Pending" || it.status == "Confirmed")
+            }
         } catch (e: Exception) {
             errorMessage = e.message
         } finally {
@@ -61,9 +69,9 @@ fun UserFoodDetailScreen(
                 val now = Date()
                 if (deadline != null && deadline.after(now)) {
                     val diff = deadline.time - now.time
-                    val hours = (diff / (1000 * 60 * 60)).toInt()
-                    val minutes = ((diff % (1000 * 60 * 60)) / (1000 * 60)).toInt()
-                    "${hours}h ${minutes}m"
+                    val days = (diff / (1000 * 60 * 60 * 24)).toInt()
+                    val hours = ((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toInt()
+                    if (days > 0) "${days}d ${hours}h" else "${hours}h"
                 } else "Expired"
             } catch (e: Exception) {
                 "N/A"
@@ -157,7 +165,7 @@ fun UserFoodDetailScreen(
                             }
                         }
 
-                        // ── 底部渐变文字覆盖 ──
+                        // ── 底部渐变 ──
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -170,7 +178,6 @@ fun UserFoodDetailScreen(
                                 )
                         )
 
-                        // 食物名称 + 商家名 在图片底部
                         Column(
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
@@ -225,7 +232,7 @@ fun UserFoodDetailScreen(
                             )
                         }
 
-                        // ── 分类 + Status Badge ──
+                        // ── 分类 + Status ──
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
@@ -317,7 +324,7 @@ fun UserFoodDetailScreen(
                             }
                         }
 
-                        if (!item.description.isNullOrBlank()) {
+                        if (item.description.isNullOrBlank()) {
                             Text(
                                 text = "About this donation",
                                 fontSize = 17.sp,
@@ -327,22 +334,22 @@ fun UserFoodDetailScreen(
                             Text(text = item.description?: "", fontSize = 14.sp, color = TextDark)
                         }
 
-                        // ── 商家备注（带左边框） ──
+                        // ── ✅ 商家备注（有背景色） ──
                         if (!item.notes.isNullOrBlank()) {
                             Text(
                                 text = "Merchant's Note",
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = TextDark
+                                color = TextDark,
+                                modifier = Modifier.padding(top = 4.dp)
                             )
-                            Surface(
+                            Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(8.dp),
-                                color = Color(0xFFFFF8EE),
-                                border = androidx.compose.foundation.BorderStroke(
-                                    4.dp,
-                                    OrangeAccent
-                                )
+                                colors = CardDefaults.cardColors(
+                                    containerColor = Color(0xFFFFF8EE)  // 浅橙色背景
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                             ) {
                                 Text(
                                     text = item.notes,
@@ -447,10 +454,14 @@ fun UserFoodDetailScreen(
                         ),
                         shape = RoundedCornerShape(50),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
-                        enabled = item.status == "available"
+                        enabled = item.status == "available" && !hasActiveReservation  // ✅ 添加条件
                     ) {
                         Text(
-                            text = if (item.status == "available") "Reserve Now" else "Not Available",
+                            text = when {
+                                item.status != "available" -> "Not Available"
+                                hasActiveReservation -> "Already Reserved"
+                                else -> "Reserve Now"
+                            },
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
