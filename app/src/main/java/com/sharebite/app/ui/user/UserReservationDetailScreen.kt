@@ -47,9 +47,10 @@ fun UserReservationDetailScreen(
     var showCancelDialog by remember { mutableStateOf(false) }
     var foodImage by remember { mutableStateOf<String?>(null) }
 
+    // ✅ 修改：使用 getMyReservationById 确保只获取当前用户的预约
     LaunchedEffect(reservationId) {
         try {
-            reservation = repository.getReservationById(reservationId)
+            reservation = repository.getMyReservationById(reservationId)
             reservation?.listingId?.let { listingId ->
                 try {
                     val listing = foodRepo.getListingById(listingId)
@@ -65,13 +66,14 @@ fun UserReservationDetailScreen(
         }
     }
 
+    // ✅ 修改：使用 cancelMyReservation 确保只能取消自己的预约
     fun cancelReservation() {
         if (isCancelling) return
         scope.launch {
             isCancelling = true
             try {
-                repository.cancelReservation(reservationId)
-                reservation = repository.getReservationById(reservationId)
+                repository.cancelMyReservation(reservationId)
+                reservation = repository.getMyReservationById(reservationId)
                 showCancelDialog = false
             } catch (e: Exception) {
                 errorMessage = e.message

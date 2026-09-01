@@ -2,9 +2,7 @@ package com.sharebite.app.ui.user
 
 import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,10 +26,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
-import com.sharebite.app.data.repository.SavedListingRepository
-import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -43,42 +38,18 @@ fun UserFoodDetailScreen(
 ) {
     val context = LocalContext.current
     val repository = remember { FoodListingRepository() }
-
-    // ⚠️ 临时硬编码测试用户 ID，之后换成 CurrentUser.user?.id ?: ""
-    val userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3"
-
     var listing by remember { mutableStateOf<FoodListing?>(null) }
-    var isSaved by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
-    var isDataLoaded by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    val savedRepository = remember { SavedListingRepository() }
-    val coroutineScope = rememberCoroutineScope()
+    var isSaved by remember { mutableStateOf(false) }
 
     LaunchedEffect(listingId) {
-        if (!isDataLoaded || listing?.id != listingId) {
-            try {
-                listing = repository.getListingById(listingId)
-                isDataLoaded = true
-            } catch (e: Exception) {
-                errorMessage = e.message
-            } finally {
-                isLoading = false
-            }
-        } else {
+        try {
+            listing = repository.getListingById(listingId)
+        } catch (e: Exception) {
+            errorMessage = e.message
+        } finally {
             isLoading = false
-        }
-    }
-
-    // 加载收藏状态
-    LaunchedEffect(listing?.id) {
-        listing?.let {
-            try {
-                isSaved = savedRepository.isSaved(userId, it.id)
-            } catch (e: Exception) {
-                // 静默失败
-            }
         }
     }
 
@@ -173,30 +144,14 @@ fun UserFoodDetailScreen(
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 IconButton(
-                                    onClick = {
-                                        coroutineScope.launch {
-                                            try {
-                                                if (isSaved) {
-                                                    savedRepository.unsaveListing(userId, item.id)
-                                                    isSaved = false
-                                                    Toast.makeText(context, "Removed from saved.", Toast.LENGTH_SHORT).show()
-                                                } else {
-                                                    savedRepository.saveListing(userId, item.id)
-                                                    isSaved = true
-                                                    Toast.makeText(context, "Saved to your list!", Toast.LENGTH_SHORT).show()
-                                                }
-                                            } catch (e: Exception) {
-                                                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                    },
+                                    onClick = { isSaved = !isSaved },
                                     modifier = Modifier.size(44.dp)
                                 ) {
                                     Icon(
-                                        if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                        imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                         contentDescription = if (isSaved) "Saved" else "Save",
-                                        tint = if (isSaved) RedCancelled else TextDark,  // ✅ 红色 / 灰色
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(24.dp),
+                                        tint = if (isSaved) RedCancelled else TextDark
                                     )
                                 }
                             }
@@ -215,7 +170,7 @@ fun UserFoodDetailScreen(
                                 )
                         )
 
-                        // 食物名称 + 商家名
+                        // 食物名称 + 商家名 在图片底部
                         Column(
                             modifier = Modifier
                                 .align(Alignment.BottomStart)

@@ -1,6 +1,5 @@
 package com.sharebite.app.ui.user
 
-import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,9 +24,8 @@ import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.data.repository.ReservationRepository
+import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
-import java.text.SimpleDateFormat
-import java.util.*
 
 @Composable
 fun UserDashboardScreen(
@@ -37,11 +34,9 @@ fun UserDashboardScreen(
     onFoodClick: (Long) -> Unit,
     onViewAllReservations: () -> Unit
 ) {
-    val userId = "258c6924-0bdd-481f-a6d8-cdafb4e7abe3"
+    val userId = CurrentUser.getUserId()
     val foodRepo = remember { FoodListingRepository() }
     val reservationRepo = remember { ReservationRepository() }
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     var nearbyListings by remember { mutableStateOf<List<FoodListing>>(emptyList()) }
     var recentReservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
@@ -51,11 +46,9 @@ fun UserDashboardScreen(
     LaunchedEffect(Unit) {
         try {
             nearbyListings = foodRepo.getAvailableListings().take(5)
-            recentReservations = reservationRepo.getUserReservations(userId).take(3)
-            println("🔍 Dashboard - ${nearbyListings.size} 个食物, ${recentReservations.size} 条预订")
+            recentReservations = reservationRepo.getMyReservations().take(3)
         } catch (e: Exception) {
             errorMessage = e.message
-            println("🔴 Dashboard 错误: ${e.message}")
         } finally {
             isLoading = false
         }
@@ -82,7 +75,6 @@ fun UserDashboardScreen(
             .padding(paddingValues),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ── Hero Banner ──
         item {
             Card(
                 modifier = Modifier
@@ -116,7 +108,6 @@ fun UserDashboardScreen(
             }
         }
 
-        // ── Stats Row ──
         item {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -137,7 +128,6 @@ fun UserDashboardScreen(
             }
         }
 
-        // ── Nearby Food Listings（横向滚动） ──
         item {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -174,7 +164,6 @@ fun UserDashboardScreen(
             }
         }
 
-        // ── Recent Reservations（列表） ──
         item {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -197,37 +186,28 @@ fun UserDashboardScreen(
             }
         }
 
-        // ── ✅ 空状态或预订卡片列表 ──
         if (recentReservations.isEmpty()) {
             item {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        "No reservations yet. Start browsing!",
-                        color = TextGrey,
-                        fontSize = 13.sp
-                    )
+                    Text("No reservations yet. Start browsing!", color = TextGrey, fontSize = 13.sp)
                 }
             }
-        } else {
-            // ✅ 使用 items 显示预订卡片（不是食物卡片）
-            items(recentReservations) { reservation ->
-                RecentReservationCard(
-                    reservation = reservation,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
+        }
+
+        items(recentReservations) { reservation ->
+            RecentReservationCard(
+                reservation = reservation,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
         }
 
         item { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }
 
-// ── Food Listing Card（横向滚动用） ──
 @Composable
 private fun FoodListingCard(listing: FoodListing, onClick: () -> Unit) {
     Card(
@@ -289,7 +269,6 @@ private fun FoodListingCard(listing: FoodListing, onClick: () -> Unit) {
     }
 }
 
-// ── Recent Reservation Card ──
 @Composable
 private fun RecentReservationCard(reservation: Reservation, modifier: Modifier = Modifier) {
     val statusColor = when (reservation.status) {
@@ -354,7 +333,6 @@ private fun RecentReservationCard(reservation: Reservation, modifier: Modifier =
     }
 }
 
-// ── Stats Card ──
 @Composable
 private fun DashboardStatCard(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
     Card(

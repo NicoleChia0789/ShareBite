@@ -41,12 +41,12 @@ fun SavedItemsScreen(
     LaunchedEffect(Unit) {
         try {
             // ✅ 传入 userId
-            val savedIds = savedRepository.getSavedListingIds(userId)
+            val savedIds = savedRepository.getMySavedListingIds()
             savedListings = savedIds.mapNotNull { id ->
                 try {
                     listingRepository.getListingById(id)
                 } catch (e: Exception) {
-                    null
+                    null // 万一那笔食物已经被删除了，就跳过，不影响其他项目显示
                 }
             }
         } catch (e: Exception) {

@@ -46,9 +46,6 @@ fun FoodDetailScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // ✅ 从 CurrentUser 获取 userId
-    val userId = CurrentUser.user?.id ?: ""
-
     var listing by remember { mutableStateOf<FoodListing?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -57,9 +54,9 @@ fun FoodDetailScreen(
     LaunchedEffect(listingId) {
         try {
             listing = repository.getListingById(listingId)
-            // ✅ 传入 userId 和 listingId
+            // ✅ Check if saved for current user (no userId needed)
             listing?.let {
-                isSaved = savedRepository.isSaved(userId, it.id)
+                isSaved = savedRepository.isSaved(it.id)
             }
         } catch (e: Exception) {
             errorMessage = e.message
@@ -328,12 +325,12 @@ fun FoodDetailScreen(
                                 coroutineScope.launch {
                                     try {
                                         if (isSaved) {
-                                            // ✅ 传入 userId 和 listingId
-                                            savedRepository.unsaveListing(userId, data.id)
+                                            // ✅ saveListing() and unsaveListing() already use CurrentUser internally
+                                            savedRepository.unsaveListing(data.id)
                                             isSaved = false
                                             Toast.makeText(context, "Removed from saved.", Toast.LENGTH_SHORT).show()
                                         } else {
-                                            savedRepository.saveListing(userId, data.id)
+                                            savedRepository.saveListing(data.id)
                                             isSaved = true
                                             Toast.makeText(context, "Saved to your list!", Toast.LENGTH_SHORT).show()
                                         }

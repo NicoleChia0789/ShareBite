@@ -20,15 +20,6 @@ data class FoodListing(
     val description: String = "",
     val quantity: String = "",
 
-    @SerialName("total_quantity")
-    val totalQuantity: Int = 10,
-
-    @SerialName("remaining_quantity")   // ✅ 新增
-    val remainingQuantity: Int = 10,
-
-    @SerialName("dietary_type")         // ✅ 新增
-    val dietaryType: String = "",
-
     @SerialName("photo_url")
     val photoUrl: String? = null,
 
@@ -55,4 +46,8 @@ data class FoodListing(
 
     @SerialName("created_at")
     val createdAt: String = ""
-)
+
+
+) {
+
+}

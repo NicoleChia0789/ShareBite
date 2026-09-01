@@ -1,28 +1,14 @@
 package com.sharebite.app.data.repository
 
 import com.sharebite.app.data.remote.SupabaseClient
+import com.sharebite.app.data.session.CurrentUser
 import io.github.jan.supabase.postgrest.postgrest
 
-/**
- * 收藏（Saved Listings）数据仓库
- * 统一供 User 和 Charity 模块使用
- *
- * 表结构：saved_listings
- * - id          : bigint (主键)
- * - created_at  : timestamp
- * - listing_id  : bigint (关联 food_listings.id)
- * - charity_id  : uuid   (存储用户 UUID，无论是 user 还是 charity)
- *
- * 注意：字段名虽然是 "charity_id"，但实际存储的是任何用户的 UUID。
- */
 class SavedListingRepository {
 
-    /**
-     * 获取用户收藏的所有 food listing ID 列表
-     * @param userId 用户 UUID（实际存储于 charity_id 字段）
-     * @return List<Long> 收藏的 listing ID，若出错返回空列表
-     */
-    suspend fun getSavedListingIds(userId: String): List<Long> {
+    // ✅ Get saved listing IDs for current user
+    suspend fun getMySavedListingIds(): List<Long> {
+        val userId = CurrentUser.getUserId()
         return try {
             val result = SupabaseClient.client.postgrest["saved_listings"]
                 .select {
@@ -31,17 +17,13 @@ class SavedListingRepository {
                 .decodeList<Map<String, Any>>()
             result.mapNotNull { it["listing_id"] as? Long }
         } catch (e: Exception) {
-            // 若 userId 无效或网络问题，返回空列表，不崩溃
             emptyList()
         }
     }
 
-    /**
-     * 收藏一个食物 listing
-     * @param userId 用户 UUID
-     * @param listingId 要收藏的 listing ID
-     */
-    suspend fun saveListing(userId: String, listingId: Long) {
+    // ✅ Save a listing for current user
+    suspend fun saveListing(listingId: Long) {
+        val userId = CurrentUser.getUserId()
         try {
             SupabaseClient.client.postgrest["saved_listings"]
                 .insert(
@@ -51,16 +33,13 @@ class SavedListingRepository {
                     )
                 )
         } catch (e: Exception) {
-            // 忽略错误（例如重复收藏），不抛出异常
+            // Ignore duplicates
         }
     }
 
-    /**
-     * 取消收藏一个食物 listing
-     * @param userId 用户 UUID
-     * @param listingId 要取消收藏的 listing ID
-     */
-    suspend fun unsaveListing(userId: String, listingId: Long) {
+    // ✅ Unsave a listing for current user
+    suspend fun unsaveListing(listingId: Long) {
+        val userId = CurrentUser.getUserId()
         try {
             SupabaseClient.client.postgrest["saved_listings"]
                 .delete {
@@ -70,17 +49,13 @@ class SavedListingRepository {
                     }
                 }
         } catch (e: Exception) {
-            // 忽略错误
+            // Ignore
         }
     }
 
-    /**
-     * 检查某个 listing 是否已被当前用户收藏
-     * @param userId 用户 UUID
-     * @param listingId 要检查的 listing ID
-     * @return true 如果已收藏，false 否则
-     */
-    suspend fun isSaved(userId: String, listingId: Long): Boolean {
+    // ✅ Check if listing is saved by current user
+    suspend fun isSaved(listingId: Long): Boolean {
+        val userId = CurrentUser.getUserId()
         return try {
             val result = SupabaseClient.client.postgrest["saved_listings"]
                 .select {
