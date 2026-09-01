@@ -317,14 +317,14 @@ fun UserFoodDetailScreen(
                             }
                         }
 
-                        if (item.description.isNotBlank()) {
+                        if (!item.description.isNullOrBlank()) {
                             Text(
                                 text = "About this donation",
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TextDark
                             )
-                            Text(text = item.description, fontSize = 14.sp, color = TextDark)
+                            Text(text = item.description?: "", fontSize = 14.sp, color = TextDark)
                         }
 
                         // ── 商家备注（带左边框） ──

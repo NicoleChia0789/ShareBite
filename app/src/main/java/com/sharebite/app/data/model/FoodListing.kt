@@ -17,7 +17,7 @@ data class FoodListing(
     val foodName: String = "",
 
     val category: String = "",
-    val description: String = "",
+    val description: String? = null,
     val quantity: String = "",
 
     @SerialName("photo_url")

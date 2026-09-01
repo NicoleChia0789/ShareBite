@@ -70,4 +70,50 @@ class LoginRepository {
         }
 
     }
+
+    suspend fun updatePassword(
+        userId: String,
+        currentPassword: String,
+        newPassword: String
+    ): Boolean {
+        return try {
+            // 1. 先验证当前密码是否正确
+            val user = SupabaseClient.client.postgrest["users"]
+                .select {
+                    filter { eq("id", userId) }
+                    limit(1)
+                }
+                .decodeList<AppUser>()
+                .firstOrNull()
+
+            if (user == null) {
+                println("❌ User not found")
+                return false
+            }
+
+            // 2. 验证当前密码
+            val isCurrentPasswordCorrect = PasswordUtils.verifyPassword(currentPassword, user.passwordHash)
+            if (!isCurrentPasswordCorrect) {
+                println("❌ Current password is incorrect")
+                return false
+            }
+
+            // 3. 加密新密码
+            val newPasswordHash = PasswordUtils.hashPassword(newPassword)
+
+            // 4. 更新数据库中的密码
+            SupabaseClient.client.postgrest["users"]
+                .update(
+                    { set("password_hash", newPasswordHash) }
+                ) {
+                    filter { eq("id", userId) }
+                }
+
+            println("✅ Password updated successfully")
+            true
+        } catch (e: Exception) {
+            println("❌ Failed to update password: ${e.message}")
+            false
+        }
+    }
 }

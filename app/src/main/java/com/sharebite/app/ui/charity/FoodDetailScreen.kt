@@ -288,7 +288,7 @@ fun FoodDetailScreen(
                         // ---------- ABOUT THIS DONATION ----------
                         Text("About this donation", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextDark)
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text(data.description, fontSize = 13.sp, color = TextGrey, lineHeight = 19.sp)
+                        Text(data.description?: "", fontSize = 13.sp, color = TextGrey, lineHeight = 19.sp)
 
                         if (!data.portionInfo.isNullOrBlank()) {
                             Spacer(modifier = Modifier.height(10.dp))

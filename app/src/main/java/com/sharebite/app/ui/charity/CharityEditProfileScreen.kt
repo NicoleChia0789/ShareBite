@@ -2,6 +2,7 @@ package com.sharebite.app.ui.charity
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -17,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,6 +39,11 @@ fun CharityEditProfileScreen(
     val userRepo = remember { UserRepository() }
     val scope = rememberCoroutineScope()
 
+    // 键盘控制
+    val scrollState = rememberScrollState()
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+
     val currentName = CurrentUser.getUserName()
     val currentEmail = CurrentUser.getUserEmail()
 
@@ -47,6 +55,13 @@ fun CharityEditProfileScreen(
     var isLoading by remember { mutableStateOf(true) }
     var isSaving by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // 验证错误状态
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var phoneError by remember { mutableStateOf<String?>(null) }
+    var addressError by remember { mutableStateOf<String?>(null) }
+    var missionError by remember { mutableStateOf<String?>(null) }
 
     // Load user data
     LaunchedEffect(Unit) {
@@ -65,7 +80,67 @@ fun CharityEditProfileScreen(
         }
     }
 
-    val canSave = organisationName.isNotBlank() && email.isNotBlank()
+    // 验证函数
+    fun validateName(): Boolean {
+        nameError = when {
+            organisationName.isBlank() -> "Organization name is required"
+            organisationName.length < 2 -> "Name must be at least 2 characters"
+            organisationName.length > 50 -> "Name must be less than 50 characters"
+            else -> null
+        }
+        return nameError == null
+    }
+
+    fun validateEmail(): Boolean {
+        val emailRegex = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
+        emailError = when {
+            email.isBlank() -> "Email address is required"
+            !emailRegex.matches(email) -> "Please enter a valid email address"
+            else -> null
+        }
+        return emailError == null
+    }
+
+    fun validatePhone(): Boolean {
+        val phoneRegex = Regex("^(\\+?[0-9]{1,4}[-.\\s]?)?[0-9]{7,15}$")
+        phoneError = when {
+            phoneNumber.isBlank() -> null
+            !phoneRegex.matches(phoneNumber) -> "Please enter a valid phone number"
+            phoneNumber.length < 7 -> "Phone number is too short"
+            else -> null
+        }
+        return phoneError == null
+    }
+
+    fun validateAddress(): Boolean {
+        addressError = when {
+            organisationAddress.isBlank() -> null
+            organisationAddress.length < 5 -> "Please enter a more complete address"
+            else -> null
+        }
+        return addressError == null
+    }
+
+    fun validateMission(): Boolean {
+        missionError = when {
+            missionStatement.isBlank() -> null
+            missionStatement.length > 300 -> "Mission statement must be less than 300 characters"
+            else -> null
+        }
+        return missionError == null
+    }
+
+    fun validateAll(): Boolean {
+        return listOf(
+            validateName(),
+            validateEmail(),
+            validatePhone(),
+            validateAddress(),
+            validateMission()
+        ).all { it }
+    }
+
+    val canSave = organisationName.isNotBlank() && email.isNotBlank() && !isSaving
 
     if (isLoading) {
         Box(
@@ -84,14 +159,21 @@ fun CharityEditProfileScreen(
             .fillMaxSize()
             .background(BgCream)
             .padding(paddingValues)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
             .padding(horizontal = 20.dp)
+            .padding(bottom = 24.dp)
+            .imePadding()
+            .clickable(
+                onClick = {
+                    keyboardController?.hide()
+                    focusManager.clearFocus()
+                }
+            )
     ) {
+
+
         Spacer(modifier = Modifier.height(8.dp))
 
-
-
-        // ── Avatar / Logo ──
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -111,7 +193,6 @@ fun CharityEditProfileScreen(
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
-                // Camera overlay
                 Box(
                     modifier = Modifier
                         .size(80.dp)
@@ -150,7 +231,6 @@ fun CharityEditProfileScreen(
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
 
-        // ── Error Message ──
         if (errorMessage != null) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -167,71 +247,101 @@ fun CharityEditProfileScreen(
             Spacer(modifier = Modifier.height(12.dp))
         }
 
-        // ── Organization Name ──
         OutlinedTextField(
             value = organisationName,
-            onValueChange = { organisationName = it },
+            onValueChange = {
+                organisationName = it
+                if (nameError != null) validateName()
+            },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Organization Name", color = TextGrey) },
             placeholder = { Text("Hopeful Harvest Food Bank", color = TextGrey) },
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
+            isError = nameError != null,
+            supportingText = {
+                if (nameError != null) {
+                    Text(nameError!!, color = RedCancelled)
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = OrangeAccent,
                 unfocusedBorderColor = Color(0xFFDDC0B8),
                 focusedTextColor = TextDark,
                 unfocusedTextColor = TextDark,
-                focusedLabelColor = OrangeAccent
+                focusedLabelColor = OrangeAccent,
+                errorBorderColor = RedCancelled,
+                errorLabelColor = RedCancelled
             )
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ── Phone Number ──
         OutlinedTextField(
             value = phoneNumber,
-            onValueChange = { phoneNumber = it },
+            onValueChange = {
+                phoneNumber = it
+                if (phoneError != null) validatePhone()
+            },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Phone Number", color = TextGrey) },
-            placeholder = { Text("+1 (555) 123-4567", color = TextGrey) },
+            placeholder = { Text("012-3456789", color = TextGrey) },
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
+            isError = phoneError != null,
+            supportingText = {
+                if (phoneError != null) {
+                    Text(phoneError!!, color = RedCancelled)
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = OrangeAccent,
                 unfocusedBorderColor = Color(0xFFDDC0B8),
                 focusedTextColor = TextDark,
                 unfocusedTextColor = TextDark,
-                focusedLabelColor = OrangeAccent
+                focusedLabelColor = OrangeAccent,
+                errorBorderColor = RedCancelled,
+                errorLabelColor = RedCancelled
             )
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ── Organization Address ──
         OutlinedTextField(
             value = organisationAddress,
-            onValueChange = { organisationAddress = it },
+            onValueChange = {
+                organisationAddress = it
+                if (addressError != null) validateAddress()
+            },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Organization Address", color = TextGrey) },
             placeholder = { Text("123 Charity Lane, City, State, ZIP", color = TextGrey) },
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
+            isError = addressError != null,
+            supportingText = {
+                if (addressError != null) {
+                    Text(addressError!!, color = RedCancelled)
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = OrangeAccent,
                 unfocusedBorderColor = Color(0xFFDDC0B8),
                 focusedTextColor = TextDark,
                 unfocusedTextColor = TextDark,
-                focusedLabelColor = OrangeAccent
+                focusedLabelColor = OrangeAccent,
+                errorBorderColor = RedCancelled,
+                errorLabelColor = RedCancelled
             )
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ── Mission Statement ──
         OutlinedTextField(
             value = missionStatement,
             onValueChange = {
                 if (it.length <= 300) missionStatement = it
+                if (missionError != null) validateMission()
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -245,16 +355,23 @@ fun CharityEditProfileScreen(
             },
             shape = RoundedCornerShape(12.dp),
             maxLines = 5,
+            isError = missionError != null,
+            supportingText = {
+                if (missionError != null) {
+                    Text(missionError!!, color = RedCancelled)
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = OrangeAccent,
                 unfocusedBorderColor = Color(0xFFDDC0B8),
                 focusedTextColor = TextDark,
                 unfocusedTextColor = TextDark,
-                focusedLabelColor = OrangeAccent
+                focusedLabelColor = OrangeAccent,
+                errorBorderColor = RedCancelled,
+                errorLabelColor = RedCancelled
             )
         )
 
-        // Character counter
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -270,30 +387,42 @@ fun CharityEditProfileScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ── Primary Contact Email ──
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it },
+            onValueChange = {
+                email = it
+                if (emailError != null) validateEmail()
+            },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Primary Contact Email", color = TextGrey) },
             placeholder = { Text("hello@hopefulharvest.org", color = TextGrey) },
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
+            isError = emailError != null,
+            supportingText = {
+                if (emailError != null) {
+                    Text(emailError!!, color = RedCancelled)
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = OrangeAccent,
                 unfocusedBorderColor = Color(0xFFDDC0B8),
                 focusedTextColor = TextDark,
                 unfocusedTextColor = TextDark,
-                focusedLabelColor = OrangeAccent
+                focusedLabelColor = OrangeAccent,
+                errorBorderColor = RedCancelled,
+                errorLabelColor = RedCancelled
             )
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // ── Save Button ──
         Button(
             onClick = {
-                if (!canSave) return@Button
+                if (!validateAll()) {
+                    Toast.makeText(context, "Please fix all errors", Toast.LENGTH_SHORT).show()
+                    return@Button
+                }
                 isSaving = true
                 scope.launch {
                     try {
@@ -304,7 +433,6 @@ fun CharityEditProfileScreen(
                             phone = phoneNumber,
                             address = organisationAddress
                         )
-                        // Update CurrentUser
                         CurrentUser.user?.let { user ->
                             user.name = organisationName
                             user.email = email
@@ -325,11 +453,11 @@ fun CharityEditProfileScreen(
                 .fillMaxWidth()
                 .height(52.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (canSave && !isSaving) OrangeAccent else Color.Gray,
+                containerColor = if (canSave) OrangeAccent else Color.Gray,
                 contentColor = Color.White
             ),
             shape = RoundedCornerShape(12.dp),
-            enabled = canSave && !isSaving
+            enabled = canSave
         ) {
             if (isSaving) {
                 CircularProgressIndicator(
@@ -347,7 +475,6 @@ fun CharityEditProfileScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ── Cancel Button ──
         OutlinedButton(
             onClick = onBack,
             modifier = Modifier

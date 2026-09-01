@@ -13,10 +13,25 @@ class CharityRepository {
         val userId = CurrentUser.getUserId()
         return SupabaseClient.client.postgrest["charity_requests"]
             .select {
-                filter { eq("charity_id", userId) } // ✅ Filter by user ID
+                filter { eq("charity_id", userId) }
                 order("created_at", Order.DESCENDING)
             }
             .decodeList<CharityRequest>()
+    }
+
+    // ✅ Get ALL requests (including those with merchant_id) for Merchant
+    suspend fun getMyAllRequests(): List<CharityRequest> {
+        val userId = CurrentUser.getUserId()
+        return try {
+            SupabaseClient.client.postgrest["charity_requests"]
+                .select {
+                    filter { eq("charity_id", userId) }
+                    order("created_at", Order.DESCENDING)
+                }
+                .decodeList<CharityRequest>()
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     // ✅ Get my requests by status
@@ -96,7 +111,7 @@ class CharityRepository {
     ) {
         val userId = CurrentUser.getUserId()
         val newRequest = CharityRequest(
-            charityId = userId, // ✅ Store the user ID
+            charityId = userId,
             foodName = foodName,
             category = category,
             quantity = quantity,
@@ -126,7 +141,7 @@ class CharityRepository {
     ) {
         val userId = CurrentUser.getUserId()
         val newRequest = CharityRequest(
-            charityId = userId, // ✅ Store the user ID
+            charityId = userId,
             merchantId = merchantId,
             listingId = listingId,
             foodName = foodName,
@@ -163,7 +178,7 @@ class CharityRepository {
         ) {
             filter {
                 eq("id", requestId)
-                eq("charity_id", userId) // ✅ Ensure it belongs to current user
+                eq("charity_id", userId)
                 eq("status", "Pending")
             }
         }
@@ -177,7 +192,7 @@ class CharityRepository {
         ) {
             filter {
                 eq("id", requestId)
-                eq("charity_id", userId) // ✅ Ensure it belongs to current user
+                eq("charity_id", userId)
             }
         }
     }

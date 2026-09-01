@@ -25,7 +25,7 @@ import com.sharebite.app.ui.theme.*
 @Composable
 fun UserProfileScreen(
     paddingValues: PaddingValues,
-    onSavedFood: () -> Unit,
+
     onHelpClick: () -> Unit,
     onAboutClick: () -> Unit,
     onLogout: () -> Unit,
@@ -33,7 +33,7 @@ fun UserProfileScreen(
     onEditProfile: () -> Unit = {},
     onAddressClick: () -> Unit = {},
     onSecurityClick: () -> Unit = {},
-    onNotificationClick: () -> Unit = {}
+    onNotificationSettingsClick: () -> Unit = {}
 ) {
     val userId = CurrentUser.getUserId()
     val userName = CurrentUser.getUserName()
@@ -222,14 +222,7 @@ fun UserProfileScreen(
                 )
                 Divider(color = Color(0xFFEFE6D9), modifier = Modifier.padding(horizontal = 16.dp))
 
-                // 2. Saved Food
-                ProfileMenuItem(
-                    icon = Icons.Default.Favorite,
-                    title = "Saved Food",
-                    subtitle = "Your favorite food listings",
-                    onClick = onSavedFood
-                )
-                Divider(color = Color(0xFFEFE6D9), modifier = Modifier.padding(horizontal = 16.dp))
+
 
                 // 3. Address
                 ProfileMenuItem(
@@ -254,7 +247,7 @@ fun UserProfileScreen(
                     icon = Icons.Default.Notifications,
                     title = "Notification Settings",
                     subtitle = "Alerts for nearby surplus food",
-                    onClick = onNotificationClick
+                    onClick = onNotificationSettingsClick
                 )
                 Divider(color = Color(0xFFEFE6D9), modifier = Modifier.padding(horizontal = 16.dp))
 

@@ -23,9 +23,11 @@ import com.sharebite.app.data.repository.LoginRepository
 import com.sharebite.app.data.session.CurrentUser
 import kotlinx.coroutines.launch
 import android.widget.Toast
+import androidx.navigation.NavController
 
 @Composable
 fun SignIn(
+
     onSignInSuccess: (String) -> Unit = {}, // ✅ Pass role only
     onSignUpClick: () -> Unit = {},
     onForgotPasswordClick: () -> Unit = {}
@@ -173,16 +175,19 @@ fun SignIn(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    Text(
-                        text = "Forgot password?",
-                        fontSize = 13.sp,
-                        color = Color(0xFF3498DB),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp)
-                            .clickable { onForgotPasswordClick() },
-                        textAlign = TextAlign.End
-                    )
+                    TextButton(
+                        onClick = onForgotPasswordClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            text = "Forgot password?",
+                            fontSize = 13.sp,
+                            color = Color(0xFF3498DB),
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.End
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(20.dp))
 
@@ -253,53 +258,9 @@ fun SignIn(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Divider(
-                            modifier = Modifier.weight(1f),
-                            color = Color(0xFFE0E0E0)
-                        )
-                        Text(
-                            text = "or continue with",
-                            fontSize = 12.sp,
-                            color = Color(0xFF95A5A6),
-                            modifier = Modifier.padding(horizontal = 12.dp)
-                        )
-                        Divider(
-                            modifier = Modifier.weight(1f),
-                            color = Color(0xFFE0E0E0)
-                        )
-                    }
 
-                    Spacer(modifier = Modifier.height(12.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { /* Google sign in */ },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .clip(RoundedCornerShape(12.dp)),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Google", fontSize = 13.sp)
-                        }
-                        OutlinedButton(
-                            onClick = { /* Apple sign in */ },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .clip(RoundedCornerShape(12.dp)),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Apple", fontSize = 13.sp)
-                        }
-                    }
+
                 }
             }
 

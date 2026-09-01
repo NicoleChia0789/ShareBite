@@ -29,7 +29,7 @@ fun MerchantProfileScreen(
     onEditProfile: () -> Unit = {},
     onDonationHistory: () -> Unit = {},
     onSecurityClick: () -> Unit = {},
-    onNotificationClick: () -> Unit = {},
+    onNotificationSettingsClick: () -> Unit = {},
     onHelpClick: () -> Unit = {},
     onAboutClick: () -> Unit = {}
 ) {
@@ -234,7 +234,7 @@ fun MerchantProfileScreen(
                     icon = Icons.Default.Notifications,
                     title = "Notification Settings",
                     subtitle = "Alerts for donations and messages",
-                    onClick = onNotificationClick
+                    onClick = onNotificationSettingsClick
                 )
                 Divider(color = Color(0xFFEFE6D9), modifier = Modifier.padding(horizontal = 16.dp))
 

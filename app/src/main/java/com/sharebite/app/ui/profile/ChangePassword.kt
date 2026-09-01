@@ -48,7 +48,7 @@ fun ChangePasswordScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
 
-    // 验证条件（最少6位）
+    // 验证条件
     val isCurrentPasswordValid = currentPassword.length >= 6
     val isNewPasswordValid = newPassword.length >= 6
     val doPasswordsMatch = newPassword.isNotEmpty() && newPassword == confirmPassword
@@ -64,7 +64,6 @@ fun ChangePasswordScreen(
     ) {
         Spacer(modifier = Modifier.height(8.dp))
 
-        // ── 说明文字 ──
         Text(
             text = "Ensure your account is using a long, random password to stay secure.",
             fontSize = 14.sp,
@@ -113,6 +112,7 @@ fun ChangePasswordScreen(
             onValueChange = {
                 currentPassword = it
                 errorMessage = null
+                successMessage = null
             },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Current Password", color = TextGrey) },
@@ -154,6 +154,7 @@ fun ChangePasswordScreen(
             onValueChange = {
                 newPassword = it
                 errorMessage = null
+                successMessage = null
             },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("New Password", color = TextGrey) },
@@ -178,7 +179,6 @@ fun ChangePasswordScreen(
             )
         )
 
-        // ── 密码要求提示 ──
         Spacer(modifier = Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
@@ -203,6 +203,7 @@ fun ChangePasswordScreen(
             onValueChange = {
                 confirmPassword = it
                 errorMessage = null
+                successMessage = null
             },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Confirm New Password", color = TextGrey) },
@@ -227,7 +228,6 @@ fun ChangePasswordScreen(
             )
         )
 
-        // ── 密码匹配提示 ──
         if (confirmPassword.isNotEmpty()) {
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -248,7 +248,6 @@ fun ChangePasswordScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // ── Forgot Password? ──
         Text(
             text = "Forgot Password?",
             fontSize = 14.sp,
@@ -269,29 +268,30 @@ fun ChangePasswordScreen(
 
                 scope.launch {
                     try {
-                        val email = CurrentUser.getUserEmail()
-                        if (email.isEmpty()) {
+                        val userId = CurrentUser.getUserId()
+                        if (userId.isEmpty()) {
                             errorMessage = "User not logged in"
                             isSaving = false
                             return@launch
                         }
 
-                        // ✅ 验证当前密码
-                        try {
-                            val user = loginRepo.login(email, currentPassword)
-                            if (user.id.isNotEmpty()) {
-                                // 当前密码正确
-                                // TODO: 调用 API 更新密码
-                                // 目前使用 onSave 回调
-                                Toast.makeText(context, "Password updated successfully!", Toast.LENGTH_SHORT).show()
-                                successMessage = "✅ Password updated successfully!"
-                                isSaving = false
-                                onSave(newPassword, currentPassword)
-                            } else {
-                                errorMessage = "❌ Current password is incorrect"
-                                isSaving = false
-                            }
-                        } catch (e: Exception) {
+                        // ✅ 调用 Repository 更新密码
+                        val success = loginRepo.updatePassword(
+                            userId = userId,
+                            currentPassword = currentPassword,
+                            newPassword = newPassword
+                        )
+
+                        if (success) {
+                            successMessage = "✅ Password updated successfully!"
+                            Toast.makeText(context, "Password updated successfully!", Toast.LENGTH_SHORT).show()
+                            isSaving = false
+                            // 清空字段
+                            currentPassword = ""
+                            newPassword = ""
+                            confirmPassword = ""
+                            onSave(newPassword, currentPassword)
+                        } else {
                             errorMessage = "❌ Current password is incorrect"
                             isSaving = false
                         }
@@ -327,7 +327,6 @@ fun ChangePasswordScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ── 密码要求卡片 ──
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -346,11 +345,7 @@ fun ChangePasswordScreen(
                     fontSize = 12.sp,
                     color = TextGrey
                 )
-                Text(
-                    text = "• Must be different from your current password",
-                    fontSize = 12.sp,
-                    color = TextGrey
-                )
+
             }
         }
 
