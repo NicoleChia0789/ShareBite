@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,10 +55,10 @@ fun UserMakeReservationScreen(
     var isLoading by remember { mutableStateOf(true) }
     var isSubmitting by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var note by remember { mutableStateOf("") }
+    var note by rememberSaveable { mutableStateOf("") }
 
-    var selectedDate by remember { mutableStateOf<String?>(null) }
-    var selectedTime by remember { mutableStateOf<String?>(null) }
+    var selectedDate by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedTime by rememberSaveable { mutableStateOf<String?>(null) }
 
     // ✅ 确认弹窗状态
     var showConfirmDialog by remember { mutableStateOf(false) }

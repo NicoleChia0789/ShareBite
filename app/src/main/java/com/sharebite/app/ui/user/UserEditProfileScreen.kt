@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,11 +49,11 @@ fun UserEditProfileScreen(
     val currentName = CurrentUser.getUserName()
     val currentEmail = CurrentUser.getUserEmail()
 
-    var fullName by remember { mutableStateOf(currentName) }
-    var bio by remember { mutableStateOf("Neighborhood Food Sharer") }
-    var email by remember { mutableStateOf(currentEmail) }
-    var phone by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
+    var fullName by rememberSaveable { mutableStateOf(currentName) }
+    var bio by rememberSaveable { mutableStateOf("Neighborhood Food Sharer") }
+    var email by rememberSaveable { mutableStateOf(currentEmail) }
+    var phone by rememberSaveable { mutableStateOf("") }
+    var address by rememberSaveable { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(true) }
     var isSaving by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }

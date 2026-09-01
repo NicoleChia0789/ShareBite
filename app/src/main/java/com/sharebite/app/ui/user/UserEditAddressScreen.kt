@@ -21,6 +21,7 @@ import com.sharebite.app.data.repository.AddressRepository
 import com.sharebite.app.ui.theme.*
 import kotlinx.coroutines.launch
 import android.widget.Toast
+import androidx.compose.runtime.saveable.rememberSaveable
 
 @Composable
 fun UserEditAddressScreen(
@@ -33,13 +34,13 @@ fun UserEditAddressScreen(
     val scope = rememberCoroutineScope()
     val addressRepo = remember { AddressRepository() }
 
-    var label by remember { mutableStateOf(existingAddress?.label ?: "") }
-    var street by remember { mutableStateOf(existingAddress?.street ?: "") }
-    var city by remember { mutableStateOf(existingAddress?.city ?: "") }
-    var state by remember { mutableStateOf(existingAddress?.state ?: "") }
-    var zip by remember { mutableStateOf(existingAddress?.zip ?: "") }
-    var country by remember { mutableStateOf(existingAddress?.country ?: "Malaysia") }
-    var phone by remember { mutableStateOf(existingAddress?.phone ?: "") }
+    var label by rememberSaveable { mutableStateOf(existingAddress?.label ?: "") }
+    var street by rememberSaveable { mutableStateOf(existingAddress?.street ?: "") }
+    var city by rememberSaveable { mutableStateOf(existingAddress?.city ?: "") }
+    var state by rememberSaveable { mutableStateOf(existingAddress?.state ?: "") }
+    var zip by rememberSaveable { mutableStateOf(existingAddress?.zip ?: "") }
+    var country by rememberSaveable { mutableStateOf(existingAddress?.country ?: "Malaysia") }
+    var phone by rememberSaveable { mutableStateOf(existingAddress?.phone ?: "") }
     var isDefault by remember { mutableStateOf(existingAddress?.isDefault ?: false) }
     var isSaving by remember { mutableStateOf(false) }
 

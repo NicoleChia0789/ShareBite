@@ -36,12 +36,10 @@ fun ResetPasswordScreen(
     var showNewPassword by remember { mutableStateOf(false) }
     var showConfirmPassword by remember { mutableStateOf(false) }
 
-    val hasMinLength = newPassword.length >= 8
-    val hasUppercase = newPassword.any { it.isUpperCase() }
-    val hasNumber = newPassword.any { it.isDigit() }
-    val isPasswordValid = hasMinLength && hasUppercase && hasNumber
+    // ✅ 只检查最少6个字符
+    val hasMinLength = newPassword.length >= 6
     val doPasswordsMatch = newPassword.isNotEmpty() && newPassword == confirmPassword
-    val canReset = isPasswordValid && doPasswordsMatch
+    val canReset = hasMinLength && doPasswordsMatch
 
     Column(
         modifier = Modifier
@@ -119,28 +117,21 @@ fun ResetPasswordScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ── Password Requirements ──
+        // ✅ 简化：只显示最少6个字符的要求
         Text(
-            text = "Password must contain:",
+            text = "Password must be at least 6 characters.",
             fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = TextDark
+            color = if (hasMinLength) GreenConfirmed else TextGrey
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        PasswordRequirement(
-            text = "At least 8 characters",
-            isMet = hasMinLength
-        )
-        PasswordRequirement(
-            text = "One uppercase letter",
-            isMet = hasUppercase
-        )
-        PasswordRequirement(
-            text = "One number",
-            isMet = hasNumber
-        )
+        if (!doPasswordsMatch && confirmPassword.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Passwords do not match.",
+                fontSize = 14.sp,
+                color = Color.Red
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -165,32 +156,5 @@ fun ResetPasswordScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-
-
     }
 }
-
-@Composable
-private fun PasswordRequirement(
-    text: String,
-    isMet: Boolean
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(vertical = 4.dp)
-    ) {
-        Icon(
-            imageVector = Icons.Default.CheckCircle,
-            contentDescription = null,
-            modifier = Modifier.size(18.dp),
-            tint = if (isMet) GreenConfirmed else TextGrey
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = text,
-            fontSize = 14.sp,
-            color = if (isMet) GreenConfirmed else TextGrey
-        )
-    }
-}
-

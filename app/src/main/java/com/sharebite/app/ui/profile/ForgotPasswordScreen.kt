@@ -21,7 +21,7 @@ import com.sharebite.app.ui.theme.*
 
 @Composable
 fun ForgotPasswordScreen(
-    paddingValues: PaddingValues,
+    paddingValues: PaddingValues = PaddingValues(0.dp),
     onBack: () -> Unit,
     onSendResetLink: (String) -> Unit,
 

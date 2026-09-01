@@ -25,6 +25,7 @@ import com.sharebite.app.data.repository.LoginRepository
 import com.sharebite.app.data.session.CurrentUser
 import kotlinx.coroutines.launch
 import android.widget.Toast
+import androidx.compose.foundation.layout.imePadding
 
 @Composable
 fun SignUp(
@@ -39,7 +40,7 @@ fun SignUp(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    var agreed by remember { mutableStateOf(false) }
+
     var selectedRole by remember { mutableStateOf("User") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -70,7 +71,8 @@ fun SignUp(
                 .verticalScroll(scrollState)
                 .padding(horizontal = 24.dp)
                 .padding(top = 40.dp)
-                .padding(bottom = 80.dp),
+                .padding(bottom = 80.dp)
+                .imePadding(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // ── App Header ──
@@ -337,7 +339,7 @@ fun SignUp(
                                     errorMessage = "Password must be at least 6 characters"
                                 password != confirmPassword ->
                                     errorMessage = "Passwords do not match"
-                                !agreed -> errorMessage = "Please agree to the Terms"
+
                                 else -> {
                                     errorMessage = null
                                     isLoading = true
@@ -362,7 +364,7 @@ fun SignUp(
                                             email = ""
                                             password = ""
                                             confirmPassword = ""
-                                            agreed = false
+
 
                                             Toast.makeText(
                                                 context,
