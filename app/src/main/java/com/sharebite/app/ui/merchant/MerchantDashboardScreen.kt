@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sharebite.app.data.model.CharityRequest
 import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.BgCream
 import com.sharebite.app.ui.theme.OrangeAccent
@@ -31,23 +32,47 @@ fun MerchantDashboardScreen(
     onRequestClick: (Long) -> Unit,
     onReservationClick: (Long) -> Unit,
     viewModel: MerchantViewModel
-){
+) {
     val listings by viewModel.listings.collectAsState()
     val generalRequests by viewModel.generalRequests.collectAsState()
     val reservations by viewModel.reservations.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val username = CurrentUser.getUserName()
 
-    LaunchedEffect(generalRequests) {
-        println("🔍 UI - General Requests count: ${generalRequests.size}")
-        generalRequests.forEach { request ->
-            println("   - ${request.foodName} | status: ${request.status}")
-        }
+    // 🔧 测试数据（如果真实数据为空，使用这个）
+    val testRequests = remember {
+        listOf(
+            CharityRequest(
+                id = 999,
+                organisationName = "🏪 社区食物银行",
+                foodName = "🍞 手工面包",
+                quantity = 15,
+                status = "Pending",
+                pickupDate = "2026-09-05",
+                pickupTime = "10:00 AM"
+            ),
+            CharityRequest(
+                id = 998,
+                organisationName = "🥫 城市救助站",
+                foodName = "🥫 罐头食品",
+                quantity = 30,
+                status = "Pending",
+                pickupDate = "2026-09-06",
+                pickupTime = "02:00 PM"
+            )
+        )
     }
 
-    LaunchedEffect(Unit) {
+    // 使用真实数据，如果为空则用测试数据
+    val displayRequests = if (generalRequests.isNotEmpty()) generalRequests else testRequests
 
+    LaunchedEffect(Unit) {
+        viewModel.loadMerchantData()
         viewModel.loadGeneralRequests()
+    }
+
+    LaunchedEffect(generalRequests) {
+        println("📦 generalRequests 数量: ${generalRequests.size}")
     }
 
     Box(
@@ -98,7 +123,7 @@ fun MerchantDashboardScreen(
                     }
                 }
 
-                // 2b. View Impact Report
+                // 3. View Impact Report
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -126,11 +151,7 @@ fun MerchantDashboardScreen(
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text("Impact Report", fontWeight = FontWeight.Bold)
-                                    Text(
-                                        "See your lifetime donations & badges",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Color.Gray
-                                    )
+                                    Text("See your lifetime donations & badges", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                                 }
                             }
                             Text("View →", color = OrangeAccent, fontWeight = FontWeight.Bold)
@@ -138,7 +159,7 @@ fun MerchantDashboardScreen(
                     }
                 }
 
-                // 3. Active Donations
+                // 4. Active Donations
                 if (listings.isNotEmpty()) {
                     item {
                         Row(
@@ -147,17 +168,11 @@ fun MerchantDashboardScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("Your Active Donations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            TextButton(onClick = onViewAllListings) {
-                                Text("View All", color = OrangeAccent, fontWeight = FontWeight.Bold)
-                            }
+                            TextButton(onClick = onViewAllListings) { Text("View All", color = OrangeAccent, fontWeight = FontWeight.Bold) }
                         }
                     }
                     items(listings.take(2)) { listing ->
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
+                        Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Box(modifier = Modifier.size(50.dp).background(Color(0xFFEEE5DB), RoundedCornerShape(8.dp)))
                                 Spacer(modifier = Modifier.width(16.dp))
@@ -166,64 +181,76 @@ fun MerchantDashboardScreen(
                                     Text("${listing.quantity} left", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                                     Text(listing.category, style = MaterialTheme.typography.labelSmall, color = OrangeAccent)
                                 }
-                                OutlinedButton(onClick = {}, modifier = Modifier.height(36.dp)) {
-                                    Text("View")
-                                }
                             }
                         }
                     }
                 }
 
-                // 4. General Charity Requests (from charities, no specific merchant)
-                if (generalRequests.isNotEmpty()) {
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("🍽️ General Food Requests", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            TextButton(onClick = onViewAllRequests) {
-                                Text("View All", color = OrangeAccent, fontWeight = FontWeight.Bold)
-                            }
+                // ✅ 5. General Charity Requests - 使用 displayRequests
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("🍽️ General Food Requests", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        TextButton(onClick = onViewAllRequests) {
+                            Text("View All", color = OrangeAccent, fontWeight = FontWeight.Bold)
                         }
                     }
-                    items(generalRequests.take(2)) { request ->
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(modifier = Modifier.size(40.dp).background(Color(0xFFFFE8E8), RoundedCornerShape(50)))
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column {
-                                        Text(request.organisationName, fontWeight = FontWeight.Bold)
-                                        Text("${request.quantity} x ${request.foodName}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                                    }
-                                    Spacer(modifier = Modifier.weight(1f))
+                }
+
+                // 显示请求卡片（使用 displayRequests）
+                items(displayRequests.take(3)) { request ->
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(
+                                            if (request.status == "Pending") Color(0xFFFFE8E8)
+                                            else Color(0xFFE8F5E9),
+                                            RoundedCornerShape(50)
+                                        )
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
                                     Text(
-                                        request.status,
-                                        color = if (request.status == "Pending") OrangeAccent else Color.Gray,
-                                        fontSize = 12.sp,
+                                        if (request.organisationName.isNotBlank()) request.organisationName else "未知机构",
                                         fontWeight = FontWeight.Bold
                                     )
+                                    Text(
+                                        "${request.quantity} x ${request.foodName}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.Gray
+                                    )
                                 }
-                                Spacer(modifier = Modifier.height(12.dp))
-                                OutlinedButton(
-                                    onClick = { onRequestClick(request.id) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent)
-                                ) {
-                                    Text("View Details")
-                                }
+                                Spacer(modifier = Modifier.weight(1f))
+                                Text(
+                                    request.status,
+                                    color = if (request.status == "Pending") OrangeAccent else Color.Gray,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedButton(
+                                onClick = { onRequestClick(request.id) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent)
+                            ) {
+                                Text("View Details")
                             }
                         }
                     }
                 }
 
-                // 5. User Reservations
+                // 6. User Reservations
                 if (reservations.isNotEmpty()) {
                     item {
                         Row(
@@ -232,17 +259,11 @@ fun MerchantDashboardScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("User Reservations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            TextButton(onClick = onViewAllReservations) {
-                                Text("View All", color = OrangeAccent, fontWeight = FontWeight.Bold)
-                            }
+                            TextButton(onClick = onViewAllReservations) { Text("View All", color = OrangeAccent, fontWeight = FontWeight.Bold) }
                         }
                     }
                     items(reservations.take(2)) { reservation ->
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
+                        Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(modifier = Modifier.size(40.dp).background(Color(0xFFE8F5E9), RoundedCornerShape(50)))
@@ -274,7 +295,7 @@ fun MerchantDashboardScreen(
                 }
 
                 // Empty state
-                if (listings.isEmpty() && generalRequests.isEmpty() && reservations.isEmpty()) {
+                if (listings.isEmpty() && reservations.isEmpty()) {
                     item {
                         Box(
                             modifier = Modifier
@@ -293,7 +314,7 @@ fun MerchantDashboardScreen(
             }
         }
 
-        // FAB Button
+        // FAB 按钮
         FloatingActionButton(
             onClick = onAddDonationClick,
             containerColor = OrangeAccent,

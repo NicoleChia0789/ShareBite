@@ -19,7 +19,7 @@ data class CharityRequest(
     @SerialName("food_name")
     val foodName: String = "",
 
-    val category: String = "",
+    val category: String? = null,          // ✅ 可空
     val quantity: Int = 0,
 
     @SerialName("pickup_date")

@@ -140,31 +140,6 @@ fun UserFoodDetailScreen(
                             }
                         }
 
-                        // ── 右上角收藏按钮 ──
-                        Surface(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(16.dp)
-                                .size(44.dp),
-                            shape = RoundedCornerShape(50),
-                            color = Color.White.copy(alpha = 0.85f),
-                            shadowElevation = 4.dp
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                IconButton(
-                                    onClick = { isSaved = !isSaved },
-                                    modifier = Modifier.size(44.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                        contentDescription = if (isSaved) "Saved" else "Save",
-                                        modifier = Modifier.size(24.dp),
-                                        tint = if (isSaved) RedCancelled else TextDark
-                                    )
-                                }
-                            }
-                        }
-
                         // ── 底部渐变 ──
                         Box(
                             modifier = Modifier
