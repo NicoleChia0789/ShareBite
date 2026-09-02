@@ -243,4 +243,13 @@ class MerchantRepository {
                 }
             }
     }
+    suspend fun claimRequest(requestId: Long, merchantId: String) {
+        SupabaseClient.client.postgrest["charity_requests"]
+            .update({
+                set("merchant_id", merchantId)
+                set("status", "Confirmed")  // 或 "Pending"，按业务需求
+            }) {
+                filter { eq("id", requestId) }
+            }
+    }
 }
