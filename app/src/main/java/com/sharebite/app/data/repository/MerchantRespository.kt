@@ -229,7 +229,9 @@ class MerchantRepository {
             .update({
                 set("food_name", foodName)
                 set("category", category)
-                set("quantity", quantity)
+//                set("quantity", quantity)
+                set("total_quantity", quantity.toIntOrNull() ?: 0)      // ✅ Use total_quantity
+                set("remaining_quantity", quantity.toIntOrNull() ?: 0)  // ✅ Use remaining_quantity
                 set("photo_url", photoUrl)
                 set("pickup_date", pickupDate)
                 // ✅ 不再设置 pickup_time
@@ -243,6 +245,7 @@ class MerchantRepository {
                 }
             }
     }
+
     suspend fun claimRequest(requestId: Long, merchantId: String) {
         SupabaseClient.client.postgrest["charity_requests"]
             .update({
@@ -250,6 +253,17 @@ class MerchantRepository {
                 set("status", "Confirmed")  // 或 "Pending"，按业务需求
             }) {
                 filter { eq("id", requestId) }
+            }
+    }
+
+    suspend fun updateListingStatus(listingId: Long, status: String) {
+        val merchantId = CurrentUser.getUserId()
+        SupabaseClient.client.postgrest["food_listings"]
+            .update({ set("status", status) }) {
+                filter {
+                    eq("id", listingId)
+                    eq("merchant_id", merchantId)
+                }
             }
     }
 }

@@ -174,7 +174,7 @@ fun AppNavHost(
                             navController.navigate(MerchantAddDonationRoute.route)
                         },
                         onViewAllListings = { navController.navigate(MerchantListingsRoute.route) },
-                        onViewAllRequests = { navController.navigate(MerchantAllRequestsRoute.route) },
+                        onViewAllRequests = { navController.navigate(Screen.Requests.route) },
                         onViewAllReservations = { navController.navigate(MerchantUserReservationsRoute.route) },
                         onViewImpact = { navController.navigate(MerchantImpactRoute.route) },
                         onRequestClick = { id -> navController.navigate("merchant_request_detail/$id") },
@@ -199,9 +199,12 @@ fun AppNavHost(
                         paddingValues = paddingValues,
                         viewModel = merchantViewModel,
                         onListingClick = { id -> navController.navigate(MerchantListingDetailRoute.createRoute(id)) },
-                        onEditClick = { id ->
-                            navController.navigate(MerchantEditDonationRoute.createRoute(id))
+                        onAddDonationClick = {
+                            navController.navigate(MerchantAddDonationRoute.route)
                         }
+//                        onEditClick = { id ->
+//                            navController.navigate(MerchantEditDonationRoute.createRoute(id))
+//                        },
                     )
                     else -> Text("Unknown role: $role")
                 }
@@ -574,9 +577,12 @@ fun AppNavHost(
                     paddingValues = paddingValues,
                     viewModel = merchantViewModel,
                     onListingClick = { id -> navController.navigate(MerchantListingDetailRoute.createRoute(id)) },
-                    onEditClick = { id ->
-                        navController.navigate(MerchantEditDonationRoute.createRoute(id))
+                    onAddDonationClick = {
+                        navController.navigate(MerchantAddDonationRoute.route)
                     }
+//                    onEditClick = { id ->
+//                        navController.navigate(MerchantEditDonationRoute.createRoute(id))
+//                    }
                 )
             }
 
@@ -654,7 +660,13 @@ fun AppNavHost(
                     paddingValues = paddingValues,
                     listingId = listingId,
                     viewModel = merchantViewModel,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onEditClick = {
+                        navController.navigate(MerchantEditDonationRoute.createRoute(listingId))
+                    },
+                    onDeleteClick = {
+                        // Delete is handled inside the screen
+                    }
                 )
             }
 
