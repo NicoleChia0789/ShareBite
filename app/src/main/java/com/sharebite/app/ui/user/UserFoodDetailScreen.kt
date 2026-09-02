@@ -286,7 +286,11 @@ fun UserFoodDetailScreen(
                                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                InfoRow(Icons.Default.Category, "Quantity", item.quantity.ifBlank { "N/A" })
+                                InfoRow(
+                                    Icons.Default.Category,
+                                    "Quantity",
+                                    "${item.totalQuantity} ${item.unit ?: ""}".ifBlank { "N/A" }
+                                )
                                 InfoRow(Icons.Default.DateRange, "Pickup Date", item.pickupDate.ifBlank { "N/A" })
                                 InfoRow(Icons.Default.Schedule, "Deadline", item.deadline.ifBlank { "N/A" })
                                 InfoRow(Icons.Default.LocationOn, "Address", item.address.ifBlank { "N/A" })

@@ -339,8 +339,7 @@ private suspend fun loadMerchantNotifications(
                 NotificationItem(
                     id = reservation.id,
                     title = "🧑‍🤝‍🧑 New Reservation",
-                    message = "${reservation.userId} reserved ${reservation.quantity} x \"${reservation.foodName}\"",
-                    time = formatTime(reservation.createdAt),
+                    message = "${reservation.userId} reserved ${reservation.quantityNum} ${reservation.unit} of \"${reservation.foodName}\"",                    time = formatTime(reservation.createdAt),
                     type = "reservation",
                     status = reservation.status,
                     isGeneral = false

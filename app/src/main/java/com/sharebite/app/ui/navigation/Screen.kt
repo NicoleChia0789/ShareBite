@@ -1,10 +1,7 @@
 package com.sharebite.app.ui.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Assignment
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
 
 // ============================================================
@@ -20,8 +17,31 @@ sealed class Screen(
     object Browse : Screen("browse", "Browse", Icons.Default.Search)
     object Requests : Screen("requests", "Requests", Icons.Default.Assignment)
     object Profile : Screen("profile", "Profile", Icons.Default.Person)
+
+    // ✅ 新增：Charity Plaza（仅 Merchant 使用）
+    object CharityPlaza : Screen("charity_plaza", "Charity Plaza", Icons.Default.Storefront)
 }
 
+// ✅ 根据角色返回不同的 Bottom Nav 列表
+fun getBottomNavItems(role: String): List<Screen> {
+    return when (role) {
+        "merchant" -> listOf(
+            Screen.Home,
+            Screen.Browse,
+            Screen.CharityPlaza,
+            Screen.Requests,
+            Screen.Profile
+        )
+        else -> listOf(
+            Screen.Home,
+            Screen.Browse,
+            Screen.Requests,
+            Screen.Profile
+        )
+    }
+}
+
+// 兼容旧代码
 val bottomNavItems = listOf(
     Screen.Home,
     Screen.Browse,
@@ -71,12 +91,10 @@ object UserSavedFoodRoute { const val route = "user_saved_food" }
 
 object UserAddressesRoute { const val route = "user_addresses" }
 
-// ✅ 添加地址（无参数）
 object UserAddEditAddressRoute {
     const val route = "user_add_edit_address"
 }
 
-// ✅ 编辑地址（带 addressId）
 object UserEditAddressRoute {
     const val route = "user_edit_address/{addressId}"
     fun createRoute(addressId: Long) = "user_edit_address/$addressId"
@@ -142,12 +160,10 @@ object HistoryRoute { const val route = "history" }
 
 object MerchantDashboardRoute { const val route = "merchant_dashboard" }
 
-// ✅ 添加捐赠（无参数）
 object MerchantAddDonationRoute {
     const val route = "merchant_add_donation"
 }
 
-// ✅ 编辑捐赠（带 listingId）
 object MerchantEditDonationRoute {
     const val route = "merchant_edit_donation/{listingId}"
     fun createRoute(listingId: Long) = "merchant_edit_donation/$listingId"

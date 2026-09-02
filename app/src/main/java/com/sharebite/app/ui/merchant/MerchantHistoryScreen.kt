@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,7 +35,7 @@ fun MerchantHistoryScreen(
     var donations by remember { mutableStateOf<List<FoodListing>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     var showFilters by remember { mutableStateOf(false) }
 
     // Date range filter
@@ -74,10 +75,10 @@ fun MerchantHistoryScreen(
 
     // Calculate total impact
     val totalWeight = filteredDonations.sumOf {
-        it.quantity.toDoubleOrNull() ?: 0.0  // ✅ Parses "24" → 24.0
+        it.totalQuantity.toDouble()
     }
     val totalMeals = filteredDonations.sumOf {
-        (it.quantity.toDoubleOrNull() ?: 0.0) * 2
+        it.totalQuantity * 2
     }
 
     Column(
@@ -139,13 +140,8 @@ fun MerchantHistoryScreen(
                 },
                 shape = RoundedCornerShape(50),
                 singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = OrangeAccent,
-                    unfocusedBorderColor = Color(0xFFDDC0B8),
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White
-                ),
-                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp)
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp),
+                colors = AppTextFieldDefaults.colors()
             )
 
             // Date Range Filter Button
@@ -361,7 +357,7 @@ private fun DonationHistoryCard(
         else -> listing.status
     }
 
-    val weightSaved = listing.quantity.toDoubleOrNull() ?: 0.0
+    val weightSaved = listing.totalQuantity.toDouble()
     val estimatedMeals = (weightSaved * 2).toInt()
 
     Card(

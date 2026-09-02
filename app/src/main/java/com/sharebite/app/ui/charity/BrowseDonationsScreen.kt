@@ -28,6 +28,7 @@ import com.sharebite.app.ui.theme.RedCancelled
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.runtime.saveable.rememberSaveable
 
 private val categoryTabs = listOf("All Items") + foodCategoryOptions
 
@@ -39,16 +40,23 @@ fun BrowseDonationsScreen(paddingValues: PaddingValues, onFoodClick: (Long) -> U
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("All Items") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var selectedCategory by rememberSaveable { mutableStateOf("All Items") }
+    // ✅ 添加 isDataLoaded 标志
+    var isDataLoaded by rememberSaveable { mutableStateOf(false) }
 
+    // ✅ 修改 LaunchedEffect
     LaunchedEffect(Unit) {
-        try {
-            allListings = repository.getAvailableListings()
-        } catch (e: Exception) {
-            errorMessage = e.message
-        } finally {
-            isLoading = false
+        // 如果数据未加载，或者数据为空但已加载（旋转后数据丢失），则重新加载
+        if (!isDataLoaded || allListings.isEmpty()) {
+            try {
+                allListings = repository.getAvailableListings()
+                isDataLoaded = true
+            } catch (e: Exception) {
+                errorMessage = e.message
+            } finally {
+                isLoading = false
+            }
         }
     }
 
@@ -67,7 +75,6 @@ fun BrowseDonationsScreen(paddingValues: PaddingValues, onFoodClick: (Long) -> U
             .fillMaxSize()
             .padding(paddingValues)
     ) {
-        // ---------- TITLE ----------
         Text(
             "Find fresh surplus food from merchants near you.",
             fontSize = 13.sp,
@@ -164,7 +171,6 @@ fun BrowseDonationsScreen(paddingValues: PaddingValues, onFoodClick: (Long) -> U
         }
     }
 }
-
 @Composable
 private fun FoodListingCard(listing: FoodListing, onCardClick: () -> Unit) {
     Card(

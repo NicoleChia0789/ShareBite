@@ -1,2758 +1,39 @@
-//////////package com.sharebite.app.ui.merchant
-//////////
-//////////import androidx.compose.foundation.background
-//////////import androidx.compose.foundation.clickable
-//////////import androidx.compose.foundation.layout.*
-//////////import androidx.compose.foundation.lazy.LazyColumn
-//////////import androidx.compose.foundation.lazy.items
-//////////import androidx.compose.foundation.shape.RoundedCornerShape
-//////////import androidx.compose.material.icons.Icons
-//////////import androidx.compose.material.icons.filled.Add
-//////////import androidx.compose.material3.*
-//////////import androidx.compose.runtime.*
-//////////import androidx.compose.ui.Alignment
-//////////import androidx.compose.ui.Modifier
-//////////import androidx.compose.ui.graphics.Color
-//////////import androidx.compose.ui.text.font.FontWeight
-//////////import androidx.compose.ui.unit.dp
-//////////import androidx.compose.ui.unit.sp
-//////////import com.sharebite.app.data.model.CharityRequest
-//////////import com.sharebite.app.data.session.CurrentUser
-//////////import com.sharebite.app.ui.theme.BgCream
-//////////import com.sharebite.app.ui.theme.OrangeAccent
-//////////import kotlinx.coroutines.delay
-//////////
-//////////@Composable
-//////////fun MerchantDashboardScreen(
-//////////    paddingValues: PaddingValues,
-//////////    onAddDonationClick: () -> Unit,
-//////////    onViewAllListings: () -> Unit,
-//////////    onViewAllRequests: () -> Unit,
-//////////    onViewAllReservations: () -> Unit,
-//////////    onViewImpact: () -> Unit,
-//////////    onRequestClick: (Long) -> Unit,
-//////////    onReservationClick: (Long) -> Unit,
-//////////    viewModel: MerchantViewModel
-//////////) {
-//////////    val listings by viewModel.listings.collectAsState()
-//////////    val generalRequests by viewModel.generalRequests.collectAsState()
-//////////    val reservations by viewModel.reservations.collectAsState()
-//////////    val isLoading by viewModel.isLoading.collectAsState()
-//////////    val username = CurrentUser.getUserName()
-//////////
-//////////    // 🔧 测试数据（如果真实数据为空，使用这个）
-//////////    val testRequests = remember {
-//////////        listOf(
-//////////            CharityRequest(
-//////////                id = 999,
-//////////                organisationName = "🏪 社区食物银行",
-//////////                foodName = "🍞 手工面包",
-//////////                quantity = 15,
-//////////                status = "Pending",
-//////////                pickupDate = "2026-09-05",
-//////////                pickupTime = "10:00 AM"
-//////////            ),
-//////////            CharityRequest(
-//////////                id = 998,
-//////////                organisationName = "🥫 城市救助站",
-//////////                foodName = "🥫 罐头食品",
-//////////                quantity = 30,
-//////////                status = "Pending",
-//////////                pickupDate = "2026-09-06",
-//////////                pickupTime = "02:00 PM"
-//////////            )
-//////////        )
-//////////    }
-//////////
-//////////    // 使用真实数据，如果为空则用测试数据
-//////////    val displayRequests = if (generalRequests.isNotEmpty()) generalRequests else testRequests
-//////////
-//////////    LaunchedEffect(Unit) {
-//////////        viewModel.loadMerchantData()
-//////////        viewModel.loadGeneralRequests()
-//////////        // Force a manual refresh after 2 seconds
-//////////        delay(2000)
-//////////        viewModel.loadMerchantData()
-//////////    }
-//////////
-//////////    LaunchedEffect(generalRequests) {
-//////////        println("📦 generalRequests 数量: ${generalRequests.size}")
-//////////    }
-//////////
-//////////    Box(
-//////////        modifier = Modifier
-//////////            .fillMaxSize()
-//////////            .padding(paddingValues)
-//////////            .background(BgCream)
-//////////    ) {
-//////////        if (isLoading) {
-//////////            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-//////////                CircularProgressIndicator(color = OrangeAccent)
-//////////            }
-//////////        } else {
-//////////            LazyColumn(
-//////////                modifier = Modifier.fillMaxSize(),
-//////////                contentPadding = PaddingValues(16.dp),
-//////////                verticalArrangement = Arrangement.spacedBy(14.dp)
-//////////            ) {
-//////////                // 1. Welcome Header
-////////////                item {
-////////////                    Column {
-////////////                        Text(
-////////////                            "Welcome, $username! 👋",
-////////////                            style = MaterialTheme.typography.headlineSmall,
-////////////                            fontWeight = FontWeight.Bold,
-////////////                            color = Color(0xFF1E1B16)
-////////////                        )
-////////////                        Text(
-////////////                            "Manage your donations and requests.",
-////////////                            style = MaterialTheme.typography.bodyMedium,
-////////////                            color = Color.Gray
-////////////                        )
-////////////                    }
-////////////                }
-//////////                // 1. Welcome Header
-//////////                item {
-//////////                    Column {
-//////////                        Text(
-//////////                            "Welcome, $username! 👋",
-//////////                            style = MaterialTheme.typography.headlineSmall,
-//////////                            fontWeight = FontWeight.Bold,
-//////////                            color = Color(0xFF1E1B16)
-//////////                        )
-//////////                        Text(
-//////////                            "Manage your donations and requests.",
-//////////                            style = MaterialTheme.typography.bodyMedium,
-//////////                            color = Color.Gray
-//////////                        )
-//////////
-//////////                        // ✅ DEBUG: Show the actual logged-in ID and reservation count
-//////////                        Text(
-//////////                            text = "🔍 Debug: Logged in as: ${CurrentUser.getUserId()}",
-//////////                            color = Color.Red,
-//////////                            fontSize = 12.sp,
-//////////                            modifier = Modifier.padding(top = 8.dp)
-//////////                        )
-//////////                        Text(
-//////////                            text = "📦 Reservations in ViewModel: ${reservations.size}",
-//////////                            color = Color.Red,
-//////////                            fontSize = 12.sp
-//////////                        )
-//////////                    }
-//////////                }
-//////////
-//////////                // 2. Stats Card
-//////////                item {
-//////////                    Card(
-//////////                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1E8)),
-//////////                        shape = RoundedCornerShape(16.dp),
-//////////                        modifier = Modifier.fillMaxWidth()
-//////////                    ) {
-//////////                        Column(modifier = Modifier.padding(20.dp)) {
-//////////                            Text("TOTAL IMPACT", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-//////////                            Text("1,240", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
-//////////                            Text("LBS DIVERTED", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
-//////////                        }
-//////////                    }
-//////////                }
-//////////
-//////////                // 3. View Impact Report
-//////////                item {
-//////////                    Card(
-//////////                        colors = CardDefaults.cardColors(containerColor = Color.White),
-//////////                        shape = RoundedCornerShape(16.dp),
-//////////                        modifier = Modifier
-//////////                            .fillMaxWidth()
-//////////                            .clickable { onViewImpact() }
-//////////                    ) {
-//////////                        Row(
-//////////                            modifier = Modifier
-//////////                                .fillMaxWidth()
-//////////                                .padding(horizontal = 20.dp, vertical = 16.dp),
-//////////                            verticalAlignment = Alignment.CenterVertically,
-//////////                            horizontalArrangement = Arrangement.SpaceBetween
-//////////                        ) {
-//////////                            Row(verticalAlignment = Alignment.CenterVertically) {
-//////////                                Box(
-//////////                                    modifier = Modifier
-//////////                                        .size(40.dp)
-//////////                                        .background(Color(0xFFFFF1E8), RoundedCornerShape(50)),
-//////////                                    contentAlignment = Alignment.Center
-//////////                                ) {
-//////////                                    Text("📊", fontSize = 18.sp)
-//////////                                }
-//////////                                Spacer(modifier = Modifier.width(12.dp))
-//////////                                Column {
-//////////                                    Text("Impact Report", fontWeight = FontWeight.Bold)
-//////////                                    Text("See your lifetime donations & badges", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-//////////                                }
-//////////                            }
-//////////                            Text("View →", color = OrangeAccent, fontWeight = FontWeight.Bold)
-//////////                        }
-//////////                    }
-//////////                }
-//////////
-//////////                item {
-//////////                    Button(
-//////////                        onClick = { viewModel.loadMerchantData() },
-//////////                        modifier = Modifier.fillMaxWidth(),
-//////////                        colors = ButtonDefaults.buttonColors(containerColor = Color.Green)
-//////////                    ) {
-//////////                        Text("🔄 Force Refresh Reservations", color = Color.White)
-//////////                    }
-//////////                }
-//////////
-//////////                // 4. Active Donations
-//////////                if (listings.isNotEmpty()) {
-//////////                    item {
-//////////                        Row(
-//////////                            modifier = Modifier.fillMaxWidth(),
-//////////                            horizontalArrangement = Arrangement.SpaceBetween,
-//////////                            verticalAlignment = Alignment.CenterVertically
-//////////                        ) {
-//////////                            Text("Your Active Donations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-//////////                            TextButton(onClick = onViewAllListings) { Text("View All", color = OrangeAccent, fontWeight = FontWeight.Bold) }
-//////////                        }
-//////////                    }
-//////////                    items(listings.take(2)) { listing ->
-//////////                        Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-//////////                            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-//////////                                Box(modifier = Modifier.size(50.dp).background(Color(0xFFEEE5DB), RoundedCornerShape(8.dp)))
-//////////                                Spacer(modifier = Modifier.width(16.dp))
-//////////                                Column(modifier = Modifier.weight(1f)) {
-//////////                                    Text(listing.foodName, fontWeight = FontWeight.SemiBold)
-//////////                                    Text("${listing.quantity} left", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-//////////                                    Text(listing.category, style = MaterialTheme.typography.labelSmall, color = OrangeAccent)
-//////////                                }
-//////////                            }
-//////////                        }
-//////////                    }
-//////////                }
-//////////
-//////////                // ✅ 5. General Charity Requests - 使用 displayRequests
-//////////                item {
-//////////                    Row(
-//////////                        modifier = Modifier.fillMaxWidth(),
-//////////                        horizontalArrangement = Arrangement.SpaceBetween,
-//////////                        verticalAlignment = Alignment.CenterVertically
-//////////                    ) {
-//////////                        Text("🍽️ General Food Requests", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-//////////                        TextButton(onClick = onViewAllRequests) {
-//////////                            Text("View All", color = OrangeAccent, fontWeight = FontWeight.Bold)
-//////////                        }
-//////////                    }
-//////////                }
-//////////
-//////////                // 显示请求卡片（使用 displayRequests）
-//////////                items(displayRequests.take(3)) { request ->
-//////////                    Card(
-//////////                        colors = CardDefaults.cardColors(containerColor = Color.White),
-//////////                        shape = RoundedCornerShape(12.dp),
-//////////                        modifier = Modifier.fillMaxWidth()
-//////////                    ) {
-//////////                        Column(modifier = Modifier.padding(16.dp)) {
-//////////                            Row(verticalAlignment = Alignment.CenterVertically) {
-//////////                                Box(
-//////////                                    modifier = Modifier
-//////////                                        .size(40.dp)
-//////////                                        .background(
-//////////                                            if (request.status == "Pending") Color(0xFFFFE8E8)
-//////////                                            else Color(0xFFE8F5E9),
-//////////                                            RoundedCornerShape(50)
-//////////                                        )
-//////////                                )
-//////////                                Spacer(modifier = Modifier.width(12.dp))
-//////////                                Column {
-//////////                                    Text(
-//////////                                        if (request.organisationName.isNotBlank()) request.organisationName else "未知机构",
-//////////                                        fontWeight = FontWeight.Bold
-//////////                                    )
-//////////                                    Text(
-//////////                                        "${request.quantity} x ${request.foodName}",
-//////////                                        style = MaterialTheme.typography.bodySmall,
-//////////                                        color = Color.Gray
-//////////                                    )
-//////////                                }
-//////////                                Spacer(modifier = Modifier.weight(1f))
-//////////                                Text(
-//////////                                    request.status,
-//////////                                    color = if (request.status == "Pending") OrangeAccent else Color.Gray,
-//////////                                    fontSize = 12.sp,
-//////////                                    fontWeight = FontWeight.Bold
-//////////                                )
-//////////                            }
-//////////                            Spacer(modifier = Modifier.height(12.dp))
-//////////                            OutlinedButton(
-//////////                                onClick = { onRequestClick(request.id) },
-//////////                                modifier = Modifier.fillMaxWidth(),
-//////////                                colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent)
-//////////                            ) {
-//////////                                Text("View Details")
-//////////                            }
-//////////                        }
-//////////                    }
-//////////                }
-//////////
-//////////                // 6. User Reservations
-//////////                if (reservations.isNotEmpty()) {
-//////////                    item {
-//////////                        Row(
-//////////                            modifier = Modifier.fillMaxWidth(),
-//////////                            horizontalArrangement = Arrangement.SpaceBetween,
-//////////                            verticalAlignment = Alignment.CenterVertically
-//////////                        ) {
-//////////                            Text("User Reservations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-//////////                            TextButton(onClick = onViewAllReservations) { Text("View All", color = OrangeAccent, fontWeight = FontWeight.Bold) }
-//////////                        }
-//////////                    }
-//////////                    items(reservations.take(2)) { reservation ->
-//////////                        Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-//////////                            Column(modifier = Modifier.padding(16.dp)) {
-//////////                                Row(verticalAlignment = Alignment.CenterVertically) {
-//////////                                    Box(modifier = Modifier.size(40.dp).background(Color(0xFFE8F5E9), RoundedCornerShape(50)))
-//////////                                    Spacer(modifier = Modifier.width(12.dp))
-//////////                                    Column {
-//////////                                        Text("User: ${reservation.userId.take(8)}", fontWeight = FontWeight.Bold)
-//////////                                        Text("Reserved: ${reservation.quantity} x ${reservation.foodName}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-//////////                                        Text("${reservation.pickupDate} at ${reservation.pickupTime}", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-//////////                                    }
-//////////                                    Spacer(modifier = Modifier.weight(1f))
-//////////                                    Text(
-//////////                                        reservation.status,
-//////////                                        color = if (reservation.status == "Pending") OrangeAccent else Color.Gray,
-//////////                                        fontSize = 12.sp,
-//////////                                        fontWeight = FontWeight.Bold
-//////////                                    )
-//////////                                }
-//////////                                Spacer(modifier = Modifier.height(12.dp))
-//////////                                OutlinedButton(
-//////////                                    onClick = { onReservationClick(reservation.id) },
-//////////                                    modifier = Modifier.fillMaxWidth(),
-//////////                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent)
-//////////                                ) {
-//////////                                    Text("View Details")
-//////////                                }
-//////////                            }
-//////////                        }
-//////////                    }
-//////////                }
-//////////
-//////////                // Empty state
-//////////                if (listings.isEmpty() && reservations.isEmpty()) {
-//////////                    item {
-//////////                        Box(
-//////////                            modifier = Modifier
-//////////                                .fillMaxWidth()
-//////////                                .padding(32.dp),
-//////////                            contentAlignment = Alignment.Center
-//////////                        ) {
-//////////                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-//////////                                Text("No donations or requests yet.", color = Color.Gray)
-//////////                                Spacer(modifier = Modifier.height(8.dp))
-//////////                                Text("Tap the + button to add your first donation.", color = Color.Gray)
-//////////                            }
-//////////                        }
-//////////                    }
-//////////                }
-//////////            }
-//////////        }
-//////////
-//////////        // FAB 按钮
-//////////        FloatingActionButton(
-//////////            onClick = onAddDonationClick,
-//////////            containerColor = OrangeAccent,
-//////////            modifier = Modifier
-//////////                .align(Alignment.BottomEnd)
-//////////                .padding(24.dp)
-//////////        ) {
-//////////            Icon(Icons.Default.Add, contentDescription = "Add Donation", tint = Color.White)
-//////////        }
-//////////    }
-//////////}
-////////
-////////package com.sharebite.app.ui.merchant
-////////
-////////import androidx.compose.foundation.background
-////////import androidx.compose.foundation.clickable
-////////import androidx.compose.foundation.layout.*
-////////import androidx.compose.foundation.lazy.LazyColumn
-////////import androidx.compose.foundation.lazy.items
-////////import androidx.compose.foundation.shape.RoundedCornerShape
-////////import androidx.compose.material.icons.Icons
-////////import androidx.compose.material.icons.filled.Add
-////////import androidx.compose.material3.*
-////////import androidx.compose.runtime.*
-////////import androidx.compose.ui.Alignment
-////////import androidx.compose.ui.Modifier
-////////import androidx.compose.ui.graphics.Color
-////////import androidx.compose.ui.text.font.FontWeight
-////////import androidx.compose.ui.unit.dp
-////////import androidx.compose.ui.unit.sp
-////////import com.sharebite.app.data.model.CharityRequest
-////////import com.sharebite.app.data.session.CurrentUser
-////////import com.sharebite.app.ui.theme.BgCream
-////////import com.sharebite.app.ui.theme.OrangeAccent
-////////
-////////@Composable
-////////fun MerchantDashboardScreen(
-////////    paddingValues: PaddingValues,
-////////    onAddDonationClick: () -> Unit,
-////////    onViewAllListings: () -> Unit,
-////////    onViewAllRequests: () -> Unit,
-////////    onViewAllReservations: () -> Unit,
-////////    onViewImpact: () -> Unit,
-////////    onRequestClick: (Long) -> Unit,
-////////    onReservationClick: (Long) -> Unit,
-////////    viewModel: MerchantViewModel
-////////) {
-////////    val listings by viewModel.listings.collectAsState()
-////////    val generalRequests by viewModel.generalRequests.collectAsState()
-////////    val reservations by viewModel.reservations.collectAsState()
-////////    val isLoading by viewModel.isLoading.collectAsState()
-////////    val username = CurrentUser.getUserName()
-////////
-////////    // 🔧 测试数据（如果真实数据为空，使用这个）
-////////    val testRequests = remember {
-////////        listOf(
-////////            CharityRequest(
-////////                id = 999,
-////////                organisationName = "🏪 社区食物银行",
-////////                foodName = "🍞 手工面包",
-////////                quantity = 15,
-////////                status = "Pending",
-////////                pickupDate = "2026-09-05",
-////////                pickupTime = "10:00 AM"
-////////            ),
-////////            CharityRequest(
-////////                id = 998,
-////////                organisationName = "🥫 城市救助站",
-////////                foodName = "🥫 罐头食品",
-////////                quantity = 30,
-////////                status = "Pending",
-////////                pickupDate = "2026-09-06",
-////////                pickupTime = "02:00 PM"
-////////            )
-////////        )
-////////    }
-////////
-////////    // 使用真实数据，如果为空则用测试数据
-////////    val displayRequests = if (generalRequests.isNotEmpty()) generalRequests else testRequests
-////////
-////////    LaunchedEffect(Unit) {
-////////        viewModel.loadMerchantData()
-////////        viewModel.loadGeneralRequests()
-////////    }
-////////
-////////    LaunchedEffect(generalRequests) {
-////////        println("📦 generalRequests 数量: ${generalRequests.size}")
-////////    }
-////////
-////////    Box(
-////////        modifier = Modifier
-////////            .fillMaxSize()
-////////            .padding(paddingValues)
-////////            .background(BgCream)
-////////    ) {
-////////        if (isLoading) {
-////////            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-////////                CircularProgressIndicator(color = OrangeAccent)
-////////            }
-////////        } else {
-////////            LazyColumn(
-////////                modifier = Modifier.fillMaxSize(),
-////////                contentPadding = PaddingValues(16.dp),
-////////                verticalArrangement = Arrangement.spacedBy(14.dp)
-////////            ) {
-////////                // 1. Welcome Header
-////////                item {
-////////                    Column {
-////////                        Text(
-////////                            "Welcome, $username! 👋",
-////////                            style = MaterialTheme.typography.headlineSmall,
-////////                            fontWeight = FontWeight.Bold,
-////////                            color = Color(0xFF1E1B16)
-////////                        )
-////////                        Text(
-////////                            "Manage your donations and requests.",
-////////                            style = MaterialTheme.typography.bodyMedium,
-////////                            color = Color.Gray
-////////                        )
-////////                    }
-////////                }
-////////
-////////                // 2. Stats Card
-////////                item {
-////////                    Card(
-////////                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1E8)),
-////////                        shape = RoundedCornerShape(16.dp),
-////////                        modifier = Modifier.fillMaxWidth()
-////////                    ) {
-////////                        Column(modifier = Modifier.padding(20.dp)) {
-////////                            Text("TOTAL IMPACT", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-////////                            Text("1,240", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
-////////                            Text("LBS DIVERTED", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
-////////                        }
-////////                    }
-////////                }
-////////
-////////                // 3. View Impact Report
-////////                item {
-////////                    Card(
-////////                        colors = CardDefaults.cardColors(containerColor = Color.White),
-////////                        shape = RoundedCornerShape(16.dp),
-////////                        modifier = Modifier
-////////                            .fillMaxWidth()
-////////                            .clickable { onViewImpact() }
-////////                    ) {
-////////                        Row(
-////////                            modifier = Modifier
-////////                                .fillMaxWidth()
-////////                                .padding(horizontal = 20.dp, vertical = 16.dp),
-////////                            verticalAlignment = Alignment.CenterVertically,
-////////                            horizontalArrangement = Arrangement.SpaceBetween
-////////                        ) {
-////////                            Row(verticalAlignment = Alignment.CenterVertically) {
-////////                                Box(
-////////                                    modifier = Modifier
-////////                                        .size(40.dp)
-////////                                        .background(Color(0xFFFFF1E8), RoundedCornerShape(50)),
-////////                                    contentAlignment = Alignment.Center
-////////                                ) {
-////////                                    Text("📊", fontSize = 18.sp)
-////////                                }
-////////                                Spacer(modifier = Modifier.width(12.dp))
-////////                                Column {
-////////                                    Text("Impact Report", fontWeight = FontWeight.Bold)
-////////                                    Text("See your lifetime donations & badges", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-////////                                }
-////////                            }
-////////                            Text("View →", color = OrangeAccent, fontWeight = FontWeight.Bold)
-////////                        }
-////////                    }
-////////                }
-////////
-////////                // 4. Active Donations
-////////                if (listings.isNotEmpty()) {
-////////                    item {
-////////                        Row(
-////////                            modifier = Modifier.fillMaxWidth(),
-////////                            horizontalArrangement = Arrangement.SpaceBetween,
-////////                            verticalAlignment = Alignment.CenterVertically
-////////                        ) {
-////////                            Text("Your Active Donations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-////////                            TextButton(onClick = onViewAllListings) { Text("View All", color = OrangeAccent, fontWeight = FontWeight.Bold) }
-////////                        }
-////////                    }
-////////                    items(listings.take(2)) { listing ->
-////////                        Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-////////                            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-////////                                Box(modifier = Modifier.size(50.dp).background(Color(0xFFEEE5DB), RoundedCornerShape(8.dp)))
-////////                                Spacer(modifier = Modifier.width(16.dp))
-////////                                Column(modifier = Modifier.weight(1f)) {
-////////                                    Text(listing.foodName, fontWeight = FontWeight.SemiBold)
-////////                                    Text("${listing.quantity} left", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-////////                                    Text(listing.category, style = MaterialTheme.typography.labelSmall, color = OrangeAccent)
-////////                                }
-////////                            }
-////////                        }
-////////                    }
-////////                }
-////////
-////////                // ✅ 5. General Charity Requests - 使用 displayRequests
-////////                item {
-////////                    Row(
-////////                        modifier = Modifier.fillMaxWidth(),
-////////                        horizontalArrangement = Arrangement.SpaceBetween,
-////////                        verticalAlignment = Alignment.CenterVertically
-////////                    ) {
-////////                        Text("🍽️ General Food Requests", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-////////                        TextButton(onClick = onViewAllRequests) {
-////////                            Text("View All", color = OrangeAccent, fontWeight = FontWeight.Bold)
-////////                        }
-////////                    }
-////////                }
-////////
-////////                // 显示请求卡片（使用 displayRequests）
-////////                items(displayRequests.take(3)) { request ->
-////////                    Card(
-////////                        colors = CardDefaults.cardColors(containerColor = Color.White),
-////////                        shape = RoundedCornerShape(12.dp),
-////////                        modifier = Modifier.fillMaxWidth()
-////////                    ) {
-////////                        Column(modifier = Modifier.padding(16.dp)) {
-////////                            Row(verticalAlignment = Alignment.CenterVertically) {
-////////                                Box(
-////////                                    modifier = Modifier
-////////                                        .size(40.dp)
-////////                                        .background(
-////////                                            if (request.status == "Pending") Color(0xFFFFE8E8)
-////////                                            else Color(0xFFE8F5E9),
-////////                                            RoundedCornerShape(50)
-////////                                        )
-////////                                )
-////////                                Spacer(modifier = Modifier.width(12.dp))
-////////                                Column {
-////////                                    Text(
-////////                                        if (request.organisationName.isNotBlank()) request.organisationName else "未知机构",
-////////                                        fontWeight = FontWeight.Bold
-////////                                    )
-////////                                    Text(
-////////                                        "${request.quantity} x ${request.foodName}",
-////////                                        style = MaterialTheme.typography.bodySmall,
-////////                                        color = Color.Gray
-////////                                    )
-////////                                }
-////////                                Spacer(modifier = Modifier.weight(1f))
-////////                                Text(
-////////                                    request.status,
-////////                                    color = if (request.status == "Pending") OrangeAccent else Color.Gray,
-////////                                    fontSize = 12.sp,
-////////                                    fontWeight = FontWeight.Bold
-////////                                )
-////////                            }
-////////                            Spacer(modifier = Modifier.height(12.dp))
-////////                            OutlinedButton(
-////////                                onClick = { onRequestClick(request.id) },
-////////                                modifier = Modifier.fillMaxWidth(),
-////////                                colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent)
-////////                            ) {
-////////                                Text("View Details")
-////////                            }
-////////                        }
-////////                    }
-////////                }
-////////
-////////                // 6. User Reservations
-////////                if (reservations.isNotEmpty()) {
-////////                    item {
-////////                        Row(
-////////                            modifier = Modifier.fillMaxWidth(),
-////////                            horizontalArrangement = Arrangement.SpaceBetween,
-////////                            verticalAlignment = Alignment.CenterVertically
-////////                        ) {
-////////                            Text("User Reservations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-////////                            TextButton(onClick = onViewAllReservations) { Text("View All", color = OrangeAccent, fontWeight = FontWeight.Bold) }
-////////                        }
-////////                    }
-////////                    items(reservations.take(2)) { reservation ->
-////////                        Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-////////                            Column(modifier = Modifier.padding(16.dp)) {
-////////                                Row(verticalAlignment = Alignment.CenterVertically) {
-////////                                    Box(modifier = Modifier.size(40.dp).background(Color(0xFFE8F5E9), RoundedCornerShape(50)))
-////////                                    Spacer(modifier = Modifier.width(12.dp))
-////////                                    Column {
-////////                                        Text("User: ${reservation.userId.take(8)}", fontWeight = FontWeight.Bold)
-////////                                        Text("Reserved: ${reservation.quantity} x ${reservation.foodName}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-////////                                        Text("${reservation.pickupDate} at ${reservation.pickupTime}", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-////////                                    }
-////////                                    Spacer(modifier = Modifier.weight(1f))
-////////                                    Text(
-////////                                        reservation.status,
-////////                                        color = if (reservation.status == "Pending") OrangeAccent else Color.Gray,
-////////                                        fontSize = 12.sp,
-////////                                        fontWeight = FontWeight.Bold
-////////                                    )
-////////                                }
-////////                                Spacer(modifier = Modifier.height(12.dp))
-////////                                OutlinedButton(
-////////                                    onClick = { onReservationClick(reservation.id) },
-////////                                    modifier = Modifier.fillMaxWidth(),
-////////                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent)
-////////                                ) {
-////////                                    Text("View Details")
-////////                                }
-////////                            }
-////////                        }
-////////                    }
-////////                }
-////////
-////////                // Empty state
-////////                if (listings.isEmpty() && reservations.isEmpty()) {
-////////                    item {
-////////                        Box(
-////////                            modifier = Modifier
-////////                                .fillMaxWidth()
-////////                                .padding(32.dp),
-////////                            contentAlignment = Alignment.Center
-////////                        ) {
-////////                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-////////                                Text("No donations or requests yet.", color = Color.Gray)
-////////                                Spacer(modifier = Modifier.height(8.dp))
-////////                                Text("Tap the + button to add your first donation.", color = Color.Gray)
-////////                            }
-////////                        }
-////////                    }
-////////                }
-////////            }
-////////        }
-////////
-////////        // FAB 按钮
-////////        FloatingActionButton(
-////////            onClick = onAddDonationClick,
-////////            containerColor = OrangeAccent,
-////////            modifier = Modifier
-////////                .align(Alignment.BottomEnd)
-////////                .padding(24.dp)
-////////        ) {
-////////            Icon(Icons.Default.Add, contentDescription = "Add Donation", tint = Color.White)
-////////        }
-////////    }
-////////}
-//////
-//////package com.sharebite.app.ui.merchant
-//////
-//////import androidx.compose.foundation.background
-//////import androidx.compose.foundation.clickable
-//////import androidx.compose.foundation.layout.*
-//////import androidx.compose.foundation.lazy.LazyColumn
-//////import androidx.compose.foundation.lazy.items
-//////import androidx.compose.foundation.shape.RoundedCornerShape
-//////import androidx.compose.material3.*
-//////import androidx.compose.runtime.*
-//////import androidx.compose.ui.Alignment
-//////import androidx.compose.ui.Modifier
-//////import androidx.compose.ui.graphics.Color
-//////import androidx.compose.ui.text.font.FontWeight
-//////import androidx.compose.ui.unit.dp
-//////import androidx.compose.ui.unit.sp   // ✅ required for .sp
-//////import com.sharebite.app.data.model.CharityRequest
-//////import com.sharebite.app.data.model.Reservation
-//////import com.sharebite.app.data.session.CurrentUser
-//////import com.sharebite.app.ui.theme.BgCream
-//////import com.sharebite.app.ui.theme.OrangeAccent
-//////import java.text.SimpleDateFormat
-//////import java.util.*   // ✅ for Date and Locale
-//////
-//////@Composable
-//////fun MerchantDashboardScreen(
-//////    paddingValues: PaddingValues,
-//////    onAddDonationClick: () -> Unit,        // kept for compatibility but not used
-//////    onViewAllListings: () -> Unit,
-//////    onViewAllRequests: () -> Unit,
-//////    onViewAllReservations: () -> Unit,
-//////    onViewImpact: () -> Unit,
-//////    onRequestClick: (Long) -> Unit,
-//////    onReservationClick: (Long) -> Unit,
-//////    viewModel: MerchantViewModel
-//////) {
-//////    val listings by viewModel.listings.collectAsState()
-//////    val requests by viewModel.requests.collectAsState()              // Donation requests (merchant_id = me)
-//////    val generalRequests by viewModel.generalRequests.collectAsState() // General requests (merchant_id null)
-//////    val reservations by viewModel.reservations.collectAsState()
-//////    val isLoading by viewModel.isLoading.collectAsState()
-//////    val username = CurrentUser.getUserName()
-//////
-//////    // ── Compute counts ──────────────────────────────────────────────
-//////    val pendingCharityRequests = generalRequests.count { it.status == "Pending" }
-//////    val pendingUserReservations = reservations.count { it.status == "Pending" }
-//////    val totalPendingClaims = pendingCharityRequests + pendingUserReservations
-//////
-//////    val activeRequests = generalRequests.filter { it.status != "Completed" && it.status != "Cancelled" }
-//////    val activeReservations = reservations.filter { it.status != "Completed" && it.status != "Cancelled" }
-//////    val totalPickups = activeRequests.size + activeReservations.size
-//////    val pendingPickupsRequests = activeRequests.count { it.status == "Pending" }
-//////    val pendingPickupsReservations = activeReservations.count { it.status == "Pending" }
-//////
-//////    // ── Recent Activity ──────────────────────────────────────────────
-//////    val recentItems = remember(reservations, generalRequests, requests) {
-//////        val items = mutableListOf<ActivityItem>()
-//////
-//////        reservations.take(2).forEach { res ->
-//////            items.add(
-//////                ActivityItem.Reservation(
-//////                    user = res.userId.take(8),
-//////                    food = res.foodName,
-//////                    quantity = res.quantity,
-//////                    pickupTime = res.pickupTime,
-//////                    status = res.status,
-//////                    timestamp = res.createdAt
-//////                )
-//////            )
-//////        }
-//////
-//////        generalRequests.filter { it.status == "Confirmed" }.take(2).forEach { req ->
-//////            items.add(
-//////                ActivityItem.Request(
-//////                    org = req.organisationName,
-//////                    food = req.foodName,
-//////                    quantity = req.quantity,
-//////                    status = req.status,
-//////                    timestamp = req.createdAt
-//////                )
-//////            )
-//////        }
-//////
-//////        items.sortedByDescending { it.timestamp }.take(2)
-//////    }
-//////
-//////    Box(
-//////        modifier = Modifier
-//////            .fillMaxSize()
-//////            .padding(paddingValues)
-//////            .background(BgCream)
-//////    ) {
-//////        if (isLoading) {
-//////            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-//////                CircularProgressIndicator(color = OrangeAccent)
-//////            }
-//////        } else {
-//////            LazyColumn(
-//////                modifier = Modifier.fillMaxSize(),
-//////                contentPadding = PaddingValues(16.dp),
-//////                verticalArrangement = Arrangement.spacedBy(16.dp)
-//////            ) {
-//////                // 1️⃣ Welcome Header
-//////                item {
-//////                    Column {
-//////                        Text(
-//////                            "Welcome back, $username!",
-//////                            style = MaterialTheme.typography.headlineSmall,
-//////                            fontWeight = FontWeight.Bold,
-//////                            color = Color(0xFF1E1B16)
-//////                        )
-//////                        Text(
-//////                            "Here is what is happening today.",
-//////                            style = MaterialTheme.typography.bodyMedium,
-//////                            color = Color.Gray
-//////                        )
-//////                    }
-//////                }
-//////
-//////                // 2️⃣ Your Impact
-//////                item {
-//////                    ImpactCard(
-//////                        impact = "1,240 LBS",
-//////                        subtitle = "Food diverted from landfill this month.",
-//////                        onViewReport = onViewImpact
-//////                    )
-//////                }
-//////
-//////                // 3️⃣ Pending Claims
-//////                item {
-//////                    PendingClaimsCard(
-//////                        total = totalPendingClaims,
-//////                        charityCount = pendingCharityRequests,
-//////                        reservationCount = pendingUserReservations,
-//////                        onViewAll = onViewAllRequests
-//////                    )
-//////                }
-//////
-//////                // 4️⃣ Pickups Today
-//////                item {
-//////                    PickupsTodayCard(
-//////                        total = totalPickups,
-//////                        charityCount = activeRequests.size,
-//////                        charityPending = pendingPickupsRequests,
-//////                        reservationCount = activeReservations.size,
-//////                        reservationPending = pendingPickupsReservations,
-//////                        onManage = onViewAllReservations
-//////                    )
-//////                }
-//////
-//////                // 5️⃣ Recent Activity
-//////                item {
-//////                    Row(
-//////                        modifier = Modifier.fillMaxWidth(),
-//////                        horizontalArrangement = Arrangement.SpaceBetween,
-//////                        verticalAlignment = Alignment.CenterVertically
-//////                    ) {
-//////                        Text("Recent Activity", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-//////                        TextButton(onClick = { /* navigate to full activity log */ }) {
-//////                            Text("See all", color = OrangeAccent, fontWeight = FontWeight.Bold)
-//////                        }
-//////                    }
-//////                }
-//////
-//////                items(recentItems.take(2)) { activity ->
-//////                    when (activity) {
-//////                        is ActivityItem.Reservation -> {
-//////                            ActivityCard(
-//////                                icon = "👤",
-//////                                title = "${activity.user} reserved",
-//////                                subtitle = "${activity.quantity} × ${activity.food}",
-//////                                meta = "Pickup expected by ${activity.pickupTime}",
-//////                                timestamp = activity.timestamp,
-//////                                status = activity.status
-//////                            )
-//////                        }
-//////                        is ActivityItem.Request -> {
-//////                            ActivityCard(
-//////                                icon = "🏢",
-//////                                title = "${activity.org} approved",
-//////                                subtitle = "${activity.quantity} × ${activity.food}",
-//////                                meta = "Donation receipt generated.",
-//////                                timestamp = activity.timestamp,
-//////                                status = activity.status
-//////                            )
-//////                        }
-//////                    }
-//////                }
-//////
-//////                if (recentItems.isEmpty()) {
-//////                    item {
-//////                        Box(
-//////                            modifier = Modifier
-//////                                .fillMaxWidth()
-//////                                .padding(32.dp),
-//////                            contentAlignment = Alignment.Center
-//////                        ) {
-//////                            Text("No recent activity.", color = Color.Gray)
-//////                        }
-//////                    }
-//////                }
-//////            }
-//////        }
-//////    }
-//////}
-//////
-//////// ─── Helper Cards ──────────────────────────────────────────────────
-//////
-//////@Composable
-//////fun ImpactCard(
-//////    impact: String,
-//////    subtitle: String,
-//////    onViewReport: () -> Unit
-//////) {
-//////    Card(
-//////        modifier = Modifier
-//////            .fillMaxWidth()
-//////            .clickable { onViewReport() },
-//////        shape = RoundedCornerShape(16.dp),
-//////        colors = CardDefaults.cardColors(containerColor = Color.White),
-//////        elevation = CardDefaults.cardElevation(2.dp)
-//////    ) {
-//////        Column(modifier = Modifier.padding(20.dp)) {
-//////            Text("Your Impact", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
-//////            Text(
-//////                impact,
-//////                style = MaterialTheme.typography.headlineMedium,
-//////                fontWeight = FontWeight.ExtraBold,
-//////                color = OrangeAccent
-//////            )
-//////            Text(
-//////                subtitle,
-//////                style = MaterialTheme.typography.bodySmall,
-//////                color = Color.Gray
-//////            )
-//////            Spacer(modifier = Modifier.height(8.dp))
-//////            Text(
-//////                "View Report →",
-//////                color = OrangeAccent,
-//////                fontWeight = FontWeight.Bold,
-//////                style = MaterialTheme.typography.labelLarge
-//////            )
-//////        }
-//////    }
-//////}
-//////
-//////@Composable
-//////fun PendingClaimsCard(
-//////    total: Int,
-//////    charityCount: Int,
-//////    reservationCount: Int,
-//////    onViewAll: () -> Unit
-//////) {
-//////    Card(
-//////        modifier = Modifier
-//////            .fillMaxWidth()
-//////            .clickable { onViewAll() },
-//////        shape = RoundedCornerShape(16.dp),
-//////        colors = CardDefaults.cardColors(containerColor = Color.White),
-//////        elevation = CardDefaults.cardElevation(2.dp)
-//////    ) {
-//////        Column(modifier = Modifier.padding(16.dp)) {
-//////            Text("Pending Claims", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
-//////            Text(
-//////                "$total",
-//////                style = MaterialTheme.typography.headlineMedium,
-//////                fontWeight = FontWeight.Bold,
-//////                color = Color(0xFF1E1B16)
-//////            )
-//////            Row(
-//////                modifier = Modifier.fillMaxWidth(),
-//////                horizontalArrangement = Arrangement.spacedBy(8.dp)
-//////            ) {
-//////                Text("$charityCount Charity Requests", color = Color.Gray)
-//////                Text("•", color = Color.Gray)
-//////                Text("$reservationCount User Reservations", color = Color.Gray)
-//////            }
-//////            Spacer(modifier = Modifier.height(8.dp))
-//////            OutlinedButton(
-//////                onClick = onViewAll,
-//////                modifier = Modifier.fillMaxWidth(),
-//////                shape = RoundedCornerShape(50),
-//////                colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent)
-//////            ) {
-//////                Text("View All Requests →")
-//////            }
-//////        }
-//////    }
-//////}
-//////
-//////@Composable
-//////fun PickupsTodayCard(
-//////    total: Int,
-//////    charityCount: Int,
-//////    charityPending: Int,
-//////    reservationCount: Int,
-//////    reservationPending: Int,
-//////    onManage: () -> Unit
-//////) {
-//////    Card(
-//////        modifier = Modifier
-//////            .fillMaxWidth()
-//////            .clickable { onManage() },
-//////        shape = RoundedCornerShape(16.dp),
-//////        colors = CardDefaults.cardColors(containerColor = Color.White),
-//////        elevation = CardDefaults.cardElevation(2.dp)
-//////    ) {
-//////        Column(modifier = Modifier.padding(16.dp)) {
-//////            Text("Pickups Today", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
-//////            Text(
-//////                "$total",
-//////                style = MaterialTheme.typography.headlineMedium,
-//////                fontWeight = FontWeight.Bold,
-//////                color = Color(0xFF1E1B16)
-//////            )
-//////            Row(
-//////                modifier = Modifier.fillMaxWidth(),
-//////                horizontalArrangement = Arrangement.spacedBy(8.dp)
-//////            ) {
-//////                Text("$charityCount Charity Requests ($charityPending pending)", color = Color.Gray)
-//////                Text("•", color = Color.Gray)
-//////                Text("$reservationCount User Reservations ($reservationPending pending)", color = Color.Gray)
-//////            }
-//////            Spacer(modifier = Modifier.height(8.dp))
-//////            OutlinedButton(
-//////                onClick = onManage,
-//////                modifier = Modifier.fillMaxWidth(),
-//////                shape = RoundedCornerShape(50),
-//////                colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent)
-//////            ) {
-//////                Text("Manage Pickups →")
-//////            }
-//////        }
-//////    }
-//////}
-//////
-//////// ─── Activity Models & Card ───────────────────────────────────────
-//////
-////////sealed class ActivityItem {
-////////    data class Reservation(
-////////        val user: String,
-////////        val food: String,
-////////        val quantity: String,
-////////        val pickupTime: String,
-////////        val status: String,
-////////        val timestamp: String
-////////    ) : ActivityItem()
-////////    data class Request(
-////////        val org: String,
-////////        val food: String,
-////////        val quantity: Int,
-////////        val status: String,
-////////        val timestamp: String
-////////    ) : ActivityItem()
-////////}
-//////
-//////sealed class ActivityItem {
-//////    abstract val timestamp: String?
-//////
-//////    data class Reservation(
-//////        val user: String,
-//////        val food: String,
-//////        val quantity: String,
-//////        val pickupTime: String,
-//////        val status: String,
-//////        override val timestamp: String?
-//////    ) : ActivityItem()
-//////
-//////    data class Request(
-//////        val org: String,
-//////        val food: String,
-//////        val quantity: Int,
-//////        val status: String,
-//////        override val timestamp: String?
-//////    ) : ActivityItem()
-//////}
-//////
-//////@Composable
-//////fun ActivityCard(
-//////    icon: String,
-//////    title: String,
-//////    subtitle: String,
-//////    meta: String,
-//////    timestamp: String?,
-//////    status: String
-//////) {
-//////    Card(
-//////        modifier = Modifier.fillMaxWidth(),
-//////        shape = RoundedCornerShape(12.dp),
-//////        colors = CardDefaults.cardColors(containerColor = Color.White),
-//////        elevation = CardDefaults.cardElevation(1.dp)
-//////    ) {
-//////        Row(
-//////            modifier = Modifier
-//////                .fillMaxWidth()
-//////                .padding(16.dp),
-//////            verticalAlignment = Alignment.CenterVertically
-//////        ) {
-//////            Text(icon, fontSize = 24.sp)
-//////            Spacer(modifier = Modifier.width(12.dp))
-//////            Column(modifier = Modifier.weight(1f)) {
-//////                Text(title, fontWeight = FontWeight.Bold)
-//////                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-//////                Text(meta, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-//////            }
-//////            val timeAgo = formatTimeAgo(timestamp ?: "")
-//////            Text(
-//////                timeAgo,
-//////                style = MaterialTheme.typography.labelSmall,
-//////                color = Color.Gray
-//////            )
-//////        }
-//////    }
-//////}
-//////
-//////// ─── Helper: Format time ago ─────────────────────────────────────
-//////
-//////fun formatTimeAgo(timestamp: String): String {
-//////
-//////    if (timestamp.isNullOrBlank()) {
-//////        return "now"
-//////    }
-//////    return try {
-//////        // Try to parse ISO‑8601 with milliseconds (e.g., "2026-08-30T04:58:01.766291+00")
-//////        // If that fails, fallback to simple date format.
-//////        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.getDefault())
-//////        val date = format.parse(timestamp)
-//////        if (date == null) return "now"
-//////        val diff = Date().time - date.time
-//////        val minutes = diff / 1000 / 60
-//////        when {
-//////            minutes < 1 -> "now"
-//////            minutes < 60 -> "${minutes}m ago"
-//////            minutes < 1440 -> "${minutes / 60}h ago"
-//////            else -> "${minutes / 1440}d ago"
-//////        }
-//////    } catch (e: Exception) {
-//////        // If parsing fails, return a generic "now"
-//////        "now"
-//////    }
-//////}
-////
-////package com.sharebite.app.ui.merchant
-////
-////import androidx.compose.foundation.background
-////import androidx.compose.foundation.clickable
-////import androidx.compose.foundation.layout.*
-////import androidx.compose.foundation.lazy.LazyColumn
-////import androidx.compose.foundation.lazy.items
-////import androidx.compose.foundation.shape.RoundedCornerShape
-////import androidx.compose.material3.*
-////import androidx.compose.runtime.*
-////import androidx.compose.ui.Alignment
-////import androidx.compose.ui.Modifier
-////import androidx.compose.ui.graphics.Color
-////import androidx.compose.ui.text.font.FontWeight
-////import androidx.compose.ui.unit.dp
-////import androidx.compose.ui.unit.sp
-////import com.sharebite.app.data.model.CharityRequest
-////import com.sharebite.app.data.model.Reservation
-////import com.sharebite.app.data.session.CurrentUser
-////import com.sharebite.app.ui.theme.BgCream
-////import com.sharebite.app.ui.theme.OrangeAccent
-////import java.text.SimpleDateFormat
-////import java.util.*
-////
-////@Composable
-////fun MerchantDashboardScreen(
-////    paddingValues: PaddingValues,
-////    onAddDonationClick: () -> Unit,        // kept for compatibility but not used
-////    onViewAllListings: () -> Unit,
-////    onViewAllRequests: () -> Unit,
-////    onViewAllReservations: () -> Unit,
-////    onViewImpact: () -> Unit,
-////    onRequestClick: (Long) -> Unit,
-////    onReservationClick: (Long) -> Unit,
-////    viewModel: MerchantViewModel
-////) {
-////    val listings by viewModel.listings.collectAsState()
-////    val requests by viewModel.requests.collectAsState()
-////    val generalRequests by viewModel.generalRequests.collectAsState()
-////    val reservations by viewModel.reservations.collectAsState()
-////    val isLoading by viewModel.isLoading.collectAsState()
-////    val username = CurrentUser.getUserName()
-////
-////    // ── Compute counts ──────────────────────────────────────────────
-////    val pendingCharityRequests = generalRequests.count { it.status == "Pending" }
-////    val pendingUserReservations = reservations.count { it.status == "Pending" }
-////    val totalPendingClaims = pendingCharityRequests + pendingUserReservations
-////
-////    val activeRequests = generalRequests.filter { it.status != "Completed" && it.status != "Cancelled" }
-////    val activeReservations = reservations.filter { it.status != "Completed" && it.status != "Cancelled" }
-////    val totalPickups = activeRequests.size + activeReservations.size
-////    val pendingPickupsRequests = activeRequests.count { it.status == "Pending" }
-////    val pendingPickupsReservations = activeReservations.count { it.status == "Pending" }
-////
-////    // ── Recent Activity ──────────────────────────────────────────────
-////    val recentItems = remember(reservations, generalRequests, requests) {
-////        val items = mutableListOf<ActivityItem>()
-////
-////        reservations.take(2).forEach { res ->
-////            items.add(
-////                ActivityItem.Reservation(
-////                    user = res.userId.take(8),
-////                    food = res.foodName,
-////                    quantity = res.quantity,
-////                    pickupTime = res.pickupTime,
-////                    status = res.status,
-////                    timestamp = res.createdAt
-////                )
-////            )
-////        }
-////
-////        generalRequests.filter { it.status == "Confirmed" }.take(2).forEach { req ->
-////            items.add(
-////                ActivityItem.Request(
-////                    org = req.organisationName,
-////                    food = req.foodName,
-////                    quantity = req.quantity,
-////                    status = req.status,
-////                    timestamp = req.createdAt
-////                )
-////            )
-////        }
-////
-////        items.sortedByDescending { it.timestamp }.take(2)
-////    }
-////
-////    Box(
-////        modifier = Modifier
-////            .fillMaxSize()
-////            .padding(paddingValues)
-////            .background(BgCream)
-////    ) {
-////        if (isLoading) {
-////            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-////                CircularProgressIndicator(color = OrangeAccent)
-////            }
-////        } else {
-////            LazyColumn(
-////                modifier = Modifier.fillMaxSize(),
-////                contentPadding = PaddingValues(16.dp),
-////                verticalArrangement = Arrangement.spacedBy(16.dp)
-////            ) {
-////                // 1️⃣ Welcome Header
-////                item {
-////                    Column {
-////                        Text(
-////                            "Welcome back, $username!",
-////                            style = MaterialTheme.typography.headlineSmall,
-////                            fontWeight = FontWeight.Bold,
-////                            color = Color(0xFF1E1B16)
-////                        )
-////                        Text(
-////                            "Here is what is happening today.",
-////                            style = MaterialTheme.typography.bodyMedium,
-////                            color = Color.Gray
-////                        )
-////                    }
-////                }
-////
-////                // 2️⃣ Your Impact
-////                item {
-////                    ImpactCard(
-////                        impact = "1,240 LBS",
-////                        subtitle = "Food diverted from landfill this month.",
-////                        onViewReport = onViewImpact
-////                    )
-////                }
-////
-////                // 3️⃣ Pending Claims - Cleaner layout
-////                item {
-////                    PendingClaimsCard(
-////                        total = totalPendingClaims,
-////                        charityCount = pendingCharityRequests,
-////                        reservationCount = pendingUserReservations,
-////                        onViewAll = onViewAllRequests
-////                    )
-////                }
-////
-////                // 4️⃣ Pickups Today - Cleaner layout
-////                item {
-////                    PickupsTodayCard(
-////                        total = totalPickups,
-////                        charityCount = activeRequests.size,
-////                        charityPending = pendingPickupsRequests,
-////                        reservationCount = activeReservations.size,
-////                        reservationPending = pendingPickupsReservations,
-////                        onManage = onViewAllReservations
-////                    )
-////                }
-////
-////                // 5️⃣ Recent Activity
-////                item {
-////                    Row(
-////                        modifier = Modifier.fillMaxWidth(),
-////                        horizontalArrangement = Arrangement.SpaceBetween,
-////                        verticalAlignment = Alignment.CenterVertically
-////                    ) {
-////                        Text("Recent Activity", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-////                        TextButton(onClick = { /* navigate to full activity log */ }) {
-////                            Text("See all", color = OrangeAccent, fontWeight = FontWeight.Bold)
-////                        }
-////                    }
-////                }
-////
-////                items(recentItems.take(2)) { activity ->
-////                    when (activity) {
-////                        is ActivityItem.Reservation -> {
-////                            ActivityCard(
-////                                icon = "👤",
-////                                title = "${activity.user} reserved",
-////                                subtitle = "${activity.quantity} × ${activity.food}",
-////                                meta = "Pickup expected by ${activity.pickupTime}",
-////                                timestamp = activity.timestamp,
-////                                status = activity.status
-////                            )
-////                        }
-////                        is ActivityItem.Request -> {
-////                            ActivityCard(
-////                                icon = "🏢",
-////                                title = "${activity.org} approved",
-////                                subtitle = "${activity.quantity} × ${activity.food}",
-////                                meta = "Donation receipt generated.",
-////                                timestamp = activity.timestamp,
-////                                status = activity.status
-////                            )
-////                        }
-////                    }
-////                }
-////
-////                if (recentItems.isEmpty()) {
-////                    item {
-////                        Box(
-////                            modifier = Modifier
-////                                .fillMaxWidth()
-////                                .padding(32.dp),
-////                            contentAlignment = Alignment.Center
-////                        ) {
-////                            Text("No recent activity.", color = Color.Gray)
-////                        }
-////                    }
-////                }
-////            }
-////        }
-////    }
-////}
-////
-////// ─── Helper Cards ──────────────────────────────────────────────────
-////
-////@Composable
-////fun ImpactCard(
-////    impact: String,
-////    subtitle: String,
-////    onViewReport: () -> Unit
-////) {
-////    Card(
-////        modifier = Modifier
-////            .fillMaxWidth()
-////            .clickable { onViewReport() },
-////        shape = RoundedCornerShape(16.dp),
-////        colors = CardDefaults.cardColors(containerColor = Color.White),
-////        elevation = CardDefaults.cardElevation(2.dp)
-////    ) {
-////        Column(modifier = Modifier.padding(20.dp)) {
-////            Text("Your Impact", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
-////            Text(
-////                impact,
-////                style = MaterialTheme.typography.headlineMedium,
-////                fontWeight = FontWeight.ExtraBold,
-////                color = OrangeAccent
-////            )
-////            Text(
-////                subtitle,
-////                style = MaterialTheme.typography.bodySmall,
-////                color = Color.Gray
-////            )
-////            Spacer(modifier = Modifier.height(8.dp))
-////            Text(
-////                "View Report →",
-////                color = OrangeAccent,
-////                fontWeight = FontWeight.Bold,
-////                style = MaterialTheme.typography.labelLarge
-////            )
-////        }
-////    }
-////}
-////
-////// ✅ UPDATED: Cleaner layout for Pending Claims
-////@Composable
-////fun PendingClaimsCard(
-////    total: Int,
-////    charityCount: Int,
-////    reservationCount: Int,
-////    onViewAll: () -> Unit
-////) {
-////    Card(
-////        modifier = Modifier
-////            .fillMaxWidth()
-////            .clickable { onViewAll() },
-////        shape = RoundedCornerShape(16.dp),
-////        colors = CardDefaults.cardColors(containerColor = Color.White),
-////        elevation = CardDefaults.cardElevation(2.dp)
-////    ) {
-////        Column(modifier = Modifier.padding(16.dp)) {
-////            // Label
-////            Text(
-////                "Pending Claims",
-////                style = MaterialTheme.typography.labelMedium,
-////                color = Color.Gray,
-////                fontSize = 12.sp
-////            )
-////
-////            // Big number
-////            Text(
-////                "$total",
-////                style = MaterialTheme.typography.headlineMedium,
-////                fontWeight = FontWeight.Bold,
-////                color = Color(0xFF1E1B16)
-////            )
-////
-////            // Stats - now on separate lines for better readability
-////            Column(
-////                modifier = Modifier.fillMaxWidth(),
-////                verticalArrangement = Arrangement.spacedBy(2.dp)
-////            ) {
-////                Text(
-////                    "$charityCount Charity Requests",
-////                    color = Color.Gray,
-////                    fontSize = 14.sp
-////                )
-////                Text(
-////                    "$reservationCount User Reservations",
-////                    color = Color.Gray,
-////                    fontSize = 14.sp
-////                )
-////            }
-////
-////            Spacer(modifier = Modifier.height(8.dp))
-////
-////            // Button
-////            OutlinedButton(
-////                onClick = onViewAll,
-////                modifier = Modifier.fillMaxWidth(),
-////                shape = RoundedCornerShape(50),
-////                colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent)
-////            ) {
-////                Text("View All Requests →")
-////            }
-////        }
-////    }
-////}
-////
-////// ✅ UPDATED: Cleaner layout for Pickups Today
-////@Composable
-////fun PickupsTodayCard(
-////    total: Int,
-////    charityCount: Int,
-////    charityPending: Int,
-////    reservationCount: Int,
-////    reservationPending: Int,
-////    onManage: () -> Unit
-////) {
-////    Card(
-////        modifier = Modifier
-////            .fillMaxWidth()
-////            .clickable { onManage() },
-////        shape = RoundedCornerShape(16.dp),
-////        colors = CardDefaults.cardColors(containerColor = Color.White),
-////        elevation = CardDefaults.cardElevation(2.dp)
-////    ) {
-////        Column(modifier = Modifier.padding(16.dp)) {
-////            // Label
-////            Text(
-////                "Pickups Today",
-////                style = MaterialTheme.typography.labelMedium,
-////                color = Color.Gray,
-////                fontSize = 12.sp
-////            )
-////
-////            // Big number
-////            Text(
-////                "$total",
-////                style = MaterialTheme.typography.headlineMedium,
-////                fontWeight = FontWeight.Bold,
-////                color = Color(0xFF1E1B16)
-////            )
-////
-////            // Stats - now on separate lines for better readability
-////            Column(
-////                modifier = Modifier.fillMaxWidth(),
-////                verticalArrangement = Arrangement.spacedBy(2.dp)
-////            ) {
-////                Text(
-////                    "$charityCount Charity Requests ($charityPending pending)",
-////                    color = Color.Gray,
-////                    fontSize = 14.sp
-////                )
-////                Text(
-////                    "$reservationCount User Reservations ($reservationPending pending)",
-////                    color = Color.Gray,
-////                    fontSize = 14.sp
-////                )
-////            }
-////
-////            Spacer(modifier = Modifier.height(8.dp))
-////
-////            // Button
-////            OutlinedButton(
-////                onClick = onManage,
-////                modifier = Modifier.fillMaxWidth(),
-////                shape = RoundedCornerShape(50),
-////                colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent)
-////            ) {
-////                Text("Manage Pickups →")
-////            }
-////        }
-////    }
-////}
-////
-////// ─── Activity Models & Card ───────────────────────────────────────
-////
-////sealed class ActivityItem {
-////    data class Reservation(
-////        val user: String,
-////        val food: String,
-////        val quantity: String,
-////        val pickupTime: String,
-////        val status: String,
-////        val timestamp: String
-////    ) : ActivityItem()
-////    data class Request(
-////        val org: String,
-////        val food: String,
-////        val quantity: Int,
-////        val status: String,
-////        val timestamp: String
-////    ) : ActivityItem()
-////}
-////
-////@Composable
-////fun ActivityCard(
-////    icon: String,
-////    title: String,
-////    subtitle: String,
-////    meta: String,
-////    timestamp: String,
-////    status: String
-////) {
-////    Card(
-////        modifier = Modifier.fillMaxWidth(),
-////        shape = RoundedCornerShape(12.dp),
-////        colors = CardDefaults.cardColors(containerColor = Color.White),
-////        elevation = CardDefaults.cardElevation(1.dp)
-////    ) {
-////        Row(
-////            modifier = Modifier
-////                .fillMaxWidth()
-////                .padding(16.dp),
-////            verticalAlignment = Alignment.CenterVertically
-////        ) {
-////            Text(icon, fontSize = 24.sp)
-////            Spacer(modifier = Modifier.width(12.dp))
-////            Column(modifier = Modifier.weight(1f)) {
-////                Text(title, fontWeight = FontWeight.Bold)
-////                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-////                Text(meta, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-////            }
-////            val timeAgo = formatTimeAgo(timestamp)
-////            Text(
-////                timeAgo,
-////                style = MaterialTheme.typography.labelSmall,
-////                color = Color.Gray
-////            )
-////        }
-////    }
-////}
-////
-////// ─── Helper: Format time ago ─────────────────────────────────────
-////
-////fun formatTimeAgo(timestamp: String): String {
-////    return try {
-////        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.getDefault())
-////        val date = format.parse(timestamp)
-////        if (date == null) return "now"
-////        val diff = Date().time - date.time
-////        val minutes = diff / 1000 / 60
-////        when {
-////            minutes < 1 -> "now"
-////            minutes < 60 -> "${minutes}m ago"
-////            minutes < 1440 -> "${minutes / 60}h ago"
-////            else -> "${minutes / 1440}d ago"
-////        }
-////    } catch (e: Exception) {
-////        "now"
-////    }
-////}
-//
-//package com.sharebite.app.ui.merchant
-//
-//import androidx.compose.foundation.background
-//import androidx.compose.foundation.clickable
-//import androidx.compose.foundation.layout.*
-//import androidx.compose.foundation.lazy.LazyColumn
-//import androidx.compose.foundation.lazy.items
-//import androidx.compose.foundation.shape.RoundedCornerShape
-//import androidx.compose.material3.*
-//import androidx.compose.runtime.*
-//import androidx.compose.ui.Alignment
-//import androidx.compose.ui.Modifier
-//import androidx.compose.ui.graphics.Color
-//import androidx.compose.ui.text.font.FontWeight
-//import androidx.compose.ui.unit.dp
-//import androidx.compose.ui.unit.sp
-//import com.sharebite.app.data.session.CurrentUser
-//import com.sharebite.app.ui.theme.BgCream
-//import com.sharebite.app.ui.theme.OrangeAccent
-//import java.text.SimpleDateFormat
-//import java.util.Date
-//import java.util.Locale
-//
-//
-//@Composable
-//fun MerchantDashboardScreen(
-//    paddingValues: PaddingValues,
-//    onAddDonationClick: () -> Unit,
-//    onViewAllListings: () -> Unit,
-//    onViewAllRequests: () -> Unit,
-//    onViewAllReservations: () -> Unit,
-//    onViewImpact: () -> Unit,
-//    onRequestClick: (Long) -> Unit,
-//    onReservationClick: (Long) -> Unit,
-//    viewModel: MerchantViewModel
-//) {
-//
-//    // ============================================================
-//    // Load merchant data when dashboard opens
-//    // ============================================================
-//
-//    LaunchedEffect(Unit) {
-//        viewModel.loadMerchantData()
-//    }
-//
-//
-//    // ============================================================
-//    // Observe data
-//    // ============================================================
-//
-//    val listings by viewModel.listings.collectAsState()
-//
-//    // Charity requests already assigned to this merchant
-//    val requests by viewModel.requests.collectAsState()
-//
-//    // Unclaimed charity requests
-//    val generalRequests by viewModel.generalRequests.collectAsState()
-//
-//    // User reservations belonging to this merchant
-//    val reservations by viewModel.reservations.collectAsState()
-//
-//    val isLoading by viewModel.isLoading.collectAsState()
-//
-//    val username =
-//        CurrentUser.getUserName()
-//
-//
-//    // ============================================================
-//    // Pending Claims
-//    // ============================================================
-//
-//    // Charity requests for this merchant's posted donations
-//    val pendingAssignedCharityRequests =
-//        requests.count {
-//            it.status == "Pending"
-//        }
-//
-//
-//    // General requests from charities that are not assigned
-//    // to any merchant yet
-//    val pendingGeneralCharityRequests =
-//        generalRequests.count {
-//            it.status == "Pending"
-//        }
-//
-//
-//    // Combine both types of charity requests
-//    val pendingCharityRequests =
-//        pendingAssignedCharityRequests +
-//                pendingGeneralCharityRequests
-//
-//
-//    // User reservations
-//    val pendingUserReservations =
-//        reservations.count {
-//            it.status == "Pending"
-//        }
-//
-//
-//    // Total things requiring attention
-//    val totalPendingClaims =
-//        pendingCharityRequests +
-//                pendingUserReservations
-//
-//
-//    // ============================================================
-//    // Pickups
-//    // ============================================================
-//
-//    // IMPORTANT:
-//    // General/unclaimed requests are NOT included here.
-//    //
-//    // Only requests already assigned to this merchant
-//    // and user reservations are considered pickups.
-//    // ============================================================
-//
-//    val activeRequests =
-//        requests.filter {
-//            it.status != "Completed" &&
-//                    it.status != "Cancelled"
-//        }
-//
-//
-//    val activeReservations =
-//        reservations.filter {
-//            it.status != "Completed" &&
-//                    it.status != "Cancelled"
-//        }
-//
-//
-//    val totalPickups =
-//        activeRequests.size +
-//                activeReservations.size
-//
-//
-//    val pendingPickupsRequests =
-//        activeRequests.count {
-//            it.status == "Pending"
-//        }
-//
-//
-//    val pendingPickupsReservations =
-//        activeReservations.count {
-//            it.status == "Pending"
-//        }
-//
-//
-//    // ============================================================
-//    // Recent Activity
-//    // ============================================================
-//
-//    val recentItems =
-//        remember(
-//            reservations,
-//            generalRequests,
-//            requests
-//        ) {
-//
-//            val items =
-//                mutableListOf<ActivityItem>()
-//
-//
-//            // ----------------------------------------------------
-//            // Recent user reservations
-//            // ----------------------------------------------------
-//
-//            reservations
-//                .take(2)
-//                .forEach { res ->
-//
-//                    items.add(
-//                        ActivityItem.Reservation(
-//
-//                            user =
-//                                res.userId.take(8),
-//
-//                            food =
-//                                res.foodName,
-//
-//                            quantity =
-//                                res.quantity,
-//
-//                            pickupTime =
-//                                res.pickupTime,
-//
-//                            status =
-//                                res.status,
-//
-//                            timestamp =
-//                                res.createdAt
-//                        )
-//                    )
-//                }
-//
-//
-//            // ----------------------------------------------------
-//            // Recent general charity requests
-//            // ----------------------------------------------------
-//
-//            generalRequests
-//                .filter {
-//                    it.status == "Confirmed"
-//                }
-//                .take(2)
-//                .forEach { req ->
-//
-//                    items.add(
-//                        ActivityItem.Request(
-//
-//                            org =
-//                                req.organisationName,
-//
-//                            food =
-//                                req.foodName,
-//
-//                            quantity =
-//                                req.quantity,
-//
-//                            status =
-//                                req.status,
-//
-//                            timestamp =
-//                                req.createdAt
-//                        )
-//                    )
-//                }
-//
-//
-//            // Newest first
-//            items
-//                .sortedByDescending {
-//                    it.timestamp
-//                }
-//                .take(2)
-//        }
-//
-//
-//    // ============================================================
-//    // Screen
-//    // ============================================================
-//
-//    Box(
-//        modifier = Modifier
-//            .fillMaxSize()
-//            .padding(paddingValues)
-//            .background(BgCream)
-//    ) {
-//
-//        if (isLoading) {
-//
-//            Box(
-//                modifier = Modifier.fillMaxSize(),
-//                contentAlignment = Alignment.Center
-//            ) {
-//
-//                CircularProgressIndicator(
-//                    color = OrangeAccent
-//                )
-//            }
-//
-//        } else {
-//
-//            LazyColumn(
-//                modifier = Modifier.fillMaxSize(),
-//
-//                contentPadding =
-//                    PaddingValues(16.dp),
-//
-//                verticalArrangement =
-//                    Arrangement.spacedBy(16.dp)
-//            ) {
-//
-//
-//                // =================================================
-//                // 1. Welcome Header
-//                // =================================================
-//
-//                item {
-//
-//                    Column {
-//
-//                        Text(
-//                            text =
-//                                "Welcome back, $username!",
-//
-//                            style =
-//                                MaterialTheme.typography.headlineSmall,
-//
-//                            fontWeight =
-//                                FontWeight.Bold,
-//
-//                            color =
-//                                Color(0xFF1E1B16)
-//                        )
-//
-//                        Text(
-//                            text =
-//                                "Here is what is happening today.",
-//
-//                            style =
-//                                MaterialTheme.typography.bodyMedium,
-//
-//                            color =
-//                                Color.Gray
-//                        )
-//                    }
-//                }
-//
-//
-//                // =================================================
-//                // 2. Your Impact
-//                // =================================================
-//
-//                item {
-//
-//                    ImpactCard(
-//
-//                        impact =
-//                            "1,240 LBS",
-//
-//                        subtitle =
-//                            "Food diverted from landfill this month.",
-//
-//                        onViewReport =
-//                            onViewImpact
-//                    )
-//                }
-//
-//
-//                // =================================================
-//                // 3. Pending Claims
-//                // =================================================
-//
-//                item {
-//
-//                    PendingClaimsCard(
-//
-//                        total =
-//                            totalPendingClaims,
-//
-//                        charityCount =
-//                            pendingCharityRequests,
-//
-//                        reservationCount =
-//                            pendingUserReservations,
-//
-//                        onViewAll =
-//                            onViewAllRequests
-//                    )
-//                }
-//
-//
-//                // =================================================
-//                // 4. Pickups
-//                // =================================================
-//
-//                item {
-//
-//                    PickupsTodayCard(
-//
-//                        total =
-//                            totalPickups,
-//
-//                        charityCount =
-//                            activeRequests.size,
-//
-//                        charityPending =
-//                            pendingPickupsRequests,
-//
-//                        reservationCount =
-//                            activeReservations.size,
-//
-//                        reservationPending =
-//                            pendingPickupsReservations,
-//
-//                        onManage =
-//                            onViewAllReservations
-//                    )
-//                }
-//
-//
-//                // =================================================
-//                // 5. Recent Activity Header
-//                // =================================================
-//
-//                item {
-//
-//                    Row(
-//
-//                        modifier =
-//                            Modifier.fillMaxWidth(),
-//
-//                        horizontalArrangement =
-//                            Arrangement.SpaceBetween,
-//
-//                        verticalAlignment =
-//                            Alignment.CenterVertically
-//                    ) {
-//
-//                        Text(
-//                            text =
-//                                "Recent Activity",
-//
-//                            style =
-//                                MaterialTheme.typography.titleMedium,
-//
-//                            fontWeight =
-//                                FontWeight.Bold
-//                        )
-//
-//
-//                        TextButton(
-//                            onClick = {
-//                                // TODO:
-//                                // Navigate to full activity log
-//                            }
-//                        ) {
-//
-//                            Text(
-//                                text =
-//                                    "See all",
-//
-//                                color =
-//                                    OrangeAccent,
-//
-//                                fontWeight =
-//                                    FontWeight.Bold
-//                            )
-//                        }
-//                    }
-//                }
-//
-//
-//                // =================================================
-//                // Recent activities
-//                // =================================================
-//
-//                items(
-//                    recentItems
-//                ) { activity ->
-//
-//                    when (activity) {
-//
-//                        is ActivityItem.Reservation -> {
-//
-//                            ActivityCard(
-//
-//                                icon =
-//                                    "👤",
-//
-//                                title =
-//                                    "${activity.user} reserved",
-//
-//                                subtitle =
-//                                    "${activity.quantity} × ${activity.food}",
-//
-//                                meta =
-//                                    "Pickup expected by ${activity.pickupTime}",
-//
-//                                timestamp =
-//                                    activity.timestamp,
-//
-//                                status =
-//                                    activity.status
-//                            )
-//                        }
-//
-//
-//                        is ActivityItem.Request -> {
-//
-//                            ActivityCard(
-//
-//                                icon =
-//                                    "🏢",
-//
-//                                title =
-//                                    "${activity.org} approved",
-//
-//                                subtitle =
-//                                    "${activity.quantity} × ${activity.food}",
-//
-//                                meta =
-//                                    "Donation receipt generated.",
-//
-//                                timestamp =
-//                                    activity.timestamp,
-//
-//                                status =
-//                                    activity.status
-//                            )
-//                        }
-//                    }
-//                }
-//
-//
-//                // =================================================
-//                // No activity
-//                // =================================================
-//
-//                if (recentItems.isEmpty()) {
-//
-//                    item {
-//
-//                        Box(
-//
-//                            modifier =
-//                                Modifier
-//                                    .fillMaxWidth()
-//                                    .padding(32.dp),
-//
-//                            contentAlignment =
-//                                Alignment.Center
-//                        ) {
-//
-//                            Text(
-//                                text =
-//                                    "No recent activity.",
-//
-//                                color =
-//                                    Color.Gray
-//                            )
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-//}
-//
-//
-//// =================================================================
-//// Impact Card
-//// =================================================================
-//
-//@Composable
-//fun ImpactCard(
-//    impact: String,
-//    subtitle: String,
-//    onViewReport: () -> Unit
-//) {
-//
-//    Card(
-//
-//        modifier =
-//            Modifier
-//                .fillMaxWidth()
-//                .clickable {
-//                    onViewReport()
-//                },
-//
-//        shape =
-//            RoundedCornerShape(16.dp),
-//
-//        colors =
-//            CardDefaults.cardColors(
-//                containerColor =
-//                    Color.White
-//            ),
-//
-//        elevation =
-//            CardDefaults.cardElevation(2.dp)
-//    ) {
-//
-//        Column(
-//            modifier =
-//                Modifier.padding(20.dp)
-//        ) {
-//
-//            Text(
-//                text =
-//                    "Your Impact",
-//
-//                style =
-//                    MaterialTheme.typography.labelMedium,
-//
-//                color =
-//                    Color.Gray
-//            )
-//
-//
-//            Text(
-//                text =
-//                    impact,
-//
-//                style =
-//                    MaterialTheme.typography.headlineMedium,
-//
-//                fontWeight =
-//                    FontWeight.ExtraBold,
-//
-//                color =
-//                    OrangeAccent
-//            )
-//
-//
-//            Text(
-//                text =
-//                    subtitle,
-//
-//                style =
-//                    MaterialTheme.typography.bodySmall,
-//
-//                color =
-//                    Color.Gray
-//            )
-//
-//
-//            Spacer(
-//                modifier =
-//                    Modifier.height(8.dp)
-//            )
-//
-//
-//            Text(
-//                text =
-//                    "View Report →",
-//
-//                color =
-//                    OrangeAccent,
-//
-//                fontWeight =
-//                    FontWeight.Bold,
-//
-//                style =
-//                    MaterialTheme.typography.labelLarge
-//            )
-//        }
-//    }
-//}
-//
-//
-//// =================================================================
-//// Pending Claims Card
-//// =================================================================
-//
-//@Composable
-//fun PendingClaimsCard(
-//    total: Int,
-//    charityCount: Int,
-//    reservationCount: Int,
-//    onViewAll: () -> Unit
-//) {
-//
-//    Card(
-//
-//        modifier =
-//            Modifier
-//                .fillMaxWidth()
-//                .clickable {
-//                    onViewAll()
-//                },
-//
-//        shape =
-//            RoundedCornerShape(16.dp),
-//
-//        colors =
-//            CardDefaults.cardColors(
-//                containerColor =
-//                    Color.White
-//            ),
-//
-//        elevation =
-//            CardDefaults.cardElevation(2.dp)
-//    ) {
-//
-//        Column(
-//            modifier =
-//                Modifier.padding(16.dp)
-//        ) {
-//
-//            Text(
-//                text =
-//                    "Pending Claims",
-//
-//                style =
-//                    MaterialTheme.typography.labelMedium,
-//
-//                color =
-//                    Color.Gray
-//            )
-//
-//
-//            Text(
-//                text =
-//                    "$total",
-//
-//                style =
-//                    MaterialTheme.typography.headlineMedium,
-//
-//                fontWeight =
-//                    FontWeight.Bold,
-//
-//                color =
-//                    Color(0xFF1E1B16)
-//            )
-//
-//
-//            Row(
-//
-//                modifier =
-//                    Modifier.fillMaxWidth(),
-//
-//                horizontalArrangement =
-//                    Arrangement.spacedBy(8.dp)
-//            ) {
-//
-//                Text(
-//                    text =
-//                        "$charityCount Charity Requests",
-//
-//                    color =
-//                        Color.Gray
-//                )
-//
-//
-//                Text(
-//                    text =
-//                        "•",
-//
-//                    color =
-//                        Color.Gray
-//                )
-//
-//
-//                Text(
-//                    text =
-//                        "$reservationCount User Reservations",
-//
-//                    color =
-//                        Color.Gray
-//                )
-//            }
-//
-//
-//            Spacer(
-//                modifier =
-//                    Modifier.height(8.dp)
-//            )
-//
-//
-//            OutlinedButton(
-//
-//                onClick =
-//                    onViewAll,
-//
-//                modifier =
-//                    Modifier.fillMaxWidth(),
-//
-//                shape =
-//                    RoundedCornerShape(50),
-//
-//                colors =
-//                    ButtonDefaults.outlinedButtonColors(
-//                        contentColor =
-//                            OrangeAccent
-//                    )
-//            ) {
-//
-//                Text(
-//                    text =
-//                        "View All Requests →"
-//                )
-//            }
-//        }
-//    }
-//}
-//
-//
-//// =================================================================
-//// Pickups Today Card
-//// =================================================================
-//
-//@Composable
-//fun PickupsTodayCard(
-//    total: Int,
-//    charityCount: Int,
-//    charityPending: Int,
-//    reservationCount: Int,
-//    reservationPending: Int,
-//    onManage: () -> Unit
-//) {
-//
-//    Card(
-//
-//        modifier =
-//            Modifier
-//                .fillMaxWidth()
-//                .clickable {
-//                    onManage()
-//                },
-//
-//        shape =
-//            RoundedCornerShape(16.dp),
-//
-//        colors =
-//            CardDefaults.cardColors(
-//                containerColor =
-//                    Color.White
-//            ),
-//
-//        elevation =
-//            CardDefaults.cardElevation(2.dp)
-//    ) {
-//
-//        Column(
-//            modifier =
-//                Modifier.padding(16.dp)
-//        ) {
-//
-//            Text(
-//                text =
-//                    "Pickups Today",
-//
-//                style =
-//                    MaterialTheme.typography.labelMedium,
-//
-//                color =
-//                    Color.Gray
-//            )
-//
-//
-//            Text(
-//                text =
-//                    "$total",
-//
-//                style =
-//                    MaterialTheme.typography.headlineMedium,
-//
-//                fontWeight =
-//                    FontWeight.Bold,
-//
-//                color =
-//                    Color(0xFF1E1B16)
-//            )
-//
-//
-//            Row(
-//
-//                modifier =
-//                    Modifier.fillMaxWidth(),
-//
-//                horizontalArrangement =
-//                    Arrangement.spacedBy(8.dp)
-//            ) {
-//
-//                Text(
-//                    text =
-//                        "$charityCount Charity Requests ($charityPending pending)",
-//
-//                    color =
-//                        Color.Gray
-//                )
-//
-//
-//                Text(
-//                    text =
-//                        "•",
-//
-//                    color =
-//                        Color.Gray
-//                )
-//
-//
-//                Text(
-//                    text =
-//                        "$reservationCount User Reservations ($reservationPending pending)",
-//
-//                    color =
-//                        Color.Gray
-//                )
-//            }
-//
-//
-//            Spacer(
-//                modifier =
-//                    Modifier.height(8.dp)
-//            )
-//
-//
-//            OutlinedButton(
-//
-//                onClick =
-//                    onManage,
-//
-//                modifier =
-//                    Modifier.fillMaxWidth(),
-//
-//                shape =
-//                    RoundedCornerShape(50),
-//
-//                colors =
-//                    ButtonDefaults.outlinedButtonColors(
-//                        contentColor =
-//                            OrangeAccent
-//                    )
-//            ) {
-//
-//                Text(
-//                    text =
-//                        "Manage Pickups →"
-//                )
-//            }
-//        }
-//    }
-//}
-//
-//
-//// =================================================================
-//// Activity Models
-//// =================================================================
-//
-//sealed class ActivityItem {
-//
-//    abstract val timestamp: String?
-//
-//
-//    data class Reservation(
-//
-//        val user: String,
-//
-//        val food: String,
-//
-//        val quantity: String,
-//
-//        val pickupTime: String,
-//
-//        val status: String,
-//
-//        override val timestamp: String?
-//
-//    ) : ActivityItem()
-//
-//
-//    data class Request(
-//
-//        val org: String,
-//
-//        val food: String,
-//
-//        val quantity: Int,
-//
-//        val status: String,
-//
-//        override val timestamp: String?
-//
-//    ) : ActivityItem()
-//}
-//
-//
-//// =================================================================
-//// Activity Card
-//// =================================================================
-//
-//@Composable
-//fun ActivityCard(
-//
-//    icon: String,
-//
-//    title: String,
-//
-//    subtitle: String,
-//
-//    meta: String,
-//
-//    timestamp: String?,
-//
-//    status: String
-//
-//) {
-//
-//    Card(
-//
-//        modifier =
-//            Modifier.fillMaxWidth(),
-//
-//        shape =
-//            RoundedCornerShape(12.dp),
-//
-//        colors =
-//            CardDefaults.cardColors(
-//                containerColor =
-//                    Color.White
-//            ),
-//
-//        elevation =
-//            CardDefaults.cardElevation(1.dp)
-//    ) {
-//
-//        Row(
-//
-//            modifier =
-//                Modifier
-//                    .fillMaxWidth()
-//                    .padding(16.dp),
-//
-//            verticalAlignment =
-//                Alignment.CenterVertically
-//        ) {
-//
-//            Text(
-//                text =
-//                    icon,
-//
-//                fontSize =
-//                    24.sp
-//            )
-//
-//
-//            Spacer(
-//                modifier =
-//                    Modifier.width(12.dp)
-//            )
-//
-//
-//            Column(
-//                modifier =
-//                    Modifier.weight(1f)
-//            ) {
-//
-//                Text(
-//                    text =
-//                        title,
-//
-//                    fontWeight =
-//                        FontWeight.Bold
-//                )
-//
-//
-//                Text(
-//                    text =
-//                        subtitle,
-//
-//                    style =
-//                        MaterialTheme.typography.bodyMedium,
-//
-//                    color =
-//                        Color.Gray
-//                )
-//
-//
-//                Text(
-//                    text =
-//                        meta,
-//
-//                    style =
-//                        MaterialTheme.typography.bodySmall,
-//
-//                    color =
-//                        Color.Gray
-//                )
-//            }
-//
-//
-//            val timeAgo =
-//                formatTimeAgo(timestamp)
-//
-//
-//            Text(
-//
-//                text =
-//                    timeAgo,
-//
-//                style =
-//                    MaterialTheme.typography.labelSmall,
-//
-//                color =
-//                    Color.Gray
-//            )
-//        }
-//    }
-//}
-//
-//
-//// =================================================================
-//// Format timestamp
-//// =================================================================
-//
-//fun formatTimeAgo(
-//    timestamp: String?
-//): String {
-//
-//    if (timestamp.isNullOrBlank()) {
-//        return "now"
-//    }
-//
-//
-//    return try {
-//
-//        val format =
-//            SimpleDateFormat(
-//                "yyyy-MM-dd'T'HH:mm:ss.SSSSSS",
-//                Locale.getDefault()
-//            )
-//
-//
-//        val date =
-//            format.parse(timestamp)
-//
-//
-//        if (date == null) {
-//            return "now"
-//        }
-//
-//
-//        val diff =
-//            Date().time - date.time
-//
-//
-//        val minutes =
-//            diff / 1000 / 60
-//
-//
-//        when {
-//
-//            minutes < 1 ->
-//                "now"
-//
-//            minutes < 60 ->
-//                "${minutes}m ago"
-//
-//            minutes < 1440 ->
-//                "${minutes / 60}h ago"
-//
-//            else ->
-//                "${minutes / 1440}d ago"
-//        }
-//
-//    } catch (e: Exception) {
-//
-//        "now"
-//    }
-//}
-
 package com.sharebite.app.ui.merchant
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.sharebite.app.data.model.CharityRequest
+import com.sharebite.app.data.model.FoodListing
+import com.sharebite.app.data.model.Reservation as ReservationModel
 import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.BgCream
+import com.sharebite.app.ui.theme.GreenConfirmed
 import com.sharebite.app.ui.theme.OrangeAccent
+import com.sharebite.app.ui.theme.RedCancelled
+import com.sharebite.app.ui.theme.TextDark
+import com.sharebite.app.ui.theme.TextGrey
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
 
 @Composable
 fun MerchantDashboardScreen(
@@ -2766,20 +47,43 @@ fun MerchantDashboardScreen(
     onReservationClick: (Long) -> Unit,
     viewModel: MerchantViewModel
 ) {
+    // ── 数据加载 ──────────────────────────────────────────────
+    // 登录后立即加载数据，并每 30 秒刷新一次（可选）
+    LaunchedEffect(Unit) {
+        viewModel.loadMerchantData()
+        viewModel.loadGeneralRequests()
+    }
+
+    // 也可以添加一个手动刷新的状态
+    val isLoading by viewModel.isLoading.collectAsState()
     val listings by viewModel.listings.collectAsState()
     val requests by viewModel.requests.collectAsState()
     val generalRequests by viewModel.generalRequests.collectAsState()
     val reservations by viewModel.reservations.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
     val username = CurrentUser.getUserName()
 
-    // ── Pending Claims counts ──────────────────────────────────────
-    val pendingCharityRequests = generalRequests.count { it.status == "Pending" } +
-            requests.count { it.status == "Pending" }
-    val pendingUserReservations = reservations.count { it.status == "Pending" }
-    val totalPendingClaims = pendingCharityRequests + pendingUserReservations
+    // ── KPI 数据 ──────────────────────────────────────────────
+    val pendingCount = generalRequests.count { it.status == "Pending" } +
+            reservations.count { it.status == "Pending" }
 
-    // ── Recent Activity ──────────────────────────────────────────────
+    val inProgressCount = requests.count { it.status == "Confirmed" } +
+            reservations.count { it.status == "Confirmed" }
+
+    val toShipCount = listings.count { it.status == "claimed" }
+
+    // ── Pending Items ──────────────────────────────────────────
+    val pendingItems = remember(generalRequests, reservations) {
+        val items = mutableListOf<PendingItem>()
+        generalRequests.filter { it.status == "Pending" }.forEach { req ->
+            items.add(PendingItem.Charity(req))
+        }
+        reservations.filter { it.status == "Pending" }.forEach { res ->
+            items.add(PendingItem.Reservation(res))
+        }
+        items.sortedByDescending { it.createdAt }.take(3)
+    }
+
+    // ── Recent Activity ────────────────────────────────────────
     val recentItems = remember(reservations, generalRequests, requests) {
         val items = mutableListOf<ActivityItem>()
         reservations.take(2).forEach { res ->
@@ -2787,25 +91,35 @@ fun MerchantDashboardScreen(
                 ActivityItem.Reservation(
                     user = res.userId.take(8),
                     food = res.foodName,
-                    quantity = res.quantity,
+                    quantity = res.quantityNum,
                     pickupTime = res.pickupTime,
                     status = res.status,
                     timestamp = res.createdAt ?: ""
                 )
             )
         }
-        generalRequests.filter { it.status == "Confirmed" }.take(2).forEach { req ->
+        requests.filter { it.status == "Confirmed" }.take(2).forEach { req ->
             items.add(
                 ActivityItem.Request(
                     org = req.organisationName,
                     food = req.foodName,
                     quantity = req.quantity,
                     status = req.status,
-                    timestamp = req.createdAt ?: ""
+                    timestamp = req.createdAt
                 )
             )
         }
         items.sortedByDescending { it.timestamp }.take(2)
+    }
+
+    // ── Discover Needs ─────────────────────────────────────────
+    val discoverItems = remember(generalRequests) {
+        generalRequests.filter { it.status == "Pending" }.take(4)
+    }
+
+    // ── Recent Listings ────────────────────────────────────────
+    val recentListings = remember(listings) {
+        listings.filter { it.status == "available" }.take(3)
     }
 
     Box(
@@ -2828,115 +142,181 @@ fun MerchantDashboardScreen(
                 item {
                     Column {
                         Text(
-                            "Welcome back, $username!",
+                            "Welcome back, $username! 👋",
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E1B16)
+                            color = TextDark
                         )
                         Text(
                             "Here is what is happening today.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray
+                            color = TextGrey
                         )
                     }
                 }
 
-                // 2️⃣ Your Impact
+                // 2️⃣ CTA Card（整体不可点击，只有按钮可点击）
                 item {
-                    ImpactCard(
-                        impact = "1,240 LBS",
-                        subtitle = "Food diverted from landfill this month.",
-                        onViewReport = onViewImpact
+                    CreateDonationCard(onCreateClick = onAddDonationClick)
+                }
+
+                // 3️⃣ KPI Cards（图标上，数字下，居中）
+                item {
+                    KPIGrid(
+                        pending = pendingCount,
+                        inProgress = inProgressCount,
+                        toShip = toShipCount
                     )
                 }
 
-                // 3️⃣ Create Donation (NEW)
+                // 4️⃣ Awaiting Action（卡片无点击，只有按钮）
                 item {
-                    CreateDonationCard(
-                        onCreateClick = onAddDonationClick
+                    AwaitingActionSection(
+                        pendingItems = pendingItems,
+                        onViewAll = onViewAllRequests,
+                        onItemClick = { item ->
+                            when (item) {
+                                is PendingItem.Charity -> onRequestClick(item.request.id)
+                                is PendingItem.Reservation -> onReservationClick(item.reservation.id)
+                            }
+                        }
                     )
                 }
 
-                // 4️⃣ Pending Claims
+                // 5️⃣ Recent Activity（卡片无点击，只有 “See all” 按钮）
                 item {
-                    PendingClaimsCard(
-                        total = totalPendingClaims,
-                        charityCount = pendingCharityRequests,
-                        reservationCount = pendingUserReservations,
-                        onViewAll = onViewAllRequests
+                    RecentActivitySection(
+                        activities = recentItems,
+                        onSeeAllClick = onViewAllRequests
                     )
                 }
 
-                // 5️⃣ Recent Activity
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Recent Activity", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        TextButton(onClick = { /* navigate to full activity log */ }) {
-                            Text("See all", color = OrangeAccent, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-
-                items(recentItems.take(2)) { activity ->
-                    when (activity) {
-                        is ActivityItem.Reservation -> {
-                            ActivityCard(
-                                icon = "👤",
-                                title = "${activity.user} reserved",
-                                subtitle = "${activity.quantity} × ${activity.food}",
-                                meta = "Pickup expected by ${activity.pickupTime}",
-                                timestamp = activity.timestamp,
-                                status = activity.status
-                            )
-                        }
-                        is ActivityItem.Request -> {
-                            ActivityCard(
-                                icon = "🏢",
-                                title = "${activity.org} approved",
-                                subtitle = "${activity.quantity} × ${activity.food}",
-                                meta = "Donation receipt generated.",
-                                timestamp = activity.timestamp,
-                                status = activity.status
-                            )
-                        }
-                    }
-                }
-
-                if (recentItems.isEmpty()) {
+                // 6️⃣ Discover Needs（卡片无点击，只有按钮）
+                if (discoverItems.isNotEmpty()) {
                     item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("No recent activity.", color = Color.Gray)
-                        }
+                        DiscoverNeedsSection(
+                            items = discoverItems,
+                            onItemClick = { request -> onRequestClick(request.id) }
+                        )
                     }
+                }
+
+                // 7️⃣ My Listings（卡片无点击，只有按钮）
+                if (recentListings.isNotEmpty()) {
+                    item {
+                        MyListingsSection(
+                            items = recentListings,
+                            onViewAll = onViewAllListings,
+                            onItemClick = { /* 可跳转到详情，目前没有直接方法，留空或跳转全部 */ }
+                        )
+                    }
+                }
+
+                // 8️⃣ Impact Report（整体不可点击，只有内部按钮）
+                item {
+                    ImpactEntryCard(onViewReport = onViewImpact)
                 }
             }
         }
     }
 }
 
-// ─── Create Donation Card ──────────────────────────────────────────
+// ─── KPI Grid ──────────────────────────────────────────────────────
+// 3 cards in a row: Pending, In Progress, To Ship
+// 图标在上，数字和标签在下，居中
 
 @Composable
-fun CreateDonationCard(
-    onCreateClick: () -> Unit
+fun KPIGrid(pending: Int, inProgress: Int, toShip: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        KPICard(
+            icon = Icons.Default.Inbox,
+            label = "Pending",
+            value = pending.toString(),
+            iconColor = OrangeAccent,
+            modifier = Modifier.weight(1f)
+        )
+        KPICard(
+            icon = Icons.Default.LocalShipping,
+            label = "In Progress",
+            value = inProgress.toString(),
+            iconColor = Color(0xFF1976D2),
+            modifier = Modifier.weight(1f)
+        )
+        KPICard(
+            icon = Icons.Default.Inventory2,
+            label = "To Ship",
+            value = toShip.toString(),
+            iconColor = Color(0xFFF4A261),
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+fun KPICard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String,
+    iconColor: Color,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCreateClick() },
+        modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFF3E0) // Light warm orange
-        ),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp, horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            // 图标在上
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(iconColor.copy(alpha = 0.12f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = iconColor
+                )
+            }
+            // 数字居中
+            Text(
+                text = value,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextDark
+            )
+            // 标签在下方
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                color = TextGrey,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+// ─── Create Donation Card ──────────────────────────────────────────
+// 卡片本身不可点击，只有按钮
+
+@Composable
+fun CreateDonationCard(onCreateClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(
@@ -2947,7 +327,7 @@ fun CreateDonationCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "🍽️ Share Food Now",
+                    "Share Food Now",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
                     color = Color(0xFF4E342E)
@@ -2969,140 +349,276 @@ fun CreateDonationCard(
     }
 }
 
-// ─── Impact Card ────────────────────────────────────────────────────
+// ─── Awaiting Action Section ──────────────────────────────────────
+// 卡片无整体点击，只有 "View Details" 按钮
 
 @Composable
-fun ImpactCard(
-    impact: String,
-    subtitle: String,
-    onViewReport: () -> Unit
+fun AwaitingActionSection(
+    pendingItems: List<PendingItem>,
+    onViewAll: () -> Unit,
+    onItemClick: (PendingItem) -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onViewReport() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text("Your Impact", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
-                impact,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.ExtraBold,
-                color = OrangeAccent
-            )
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "View Report →",
-                color = OrangeAccent,
+                "Awaiting Action (${pendingItems.size})",
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.labelLarge
+                color = TextDark
             )
+            TextButton(onClick = onViewAll) {
+                Text("View All", color = OrangeAccent, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        if (pendingItems.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(1.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = GreenConfirmed,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("All clear! No pending requests.", color = TextGrey, fontSize = 14.sp)
+                }
+            }
+        } else {
+            pendingItems.forEach { item ->
+                when (item) {
+                    is PendingItem.Charity -> {
+                        val request = item.request
+                        AwaitingActionCard(
+                            title = request.organisationName,
+                            food = request.foodName,
+                            quantity = "${request.quantity} ×",
+                            isUrgent = true,
+                            onClick = { onItemClick(item) }
+                        )
+                    }
+                    is PendingItem.Reservation -> {
+                        val reservation = item.reservation
+                        AwaitingActionCard(
+                            title = "User: ${reservation.userId.take(8)}",
+                            food = reservation.foodName,
+                            quantity = "${reservation.quantityNum} ×",
+                            isUrgent = false,
+                            onClick = { onItemClick(item) }
+                        )
+                    }
+                }
+            }
         }
     }
 }
 
-// ─── Pending Claims Card ──────────────────────────────────────────
-
 @Composable
-fun PendingClaimsCard(
-    total: Int,
-    charityCount: Int,
-    reservationCount: Int,
-    onViewAll: () -> Unit
+fun AwaitingActionCard(
+    title: String,
+    food: String,
+    quantity: String,
+    isUrgent: Boolean,
+    onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onViewAll() },
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                "Pending Claims",
-                style = MaterialTheme.typography.labelMedium,
-                color = Color.Gray,
-                fontSize = 12.sp
-            )
-            Text(
-                "$total",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E1B16)
-            )
-            Column(
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("$charityCount Charity Requests", color = Color.Gray, fontSize = 14.sp)
-                Text("$reservationCount User Reservations", color = Color.Gray, fontSize = 14.sp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (isUrgent) OrangeAccent.copy(alpha = 0.15f)
+                                else Color(0xFFE3F2FD)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = title.take(1).uppercase(),
+                            fontWeight = FontWeight.Bold,
+                            color = if (isUrgent) OrangeAccent else Color(0xFF1976D2),
+                            fontSize = 18.sp
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = title,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = TextDark,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = "$quantity $food",
+                            fontSize = 13.sp,
+                            color = TextGrey
+                        )
+                    }
+                }
+
+                if (isUrgent) {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = OrangeAccent.copy(alpha = 0.12f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = OrangeAccent
+                            )
+                            Text(
+                                "Urgent",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = OrangeAccent
+                            )
+                        }
+                    }
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = Color(0xFFE3F2FD)
+                    ) {
+                        Text(
+                            "Standard",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF1976D2)
+                        )
+                    }
+                }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+
+            // 只有按钮可点击
             OutlinedButton(
-                onClick = onViewAll,
+                onClick = onClick,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent)
             ) {
-                Text("View All Requests →")
+                Icon(
+                    Icons.Default.ArrowForward,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("View Details", fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
 }
 
-// ─── Activity Models & Card ──────────────────────────────────────
+// ─── Recent Activity Section ──────────────────────────────────────
+// 卡片无点击，只有 "See all" 按钮
 
-//sealed class ActivityItem {
-//    data class Reservation(
-//        val user: String,
-//        val food: String,
-//        val quantity: String,
-//        val pickupTime: String,
-//        val status: String,
-//        val timestamp: String
-//    ) : ActivityItem()
-//    data class Request(
-//        val org: String,
-//        val food: String,
-//        val quantity: Int,
-//        val status: String,
-//        val timestamp: String?
-//    ) : ActivityItem()
-//}
-
-sealed class ActivityItem(
-    open val timestamp: String?
+@Composable
+fun RecentActivitySection(
+    activities: List<ActivityItem>,
+    onSeeAllClick: () -> Unit
 ) {
-    data class Reservation(
-        val user: String,
-        val food: String,
-        val quantity: String,
-        val pickupTime: String,
-        val status: String,
-        override val timestamp: String?
-    ) : ActivityItem(timestamp)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Recent Activity",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextDark
+            )
+            TextButton(onClick = onSeeAllClick) {
+                Text("See all", color = OrangeAccent, fontWeight = FontWeight.Bold)
+            }
+        }
 
-    data class Request(
-        val org: String,
-        val food: String,
-        val quantity: Int,
-        val status: String,
-        override val timestamp: String?
-    ) : ActivityItem(timestamp)
+        if (activities.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(1.dp)
+            ) {
+                Text(
+                    "No recent activity.",
+                    modifier = Modifier.padding(16.dp),
+                    color = TextGrey,
+                    fontSize = 14.sp
+                )
+            }
+        } else {
+            activities.take(1).forEach { activity ->
+                when (activity) {
+                    is ActivityItem.Reservation -> {
+                        ActivityCard(
+                            icon = Icons.Default.Person,
+                            title = "${activity.user} reserved",
+                            subtitle = "${activity.quantity} × ${activity.food}",
+                            meta = "Pickup expected by ${activity.pickupTime}",
+                            timestamp = activity.timestamp,
+                            status = activity.status
+                        )
+                    }
+                    is ActivityItem.Request -> {
+                        ActivityCard(
+                            icon = Icons.Default.Business,
+                            title = "${activity.org} approved",
+                            subtitle = "${activity.quantity} × ${activity.food}",
+                            meta = "Donation receipt generated.",
+                            timestamp = activity.timestamp,
+                            status = activity.status
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
 fun ActivityCard(
-    icon: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
     meta: String,
@@ -3121,30 +637,320 @@ fun ActivityCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(icon, fontSize = 24.sp)
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(Color(0xFFE8F5E9), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = GreenConfirmed
+                )
+            }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, fontWeight = FontWeight.Bold)
-                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-                Text(meta, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = TextGrey, fontSize = 13.sp)
+                Text(meta, style = MaterialTheme.typography.bodySmall, color = TextGrey, fontSize = 12.sp)
             }
             val timeAgo = formatTimeAgo(timestamp)
             Text(
                 timeAgo,
                 style = MaterialTheme.typography.labelSmall,
-                color = Color.Gray
+                color = TextGrey,
+                fontSize = 12.sp
             )
         }
     }
 }
 
-// ─── Helper: Format time ago ──────────────────────────────────────
+// ─── Discover Needs Section ──────────────────────────────────────
+// 卡片无整体点击，只有 "Offer Help" 按钮
+
+@Composable
+fun DiscoverNeedsSection(
+    items: List<CharityRequest>,
+    onItemClick: (CharityRequest) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Discover Needs",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextDark
+            )
+            TextButton(onClick = { /* navigate to full list */ }) {
+                Text("See all", color = OrangeAccent, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(items) { request ->
+                DiscoverNeedCard(
+                    request = request,
+                    onClick = { onItemClick(request) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DiscoverNeedCard(
+    request: CharityRequest,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.width(200.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(OrangeAccent.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    request.organisationName.take(1).uppercase(),
+                    fontWeight = FontWeight.Bold,
+                    color = OrangeAccent,
+                    fontSize = 18.sp
+                )
+            }
+
+            Text(
+                request.organisationName,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                color = TextDark,
+                maxLines = 1
+            )
+
+            Text(
+                "${request.quantity} × ${request.foodName}",
+                fontSize = 13.sp,
+                color = TextGrey,
+                maxLines = 2
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // 只有按钮可点击
+            OutlinedButton(
+                onClick = onClick,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent)
+            ) {
+                Text("Offer Help", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+    }
+}
+
+// ─── My Listings Section ──────────────────────────────────────────
+// 卡片无整体点击，只有按钮（如果有的话）
+
+@Composable
+fun MyListingsSection(
+    items: List<FoodListing>,
+    onViewAll: () -> Unit,
+    onItemClick: (FoodListing) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("My Listings", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
+            TextButton(onClick = onViewAll) {
+                Text("View All", color = OrangeAccent, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        // 改为 LazyRow，支持横向滑动
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(items) { listing ->
+                MyListingItem(
+                    listing = listing,
+                    onClick = { onItemClick(listing) },
+                    modifier = Modifier.width(120.dp) // 设置固定宽度，使每个 item 大小一致
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun MyListingItem(
+    listing: FoodListing,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.aspectRatio(1f),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // 显示真实照片
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFF5F0E8)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (listing.photoUrl != null) {
+                    AsyncImage(
+                        model = listing.photoUrl,
+                        contentDescription = listing.foodName,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.Fastfood,
+                        contentDescription = null,
+                        tint = OrangeAccent,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                listing.foodName,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = TextDark,
+                maxLines = 1
+            )
+            Text(
+                "${listing.remainingQuantity} left",
+                fontSize = 10.sp,
+                color = TextGrey
+            )
+            // 如果需要点击，可以加一个按钮，但这里暂时没有，因为用户没有要求在此处加按钮
+            // 如果有需要，可以加一个 "View" 按钮，但用户只要求移除卡片整体点击，所以现在整体无点击
+        }
+    }
+}
+
+// ─── Impact Entry Card ────────────────────────────────────────────
+// 卡片无整体点击，只有按钮（点击内部文字或图标都会触发，但只能通过按钮）
+
+@Composable
+fun ImpactEntryCard(onViewReport: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(GreenConfirmed.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Insights,
+                    contentDescription = null,
+                    tint = GreenConfirmed,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Impact Report",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = TextDark
+                )
+                Text(
+                    "See your lifetime donations & badges",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextGrey,
+                    fontSize = 13.sp
+                )
+            }
+            // 这里使用 TextButton 而不是直接 Text，确保只有按钮可点击
+            TextButton(
+                onClick = onViewReport,
+                colors = ButtonDefaults.textButtonColors(contentColor = OrangeAccent)
+            ) {
+                Text("View →", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            }
+        }
+    }
+}
+
+// ─── Data Models ──────────────────────────────────────────────────
+
+sealed class ActivityItem(open val timestamp: String?) {
+    data class Reservation(
+        val user: String,
+        val food: String,
+        val quantity: Int,
+        val pickupTime: String,
+        val status: String,
+        override val timestamp: String?
+    ) : ActivityItem(timestamp)
+
+    data class Request(
+        val org: String,
+        val food: String,
+        val quantity: Int,
+        val status: String,
+        override val timestamp: String?
+    ) : ActivityItem(timestamp)
+}
+
+sealed class PendingItem(open val createdAt: String?) {
+    data class Charity(val request: CharityRequest) : PendingItem(request.createdAt)
+    data class Reservation(val reservation: ReservationModel) : PendingItem(reservation.createdAt)
+}
+
+// ─── Helper ──────────────────────────────────────────────────────
 
 fun formatTimeAgo(timestamp: String?): String {
     return try {
         val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.getDefault())
-//        val date = format.parse(timestamp)
-//        if (date == null) return "now"
         val date = format.parse(timestamp) ?: return "now"
 
         val diff = Date().time - date.time

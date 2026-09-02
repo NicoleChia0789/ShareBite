@@ -51,7 +51,7 @@ fun MerchantAllReservationsScreen(
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text("User: ${reservation.userId.take(8)}", fontWeight = FontWeight.Bold)
-                                    Text("${reservation.quantity} x ${reservation.foodName}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                    Text("${reservation.quantityNum} x ${reservation.foodName}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                                 }
                                 Spacer(modifier = Modifier.weight(1f))
                                 Text(reservation.status, color = if (reservation.status == "Pending") OrangeAccent else Color.Gray)

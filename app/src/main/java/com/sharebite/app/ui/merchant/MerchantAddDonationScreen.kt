@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.sharebite.app.ui.theme.AppTextFieldDefaults
 import com.sharebite.app.ui.theme.BgCream
 import com.sharebite.app.ui.theme.OrangeAccent
 
@@ -45,17 +47,17 @@ fun MerchantAddDonationScreen(
 
     var currentStep by remember { mutableIntStateOf(0) }
 
-    var foodName by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("") }
-    var quantity by remember { mutableStateOf("") }
+    var foodName by rememberSaveable { mutableStateOf("") }
+    var category by rememberSaveable { mutableStateOf("") }
+    var quantity by rememberSaveable { mutableStateOf("") }
     var photoUri by remember { mutableStateOf<Uri?>(null) }
-    var existingPhotoUrl by remember { mutableStateOf<String?>(null) }
+    var existingPhotoUrl by rememberSaveable { mutableStateOf<String?>(null) }
 
-    var pickupDate by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
+    var pickupDate by rememberSaveable { mutableStateOf("") }
+    var address by rememberSaveable { mutableStateOf("") }
+    var notes by rememberSaveable { mutableStateOf("") }
 
-    var prefilled by remember { mutableStateOf(false) }
+    var prefilled by rememberSaveable { mutableStateOf(false) }
 
     val isSaving by viewModel.isSaving.collectAsState()
     val saveError by viewModel.saveError.collectAsState()
@@ -65,8 +67,7 @@ fun MerchantAddDonationScreen(
         if (!prefilled && existingListing != null) {
             foodName = existingListing.foodName
             category = existingListing.category
-            quantity = existingListing.quantity
-            existingPhotoUrl = existingListing.photoUrl
+            quantity = existingListing.totalQuantity.toString()
             pickupDate = existingListing.pickupDate
             address = existingListing.address
             notes = existingListing.notes ?: ""
@@ -76,7 +77,9 @@ fun MerchantAddDonationScreen(
 
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? -> photoUri = uri }
+    ) { uri: Uri? -> photoUri = uri
+        println("🔍 [UI] Photo selected: $photoUri")  // ← 添加这行
+    }
 
     val step0Valid = foodName.isNotBlank() && category.isNotBlank() && quantity.isNotBlank()
     val step1Valid = pickupDate.isNotBlank()
@@ -281,6 +284,7 @@ private fun StepDetails(
             label = { Text("Food Name") },
             placeholder = { Text("e.g. Assorted Morning Pastries") },
             modifier = Modifier.fillMaxWidth(),
+            colors = AppTextFieldDefaults.colors(),
             shape = RoundedCornerShape(12.dp),
             singleLine = true
         )

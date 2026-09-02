@@ -19,10 +19,9 @@ private data class NewFoodListing(
     @SerialName("food_name") val foodName: String,
     val category: String,
     val description: String? = null,
-    val quantity: String,
+    // ✅ 已删除 val quantity: String
     @SerialName("photo_url") val photoUrl: String? = null,
     @SerialName("pickup_date") val pickupDate: String? = null,
-    // ✅ 移除 pickupTime
     @SerialName("deadline") val deadline: String? = null,
     val address: String? = null,
     @SerialName("distance_km") val distanceKm: Double = 0.0,
@@ -35,7 +34,6 @@ private data class NewFoodListing(
     @SerialName("remaining_quantity") val remainingQuantity: Int = 10,
     @SerialName("dietary_type") val dietaryType: String? = null
 )
-
 @Serializable
 private data class ListingInsertResponse(
     @SerialName("id") val id: Long
@@ -58,7 +56,10 @@ class MerchantRepository {
         return try {
             SupabaseClient.client.postgrest["food_listings"]
                 .select {
-                    filter { eq("merchant_id", merchantId) }
+                    filter {
+                        eq("merchant_id", merchantId)
+                        eq("status", "available")  // ⚠️ 只查 available 状态
+                    }
                     order("created_at", Order.DESCENDING)
                 }
                 .decodeList<FoodListing>()
@@ -155,11 +156,10 @@ class MerchantRepository {
             }
     }
 
-    // ✅ 移除 pickupTime 参数
     suspend fun createListing(
         foodName: String,
         category: String,
-        quantity: String,
+        // ✅ 已删除 quantity: String
         photoUri: String?,
         pickupDate: String?,
         notes: String?,
@@ -168,8 +168,11 @@ class MerchantRepository {
         distanceKm: Double,
         dietaryType: String?,
         totalQuantity: Int,
-        remainingQuantity: Int
+        remainingQuantity: Int  // ✅ 保留
     ): Long {
+        println("🔍 [Repository] Received photoUri: '$photoUri'")
+        println("🔍 [Repository] photoUri is null? ${photoUri == null}")
+        println("🔍 [Repository] photoUri is blank? ${photoUri.isNullOrBlank()}")
         val merchantId = CurrentUser.getUserId()
         val newListing = NewFoodListing(
             merchantId = merchantId,
@@ -177,11 +180,10 @@ class MerchantRepository {
             foodName = foodName,
             category = category,
             description = description,
-            quantity = quantity,
+            // ✅ 不再传入 quantity
             photoUrl = photoUri,
             pickupDate = pickupDate,
-            // ✅ 不再传入 pickupTime
-            deadline = pickupDate, // 用 pickupDate 作为 deadline（或设为 null）
+            deadline = pickupDate,
             address = address,
             distanceKm = distanceKm,
             latitude = null,
@@ -190,7 +192,7 @@ class MerchantRepository {
             status = "available",
             portionInfo = null,
             totalQuantity = totalQuantity,
-            remainingQuantity = remainingQuantity,
+            remainingQuantity = remainingQuantity,  // ✅ 使用传入的 remainingQuantity
             dietaryType = dietaryType
         )
         val result = SupabaseClient.client.postgrest["food_listings"]

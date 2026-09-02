@@ -96,6 +96,14 @@ fun UserBrowseScreen(
     var isLocationLoading by remember { mutableStateOf(false) }
     var locationError by remember { mutableStateOf<String?>(null) }
     var isGettingLocation by remember { mutableStateOf(false) }
+    var hasLocationPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
 
     fun fetchLocation() {
         if (isGettingLocation) return
@@ -134,6 +142,7 @@ fun UserBrowseScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
+        hasLocationPermission = isGranted  // ✅ 更新权限状态
         if (isGranted) {
             fetchLocation()
         } else {
@@ -325,12 +334,7 @@ fun UserBrowseScreen(
                         )
                     },
                     shape = RoundedCornerShape(50),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = OrangeAccent,
-                        unfocusedBorderColor = Color(0xFFDDC0B8),
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White
-                    ),
+                    colors = AppTextFieldDefaults.colors() ,
                     singleLine = true
                 )
 
@@ -476,25 +480,33 @@ fun UserBrowseScreen(
                     }
 
                     LaunchedEffect(filteredListings, userLocation) {
-                        when {
-                            userLocation != null -> {
-                                cameraPositionState.animate(
-                                    CameraUpdateFactory.newLatLngZoom(
-                                        LatLng(userLocation!!.latitude, userLocation!!.longitude),
-                                        14f
-                                    ),
-                                    500
-                                )
+                        try {
+                            when {
+                                userLocation != null -> {
+                                    cameraPositionState.animate(
+                                        CameraUpdateFactory.newLatLngZoom(
+                                            LatLng(userLocation!!.latitude, userLocation!!.longitude),
+                                            14f
+                                        ),
+                                        500
+                                    )
+                                }
+                                locations.isNotEmpty() -> {
+                                    cameraPositionState.animate(
+                                        CameraUpdateFactory.newLatLngZoom(
+                                            LatLng(locations.first().latitude!!, locations.first().longitude!!),
+                                            13f
+                                        ),
+                                        500
+                                    )
+                                }
                             }
-                            locations.isNotEmpty() -> {
-                                cameraPositionState.animate(
-                                    CameraUpdateFactory.newLatLngZoom(
-                                        LatLng(locations.first().latitude!!, locations.first().longitude!!),
-                                        13f
-                                    ),
-                                    500
-                                )
-                            }
+                        } catch (e: Exception) {
+                            // 如果动画失败，使用默认位置
+                            cameraPositionState.animate(
+                                CameraUpdateFactory.newLatLngZoom(defaultLocation, 11f),
+                                500
+                            )
                         }
                     }
 
@@ -505,7 +517,9 @@ fun UserBrowseScreen(
                             zoomControlsEnabled = true,
                             myLocationButtonEnabled = false
                         ),
-                        properties = MapProperties(isMyLocationEnabled = true)
+                        properties = MapProperties(
+                            isMyLocationEnabled = hasLocationPermission  // ✅ 根据权限状态动态设置
+                        )
                     ) {
                         locations.forEach { listing ->
                             val location = LatLng(listing.latitude!!, listing.longitude!!)

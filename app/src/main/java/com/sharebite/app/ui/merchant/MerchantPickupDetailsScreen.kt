@@ -37,18 +37,25 @@ fun MerchantPickupDetailsScreen(
         if (itemType == "req") {
             val request = requests.find { it.id == itemId }
             if (request != null) {
-                Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+                ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(request.organisationName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Item: ${request.quantity} x ${request.foodName}", color = Color.Gray)
+                        // ✅ 食物名作为标题
+                        Text(request.foodName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("From: ${request.organisationName}", color = Color.Gray)
+                        Text("Quantity: ${request.quantity}", color = Color.Gray)
+                        Text("Pickup Date: ${request.pickupDate}", color = Color.Gray)
+                        Text("Pickup Time: ${request.pickupTime}", color = Color.Gray)
                         Text("Status: Approved", color = OrangeAccent)
                     }
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // ✅ Confirm Pickup Button for Approved Requests
                 Button(
                     onClick = {
                         viewModel.updateRequestStatus(itemId, "Completed")
@@ -63,19 +70,25 @@ fun MerchantPickupDetailsScreen(
         } else {
             val reservation = reservations.find { it.id == itemId }
             if (reservation != null) {
-                Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+                ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("User: ${reservation.userId}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Item: ${reservation.quantity} x ${reservation.foodName}", color = Color.Gray)
-                        Text("Pickup: ${reservation.pickupDate} at ${reservation.pickupTime}", color = Color.Gray)
+                        // ✅ 食物名作为标题
+                        Text(reservation.foodName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Reserved by: ${reservation.userId}", color = Color.Gray)
+                        Text("Quantity: ${reservation.quantityNum} × ${reservation.unit}", color = Color.Gray)
+                        Text("Pickup Date: ${reservation.pickupDate}", color = Color.Gray)
+                        Text("Pickup Time: ${reservation.pickupTime}", color = Color.Gray)
                         Text("Status: Approved", color = OrangeAccent)
                     }
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // ✅ Confirm Pickup Button for Approved Reservations
                 Button(
                     onClick = {
                         viewModel.updateReservationStatus(itemId, "Completed")

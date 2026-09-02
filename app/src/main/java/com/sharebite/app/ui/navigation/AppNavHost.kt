@@ -148,6 +148,7 @@ fun AppNavHost(
         onBackClick = { navController.popBackStack() },
         onNotificationClick = { navController.navigate(NotificationsRoute.route) },
         onLogoutClick = onLogout,
+        role = role, // 传递角色
     ) { paddingValues ->
         NavHost(
             navController = navController,
@@ -160,7 +161,9 @@ fun AppNavHost(
                         paddingValues = paddingValues,
                         onBrowseClick = { navController.navigate(Screen.Browse.route) },
                         onFoodClick = { id -> navController.navigate(UserFoodDetailRoute.createRoute(id)) },
-                        onViewAllReservations = { navController.navigate(Screen.Requests.route) }
+                        onViewAllReservations = { navController.navigate(Screen.Requests.route) },
+                        onReservationClick = { id -> navController.navigate(UserReservationDetailRoute.createRoute(id))
+                        }
                     )
                     "charity" -> CharityDashboardScreen(
                         paddingValues = paddingValues,
@@ -238,9 +241,11 @@ fun AppNavHost(
                     "merchant" -> MerchantReservationsPage(
                         paddingValues = paddingValues,
                         viewModel = merchantViewModel,
-                        onViewAllRequests = { navController.navigate(MerchantAllRequestsRoute.route) },
-                        onViewAllReservations = { navController.navigate(MerchantUserReservationsRoute.route) },
-                        onPickupDetailsClick = { id -> navController.navigate(MerchantPickupDetailsRoute.createRoute(id)) }
+                        onCharityClick = { id -> navController.navigate("merchant_request_detail/$id") },
+                        onReservationClick = { id -> navController.navigate("merchant_reservation_detail/$id") },
+                        onViewAllRequests = { /* 不再使用 */ },
+                        onViewAllReservations = { /* 不再使用 */ },
+                        onPickupDetailsClick = { /* 不再使用 */ }
                     )
                     else -> Text("Unknown role: $role")
                 }
@@ -707,6 +712,23 @@ fun AppNavHost(
 
             composable(AboutRoute.route) {
                 AboutScreen(paddingValues = paddingValues)
+            }
+
+            // 在 NavHost 中新增
+            composable(Screen.CharityPlaza.route) {
+                when (role) {
+                    "merchant" -> MerchantCharityPlazaScreen(
+                        paddingValues = paddingValues,
+                        viewModel = merchantViewModel,
+                        onRequestClick = { id ->
+                            navController.navigate("merchant_request_detail/$id")
+                        }
+                    )
+                    else -> {
+                        // 非 merchant 角色跳转到 Browse 或 Home
+                        navController.navigate(Screen.Browse.route)
+                    }
+                }
             }
         }
     }

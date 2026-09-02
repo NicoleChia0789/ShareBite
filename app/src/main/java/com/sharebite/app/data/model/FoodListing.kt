@@ -18,9 +18,13 @@ data class FoodListing(
     val foodName: String = "",
 
     val category: String = "",
-    val description: String? = null,          // ⭐ 可空（允许无描述）
+    val description: String? = null,
 
-    val quantity: String = "",
+    @SerialName("pickup_time")
+    val pickupTime: String? = null,
+
+    @SerialName("unit")
+    val unit: String? = null,
 
     @SerialName("photo_url")
     val photoUrl: String? = null,
@@ -30,12 +34,10 @@ data class FoodListing(
     val pickupDate: String = "",
 
     val deadline: String = "",
-
-    // ===== 地址 & 位置 =====
     val address: String = "",
 
     @SerialName("distance_km")
-    var distanceKm: Double = 0.0,             // ⭐ var（支持动态更新距离）
+    var distanceKm: Double = 0.0,
 
     @SerialName("latitude")
     val latitude: Double? = null,

@@ -13,7 +13,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable  // ✅ 添加
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -247,6 +247,7 @@ fun CharityEditProfileScreen(
             Spacer(modifier = Modifier.height(12.dp))
         }
 
+        // ✅ Organization Name - 使用 AppTextFieldDefaults
         OutlinedTextField(
             value = organisationName,
             onValueChange = {
@@ -254,8 +255,8 @@ fun CharityEditProfileScreen(
                 if (nameError != null) validateName()
             },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Organization Name", color = TextGrey) },
-            placeholder = { Text("Hopeful Harvest Food Bank", color = TextGrey) },
+            label = { Text("Organization Name") },
+            placeholder = { Text("Hopeful Harvest Food Bank") },
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
             isError = nameError != null,
@@ -264,19 +265,12 @@ fun CharityEditProfileScreen(
                     Text(nameError!!, color = RedCancelled)
                 }
             },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = OrangeAccent,
-                unfocusedBorderColor = Color(0xFFDDC0B8),
-                focusedTextColor = TextDark,
-                unfocusedTextColor = TextDark,
-                focusedLabelColor = OrangeAccent,
-                errorBorderColor = RedCancelled,
-                errorLabelColor = RedCancelled
-            )
+            colors = AppTextFieldDefaults.colors()
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // ✅ Phone Number - 使用 AppTextFieldDefaults
         OutlinedTextField(
             value = phoneNumber,
             onValueChange = {
@@ -284,8 +278,8 @@ fun CharityEditProfileScreen(
                 if (phoneError != null) validatePhone()
             },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Phone Number", color = TextGrey) },
-            placeholder = { Text("012-3456789", color = TextGrey) },
+            label = { Text("Phone Number") },
+            placeholder = { Text("012-3456789") },
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
             isError = phoneError != null,
@@ -294,19 +288,12 @@ fun CharityEditProfileScreen(
                     Text(phoneError!!, color = RedCancelled)
                 }
             },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = OrangeAccent,
-                unfocusedBorderColor = Color(0xFFDDC0B8),
-                focusedTextColor = TextDark,
-                unfocusedTextColor = TextDark,
-                focusedLabelColor = OrangeAccent,
-                errorBorderColor = RedCancelled,
-                errorLabelColor = RedCancelled
-            )
+            colors = AppTextFieldDefaults.colors()
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // ✅ Organization Address - 使用 AppTextFieldDefaults
         OutlinedTextField(
             value = organisationAddress,
             onValueChange = {
@@ -314,8 +301,8 @@ fun CharityEditProfileScreen(
                 if (addressError != null) validateAddress()
             },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Organization Address", color = TextGrey) },
-            placeholder = { Text("123 Charity Lane, City, State, ZIP", color = TextGrey) },
+            label = { Text("Organization Address") },
+            placeholder = { Text("123 Charity Lane, City, State, ZIP") },
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
             isError = addressError != null,
@@ -324,19 +311,12 @@ fun CharityEditProfileScreen(
                     Text(addressError!!, color = RedCancelled)
                 }
             },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = OrangeAccent,
-                unfocusedBorderColor = Color(0xFFDDC0B8),
-                focusedTextColor = TextDark,
-                unfocusedTextColor = TextDark,
-                focusedLabelColor = OrangeAccent,
-                errorBorderColor = RedCancelled,
-                errorLabelColor = RedCancelled
-            )
+            colors = AppTextFieldDefaults.colors()
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // ✅ Mission Statement - 使用 AppTextFieldDefaults
         OutlinedTextField(
             value = missionStatement,
             onValueChange = {
@@ -346,12 +326,9 @@ fun CharityEditProfileScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(120.dp),
-            label = { Text("Mission Statement", color = TextGrey) },
+            label = { Text("Mission Statement") },
             placeholder = {
-                Text(
-                    "Nourishing our community by rescuing surplus food...",
-                    color = TextGrey
-                )
+                Text("Nourishing our community by rescuing surplus food...")
             },
             shape = RoundedCornerShape(12.dp),
             maxLines = 5,
@@ -361,15 +338,7 @@ fun CharityEditProfileScreen(
                     Text(missionError!!, color = RedCancelled)
                 }
             },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = OrangeAccent,
-                unfocusedBorderColor = Color(0xFFDDC0B8),
-                focusedTextColor = TextDark,
-                unfocusedTextColor = TextDark,
-                focusedLabelColor = OrangeAccent,
-                errorBorderColor = RedCancelled,
-                errorLabelColor = RedCancelled
-            )
+            colors = AppTextFieldDefaults.colors()
         )
 
         Row(
@@ -387,6 +356,7 @@ fun CharityEditProfileScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // ✅ Email - 使用 AppTextFieldDefaults
         OutlinedTextField(
             value = email,
             onValueChange = {
@@ -394,8 +364,8 @@ fun CharityEditProfileScreen(
                 if (emailError != null) validateEmail()
             },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Primary Contact Email", color = TextGrey) },
-            placeholder = { Text("hello@hopefulharvest.org", color = TextGrey) },
+            label = { Text("Primary Contact Email") },
+            placeholder = { Text("hello@hopefulharvest.org") },
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
             isError = emailError != null,
@@ -404,15 +374,7 @@ fun CharityEditProfileScreen(
                     Text(emailError!!, color = RedCancelled)
                 }
             },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = OrangeAccent,
-                unfocusedBorderColor = Color(0xFFDDC0B8),
-                focusedTextColor = TextDark,
-                unfocusedTextColor = TextDark,
-                focusedLabelColor = OrangeAccent,
-                errorBorderColor = RedCancelled,
-                errorLabelColor = RedCancelled
-            )
+            colors = AppTextFieldDefaults.colors()
         )
 
         Spacer(modifier = Modifier.height(24.dp))

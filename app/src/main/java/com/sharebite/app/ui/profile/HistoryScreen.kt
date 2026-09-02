@@ -124,7 +124,7 @@ fun HistoryScreen(
                                     time = item.pickupTime,
                                     status = item.status,
                                     items = listOf(
-                                        "${item.quantity} units of ${item.foodName}",
+                                        "${item.quantityNum} ${item.unit ?: "units"} of ${item.foodName}",
                                         "Pickup completed successfully"
                                     ),
                                     onViewDetails = { onViewDetails(item.id) }

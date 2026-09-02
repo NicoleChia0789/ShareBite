@@ -8,6 +8,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,16 +40,18 @@ fun ApplyForFoodScreen(
     var isLoadingListing by remember { mutableStateOf(true) }
     var loadError by remember { mutableStateOf<String?>(null) }
 
-    var peopleServed by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
+    var peopleServed by rememberSaveable { mutableStateOf("") }
+    var note by rememberSaveable { mutableStateOf("") }
 
     var isSubmitting by remember { mutableStateOf(false) }
     var showErrorDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
 
-    LaunchedEffect(listingId) {
+    LaunchedEffect(listingId, Unit) {
+        isLoadingListing = true
         try {
             listing = listingRepository.getListingById(listingId)
+            loadError = null
         } catch (e: Exception) {
             loadError = e.message
         } finally {
@@ -130,9 +133,9 @@ fun ApplyForFoodScreen(
                                 color = TextGrey
                             )
                             Spacer(modifier = Modifier.height(10.dp))
-                            FixedDetailRow(label = "Quantity", value = data.quantity)
+                            FixedDetailRow(label = "Quantity",             value = "${data.totalQuantity} ${data.unit ?: ""}")
                             FixedDetailRow(label = "Collection date", value = data.pickupDate)
-                            FixedDetailRow(label = "Collection time", value = data.deadline)
+                            FixedDetailRow(label = "Collection time", value = data.pickupTime ?: data.deadline)
                         }
                     }
 
@@ -185,12 +188,7 @@ fun ApplyForFoodScreen(
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = OrangeAccent,
-                            unfocusedBorderColor = TextGrey,
-                            focusedLabelColor = OrangeAccent,
-                            unfocusedLabelColor = TextGrey
-                        )
+                        colors = AppTextFieldDefaults.colors()
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -206,12 +204,7 @@ fun ApplyForFoodScreen(
                         placeholder = { Text("Dietary restrictions, or how you'll use this donation...") },
                         shape = RoundedCornerShape(12.dp),
                         maxLines = 4,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = OrangeAccent,
-                            unfocusedBorderColor = TextGrey,
-                            focusedLabelColor = OrangeAccent,
-                            unfocusedLabelColor = TextGrey
-                        )
+                        colors = AppTextFieldDefaults.colors()
                     )
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -228,15 +221,15 @@ fun ApplyForFoodScreen(
                             isSubmitting = true
                             coroutineScope.launch {
                                 try {
-                                    // ✅ Use createMyRequestFromListing() with current user
+                                    val rawPickupTime = data.pickupTime ?: data.deadline
                                     charityRepository.createMyRequestFromListing(
                                         merchantId = data.merchantId,
                                         listingId = data.id.toString(),
                                         foodName = data.foodName,
                                         category = data.category,
-                                        quantity = data.quantity.filter { c -> c.isDigit() }.toIntOrNull() ?: 0,
+                                        quantity = data.totalQuantity,
                                         pickupDate = data.pickupDate,
-                                        pickupTime = data.deadline,
+                                        pickupTime = formatTimeForDb(rawPickupTime),  // ← 加上转换
                                         organisationName = organisationName,
                                         peopleServed = peopleServed.toIntOrNull() ?: 0,
                                         note = note.ifBlank { null }
