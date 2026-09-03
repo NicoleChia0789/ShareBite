@@ -1,5 +1,7 @@
 package com.sharebite.app.ui.charity
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -22,12 +24,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.*
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
-import com.sharebite.app.ui.components.SimpleMapView
 import com.sharebite.app.ui.theme.*
-import android.content.Intent
-import android.net.Uri
+import kotlinx.coroutines.launch
 
 @Composable
 fun FoodDetailScreen(
@@ -37,6 +40,7 @@ fun FoodDetailScreen(
 ) {
     val repository = remember { FoodListingRepository() }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     var listing by remember { mutableStateOf<FoodListing?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -113,7 +117,7 @@ fun FoodDetailScreen(
                             color = Color.White.copy(alpha = 0.9f)
                         ) {
                             Text(
-                                "${data.quantity} available",
+                                "${data.totalQuantity} ${data.unit ?: ""} available",  // ✅ 新字段
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
@@ -124,58 +128,60 @@ fun FoodDetailScreen(
 
                     Column(modifier = Modifier.padding(20.dp)) {
 
-                        // ---------- REAL MAP (OpenStreetMap) ----------
+                        // ---------- GOOGLE MAP ----------
+                        val location = LatLng(
+                            data.latitude ?: 3.1390,
+                            data.longitude ?: 101.6869
+                        )
+                        val cameraPositionState = rememberCameraPositionState {
+                            position = CameraPosition.fromLatLngZoom(location, 15f)
+                        }
+
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(240.dp)
                                 .clip(RoundedCornerShape(16.dp))
-                                .clickable {
-                                    val lat = data.latitude ?: 3.1390
-                                    val lng = data.longitude ?: 101.6869
-                                    val uri = Uri.parse("geo:$lat,$lng?q=$lat,$lng(${Uri.encode(data.merchantName)})")
-                                    val intent = Intent(Intent.ACTION_VIEW, uri)
-                                    context.startActivity(intent)
-                                }
                         ) {
-                            SimpleMapView(
-                                latitude = data.latitude ?: 3.1390,
-                                longitude = data.longitude ?: 101.6869,
-                                markerTitle = data.merchantName,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                            Surface(
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(8.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                color = OrangeAccent
+                            GoogleMap(
+                                modifier = Modifier.fillMaxSize(),
+                                cameraPositionState = cameraPositionState,
+                                uiSettings = MapUiSettings(
+                                    zoomControlsEnabled = true,
+                                    myLocationButtonEnabled = false
+                                ),
+                                properties = MapProperties(isMyLocationEnabled = false)
                             ) {
-                                Text(
-                                    "Tap to navigate",
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                                    fontSize = 10.sp,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
+                                Marker(
+                                    state = MarkerState(position = location),
+                                    title = data.merchantName,
+                                    snippet = data.address,
+                                    onClick = {
+                                        openNavigation(context, data.latitude, data.longitude, data.merchantName)
+                                        true
+                                    }
                                 )
                             }
+
+                            // ---------- 左上角：店名 ----------
                             Surface(
                                 modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .padding(8.dp)
-                                    .widthIn(max = 200.dp),
+                                    .align(Alignment.TopStart)
+                                    .padding(8.dp),
                                 shape = RoundedCornerShape(8.dp),
                                 color = Color.White.copy(alpha = 0.92f)
                             ) {
                                 Text(
-                                    data.address ?: "",
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                                    fontSize = 10.sp,
-                                    color = TextDark,
+                                    data.merchantName,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    maxLines = 2
+                                    color = TextDark,
+                                    maxLines = 1
                                 )
                             }
+
+                            // ---------- 右上角：距离 ----------
                             Surface(
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
@@ -184,18 +190,38 @@ fun FoodDetailScreen(
                                 color = Color.White.copy(alpha = 0.92f)
                             ) {
                                 Text(
-                                    "${data.distanceKm} km",
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                                    fontSize = 10.sp,
-                                    color = TextDark,
-                                    fontWeight = FontWeight.Bold
+                                    "${String.format("%.1f", data.distanceKm)} km",
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = OrangeAccent
+                                )
+                            }
+
+                            // ---------- 左下角：导航按钮 ----------
+                            Surface(
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(8.dp)
+                                    .clickable {
+                                        openNavigation(context, data.latitude, data.longitude, data.merchantName)
+                                    },
+                                shape = RoundedCornerShape(8.dp),
+                                color = OrangeAccent
+                            ) {
+                                Text(
+                                    "Tap to navigate",
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
                                 )
                             }
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // ---------- TITLE + VERIFIED ----------
+                        // ---------- 其余内容（TITLE, DETAIL CARD, etc.）保持不变 ----------
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -210,7 +236,6 @@ fun FoodDetailScreen(
 
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        // ---------- DETAIL CARD ----------
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
@@ -219,12 +244,12 @@ fun FoodDetailScreen(
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(modifier = Modifier.fillMaxWidth()) {
-                                    DetailStat(label = "Quantity", value = data.quantity, modifier = Modifier.weight(1f))
-                                    DetailStat(label = "Collect by", value = data.deadline, modifier = Modifier.weight(1f))
+                                    DetailStat(label = "Quantity", value = "${data.totalQuantity} ${data.unit ?: ""}", modifier = Modifier.weight(1f))
+                                    DetailStat(label = "Collect by", value = data.pickupTime ?: data.deadline, modifier = Modifier.weight(1f))
                                 }
                                 Spacer(modifier = Modifier.height(14.dp))
                                 Row(modifier = Modifier.fillMaxWidth()) {
-                                    DetailStat(label = "Distance", value = "${data.distanceKm} km", modifier = Modifier.weight(1f))
+                                    DetailStat(label = "Distance", value = "${String.format("%.1f", data.distanceKm)} km", modifier = Modifier.weight(1f))
                                     Row(
                                         modifier = Modifier.weight(1f),
                                         verticalAlignment = Alignment.CenterVertically
@@ -244,7 +269,6 @@ fun FoodDetailScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // ---------- MERCHANT NOTE ----------
                         if (!data.notes.isNullOrBlank()) {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
@@ -272,7 +296,6 @@ fun FoodDetailScreen(
                             Spacer(modifier = Modifier.height(16.dp))
                         }
 
-                        // ---------- ABOUT THIS DONATION ----------
                         Text("About this donation", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextDark)
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(data.description ?: "", fontSize = 13.sp, color = TextGrey, lineHeight = 19.sp)
@@ -293,7 +316,6 @@ fun FoodDetailScreen(
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // ---------- APPLY BUTTON ----------
                         Button(
                             onClick = { onApplyClick(data.id) },
                             modifier = Modifier
@@ -307,7 +329,6 @@ fun FoodDetailScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // ---------- IMPACT CARD ----------
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
@@ -339,6 +360,15 @@ fun FoodDetailScreen(
             }
         }
     }
+}
+
+// ---------- 辅助函数 ----------
+private fun openNavigation(context: android.content.Context, lat: Double?, lng: Double?, merchantName: String) {
+    val latitude = lat ?: 3.1390
+    val longitude = lng ?: 101.6869
+    val uri = Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude(${Uri.encode(merchantName)})")
+    val intent = Intent(Intent.ACTION_VIEW, uri)
+    context.startActivity(intent)
 }
 
 @Composable

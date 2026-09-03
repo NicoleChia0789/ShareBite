@@ -174,12 +174,7 @@ fun EditRequestScreen(
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = OrangeAccent,
-                            unfocusedBorderColor = TextGrey,
-                            focusedLabelColor = OrangeAccent,
-                            unfocusedLabelColor = TextGrey
-                        )
+                        colors = AppTextFieldDefaults.colors()
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -296,7 +291,7 @@ fun EditRequestScreen(
                                         requestId = requestId,
                                         quantity = quantity.toInt(),
                                         pickupDate = pickupDate,
-                                        pickupTime = pickupTime,
+                                        pickupTime = formatTimeForDb(pickupTime),  // ← 加上转换
                                         peopleServed = peopleServed.toIntOrNull() ?: 0,
                                         note = note.ifBlank { null }
                                     )

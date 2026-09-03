@@ -23,6 +23,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharebite.app.ui.theme.*
+import com.sharebite.app.util.PasswordUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,9 +38,9 @@ fun ResetPasswordScreen(
     var showNewPassword by rememberSaveable { mutableStateOf(false) }
     var showConfirmPassword by rememberSaveable { mutableStateOf(false) }
 
-    val hasMinLength = newPassword.length >= 6
+    val isStrongPassword = PasswordUtils.isStrongPassword(newPassword)
     val doPasswordsMatch = newPassword.isNotEmpty() && newPassword == confirmPassword
-    val canReset = hasMinLength && doPasswordsMatch
+    val canReset = isStrongPassword && doPasswordsMatch
 
     Scaffold(
         containerColor = BgCream,
@@ -143,9 +144,9 @@ fun ResetPasswordScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Password must be at least 6 characters.",
+                text = if (isStrongPassword) "Strong password ✓" else PasswordUtils.STRONG_PASSWORD_REQUIREMENTS,
                 fontSize = 14.sp,
-                color = if (hasMinLength) GreenConfirmed else TextGrey
+                color = if (isStrongPassword) GreenConfirmed else TextGrey
             )
 
             if (!doPasswordsMatch && confirmPassword.isNotEmpty()) {

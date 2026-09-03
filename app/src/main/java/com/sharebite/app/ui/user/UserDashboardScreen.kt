@@ -32,7 +32,8 @@ fun UserDashboardScreen(
     paddingValues: PaddingValues,
     onBrowseClick: () -> Unit,
     onFoodClick: (Long) -> Unit,
-    onViewAllReservations: () -> Unit
+    onViewAllReservations: () -> Unit,
+    onReservationClick: (Long) -> Unit
 ) {
     val userId = CurrentUser.getUserId()
     val foodRepo = remember { FoodListingRepository() }
@@ -211,6 +212,7 @@ fun UserDashboardScreen(
         items(recentReservations) { reservation ->
             RecentReservationCard(
                 reservation = reservation,
+                onClick = { onReservationClick(reservation.id) },
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
         }
@@ -281,7 +283,7 @@ private fun FoodListingCard(listing: FoodListing, onClick: () -> Unit) {
 }
 
 @Composable
-private fun RecentReservationCard(reservation: Reservation, modifier: Modifier = Modifier) {
+private fun RecentReservationCard(reservation: Reservation, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val statusColor = when (reservation.status) {
         "Confirmed" -> GreenConfirmed
         "Pending" -> OrangeAccent
@@ -298,7 +300,8 @@ private fun RecentReservationCard(reservation: Reservation, modifier: Modifier =
     }
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),

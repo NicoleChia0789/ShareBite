@@ -6,6 +6,8 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material.icons.filled.*
+
 
 // ============================================================
 // 1. Bottom Navigation Routes
@@ -20,6 +22,29 @@ sealed class Screen(
     object Browse : Screen("browse", "Browse", Icons.Default.Search)
     object Requests : Screen("requests", "Requests", Icons.Default.Assignment)
     object Profile : Screen("profile", "Profile", Icons.Default.Person)
+
+    // ✅ 新增：Charity Plaza（仅 Merchant 使用）
+    object CharityPlaza : Screen("charity_plaza", "Charity Plaza", Icons.Default.Storefront)
+}
+
+// ✅ 根据角色返回不同的 Bottom Nav 列表
+fun getBottomNavItems(role: String): List<Screen> {
+    return when (role) {
+        "merchant" -> listOf(
+            Screen.Home,
+            Screen.Browse,
+            Screen.CharityPlaza,
+            Screen.Requests,
+            Screen.Profile
+        )
+        else -> listOf(
+            Screen.Home,
+            Screen.Browse,
+            Screen.Requests,
+            Screen.Profile
+        )
+    }
+
 }
 
 val bottomNavItems = listOf(
@@ -66,24 +91,7 @@ object UserHelpRoute { const val route = "help" }
 object UserSavedFoodRoute { const val route = "user_saved_food" }
 
 // ============================================================
-// 4. User Address Routes
-// ============================================================
-
-object UserAddressesRoute { const val route = "user_addresses" }
-
-// ✅ 添加地址（无参数）
-object UserAddEditAddressRoute {
-    const val route = "user_add_edit_address"
-}
-
-// ✅ 编辑地址（带 addressId）
-object UserEditAddressRoute {
-    const val route = "user_edit_address/{addressId}"
-    fun createRoute(addressId: Long) = "user_edit_address/$addressId"
-}
-
-// ============================================================
-// 5. Security Routes
+// 4. Security Routes
 // ============================================================
 
 object SecurityRoute { const val route = "security" }
@@ -159,6 +167,11 @@ object MerchantCharityRequestsRoute { const val route = "merchant_charity_reques
 object MerchantAllRequestsRoute { const val route = "merchant_all_requests" }
 object MerchantUserReservationsRoute { const val route = "merchant_user_reservations" }
 object MerchantImpactRoute { const val route = "merchant_impact" }
+object MerchantPickupScheduleRoute {
+    const val route = "merchant_pickup_schedule?showHistory={showHistory}"
+    fun createRoute(showHistory: Boolean = false) = "merchant_pickup_schedule?showHistory=$showHistory"
+}
+
 
 object MerchantListingDetailRoute {
     const val route = "merchant_listing_detail/{listingId}"

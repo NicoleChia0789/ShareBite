@@ -1,5 +1,6 @@
 package com.sharebite.app.ui.profile
 
+import android.util.Patterns
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -27,6 +28,8 @@ fun ForgotPasswordScreen(
     onSendResetLink: (String) -> Unit
 ) {
     var email by rememberSaveable { mutableStateOf("") }
+    val normalizedEmail = email.trim()
+    val isEmailValid = Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()
 
     Scaffold(
         containerColor = BgCream,
@@ -64,7 +67,7 @@ fun ForgotPasswordScreen(
                 .padding(top = 16.dp)
         ) {
             Text(
-                text = "Enter your email address and we'll send you a link to reset your password.",
+                text = "Enter your email address to reset your password.",
                 fontSize = 14.sp,
                 color = TextGrey,
                 lineHeight = 20.sp
@@ -92,9 +95,9 @@ fun ForgotPasswordScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ── Send Reset Link ──
+            // ── Continue to password reset ──
             Button(
-                onClick = { onSendResetLink(email) },
+                onClick = { onSendResetLink(normalizedEmail) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
@@ -103,10 +106,10 @@ fun ForgotPasswordScreen(
                     contentColor = Color.White
                 ),
                 shape = RoundedCornerShape(12.dp),
-                enabled = email.isNotBlank()
+                enabled = isEmailValid
             ) {
                 Text(
-                    text = "Send Reset Link",
+                    text = "Continue",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )

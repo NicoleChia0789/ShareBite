@@ -1,5 +1,10 @@
 package com.sharebite.app.ui.profile
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,11 +20,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.sharebite.app.data.model.CharityRequest
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.repository.CharityRepository
@@ -27,6 +35,7 @@ import com.sharebite.app.data.repository.DismissedNotificationRepository
 import com.sharebite.app.data.repository.ReservationRepository
 import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // ─── 通知数据类型 ───
@@ -44,6 +53,7 @@ private data class NotificationItem(
 fun UnifiedNotificationsScreen(
     paddingValues: PaddingValues,
     onBack: () -> Unit,
+    showTopPopup: Boolean = true,
     onNotificationClick: (Long, String) -> Unit = { _, _ -> }  // (id, type)
 ) {
     val role = CurrentUser.getUserRole()
@@ -58,6 +68,7 @@ fun UnifiedNotificationsScreen(
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var selectedTab by remember { mutableStateOf("Active") }
+    var popupNotification by remember { mutableStateOf<NotificationItem?>(null) }
 
     val tabs = listOf("Active", "All")
 
@@ -72,8 +83,10 @@ fun UnifiedNotificationsScreen(
                     "merchant" -> loadMerchantNotifications(reservationRepo, charityRepo)
                     else -> emptyList()
                 }
+                val dismissed = dismissedRepo.getMyDismissedIds()
                 notifications = items
-                dismissedIds = dismissedRepo.getMyDismissedIds()
+                dismissedIds = dismissed
+                popupNotification = items.firstOrNull { it.id !in dismissed }
             } catch (e: Exception) {
                 errorMessage = e.message
             }
@@ -85,6 +98,13 @@ fun UnifiedNotificationsScreen(
         loadNotifications()
     }
 
+    LaunchedEffect(popupNotification?.id, popupNotification?.type) {
+        if (popupNotification != null) {
+            delay(5_000)
+            popupNotification = null
+        }
+    }
+
     // 过滤通知
     val visibleNotifications = if (selectedTab == "Active") {
         notifications.filter { it.id !in dismissedIds }
@@ -93,12 +113,13 @@ fun UnifiedNotificationsScreen(
     }
 
     // ── UI ──
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BgCream)
-            .padding(paddingValues)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BgCream)
+                .padding(paddingValues)
+        ) {
 
 
         // Tabs
@@ -203,6 +224,213 @@ fun UnifiedNotificationsScreen(
                 }
             }
         }
+        }
+
+        AnimatedVisibility(
+            visible = showTopPopup && popupNotification != null,
+            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(paddingValues)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .zIndex(10f)
+        ) {
+            popupNotification?.let { notification ->
+                TopNotificationBanner(
+                    notification = notification,
+                    onClick = {
+                        popupNotification = null
+                        onNotificationClick(notification.id, notification.type)
+                    },
+                    onClose = { popupNotification = null }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TopNotificationBanner(
+    notification: NotificationItem,
+    onClick: () -> Unit,
+    onClose: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(10.dp, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 14.dp, top = 12.dp, bottom = 12.dp, end = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(OrangeAccent.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = null,
+                    tint = OrangeAccent
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = notification.title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextDark,
+                    maxLines = 1
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = notification.message,
+                    fontSize = 12.sp,
+                    color = TextGrey,
+                    maxLines = 2
+                )
+            }
+
+            IconButton(onClick = onClose) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Close notification",
+                    tint = TextGrey
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun GlobalNotificationBanner(
+    role: String,
+    onNotificationClick: (Long, String) -> Unit
+) {
+    val context = LocalContext.current
+    val reservationRepo = remember { ReservationRepository() }
+    val charityRepo = remember { CharityRepository() }
+    val dismissedRepo = remember { DismissedNotificationRepository() }
+
+    var popupNotification by remember { mutableStateOf<NotificationItem?>(null) }
+    var knownKeys by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var hasCompletedInitialRefresh by remember { mutableStateOf(false) }
+
+    LaunchedEffect(role) {
+        while (true) {
+            val prefs = context.getSharedPreferences(
+                "notification_prefs",
+                android.content.Context.MODE_PRIVATE
+            )
+            val pushEnabled = prefs.getBoolean("push_notifications", true)
+
+            if (pushEnabled && popupNotification == null) {
+                try {
+                    val items = when (role) {
+                        "user" -> loadUserNotifications(reservationRepo)
+                        "charity" -> loadCharityNotifications(charityRepo)
+                        "merchant" -> loadMerchantNotifications(reservationRepo, charityRepo)
+                        else -> emptyList()
+                    }
+                    val dismissed = dismissedRepo.getMyDismissedIds()
+                    val eligibleItems = items.filter {
+                        it.id !in dismissed && isNotificationEnabled(it, role, prefs)
+                    }
+                    val currentKeys = eligibleItems
+                        .map { "${it.type}:${it.id}:${it.status}" }
+                        .toSet()
+                    val nextNotification = if (hasCompletedInitialRefresh) {
+                        eligibleItems.firstOrNull { item ->
+                            "${item.type}:${item.id}:${item.status}" !in knownKeys
+                        }
+                    } else {
+                        eligibleItems.firstOrNull()
+                    }
+
+                    if (nextNotification != null) {
+                        popupNotification = nextNotification
+                    }
+                    knownKeys = knownKeys + currentKeys
+                    hasCompletedInitialRefresh = true
+                } catch (_: Exception) {
+                    // A failed background refresh should not interrupt the current screen.
+                }
+            }
+
+            delay(15_000)
+        }
+    }
+
+    LaunchedEffect(popupNotification?.id, popupNotification?.type) {
+        if (popupNotification != null) {
+            delay(5_000)
+            popupNotification = null
+        }
+    }
+
+    AnimatedVisibility(
+        visible = popupNotification != null,
+        enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+        exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .zIndex(100f)
+    ) {
+        popupNotification?.let { notification ->
+            TopNotificationBanner(
+                notification = notification,
+                onClick = {
+                    popupNotification = null
+                    onNotificationClick(notification.id, notification.type)
+                },
+                onClose = { popupNotification = null }
+            )
+        }
+    }
+}
+
+private fun isNotificationEnabled(
+    notification: NotificationItem,
+    role: String,
+    prefs: android.content.SharedPreferences
+): Boolean {
+    return when (role) {
+        "user" -> when (notification.status) {
+            "Confirmed" -> prefs.getBoolean("user_reservation_confirmed", prefs.getBoolean("user_new_surplus_alerts", true))
+            "Completed" -> prefs.getBoolean("user_pickup_completed", prefs.getBoolean("user_reservation_updates", true))
+            "Cancelled" -> prefs.getBoolean("user_reservation_cancelled", prefs.getBoolean("user_reservation_updates", true))
+            else -> true
+        }
+        "charity" -> when (notification.status) {
+            "Confirmed" -> prefs.getBoolean("charity_request_approved", prefs.getBoolean("charity_new_surplus_alerts", true))
+            "Completed" -> prefs.getBoolean("charity_pickup_completed", prefs.getBoolean("charity_request_approvals", true))
+            "Cancelled" -> prefs.getBoolean("charity_request_rejected", prefs.getBoolean("charity_pickup_reminders", true))
+            else -> true
+        }
+        "merchant" -> when {
+            notification.type == "reservation" ->
+                prefs.getBoolean("merchant_new_reservations", prefs.getBoolean("merchant_pickup_confirmations", true))
+            notification.type == "request" && notification.isGeneral ->
+                prefs.getBoolean("merchant_new_food_requests", prefs.getBoolean("merchant_new_donation_requests", true))
+            notification.type == "request" ->
+                prefs.getBoolean("merchant_new_donation_requests", true)
+            else -> true
+        }
+        else -> true
     }
 }
 
@@ -339,8 +567,9 @@ private suspend fun loadMerchantNotifications(
                 NotificationItem(
                     id = reservation.id,
                     title = "🧑‍🤝‍🧑 New Reservation",
-                    message = "${reservation.userId} reserved ${reservation.quantity} x \"${reservation.foodName}\"",
+                    message = "${reservation.userId} reserved ${reservation.quantityNum} ${reservation.unit} of \"${reservation.foodName}\"",
                     time = formatTime(reservation.createdAt),
+
                     type = "reservation",
                     status = reservation.status,
                     isGeneral = false

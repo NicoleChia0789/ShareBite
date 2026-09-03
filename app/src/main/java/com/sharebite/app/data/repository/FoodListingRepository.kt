@@ -56,22 +56,30 @@ class FoodListingRepository {
         return getAvailableListings().size
     }
 
-    // ✅ Add a new food listing (for merchant)
     suspend fun createListing(
         foodName: String,
         category: String,
-        quantity: String,
-        expiryDate: String? = null,
-        pickupAddress: String? = null
+        totalQuantity: Int,          // ✅ 已改好
+        unit: String? = null,        // ✅ 已改好
+        pickupDate: String? = null,
+        pickupTime: String? = null,  // ✅ 已改好
+        deadline: String? = null,
+        address: String? = null,
+        description: String? = null
     ) {
         val merchantId = CurrentUser.getUserId()
         val newListing = FoodListing(
             merchantId = merchantId,
             foodName = foodName,
             category = category,
-            quantity = quantity,
-            status = "available",
-
+            totalQuantity = totalQuantity,   // ✅ 改为 totalQuantity
+            unit = unit,                     // ✅ 传入 unit
+            pickupDate = pickupDate ?: "",   // 如有默认值可处理
+            pickupTime = pickupTime,         // ✅ 传入 pickupTime
+            deadline = deadline ?: "",
+            address = address ?: "",
+            description = description,
+            status = "available"
         )
         SupabaseClient.client.postgrest["food_listings"]
             .insert(newListing)

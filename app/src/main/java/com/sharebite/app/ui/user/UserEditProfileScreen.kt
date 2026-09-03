@@ -1,5 +1,6 @@
 package com.sharebite.app.ui.user
 
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.repository.UserRepository
 import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
+import com.sharebite.app.ui.profile.ProfilePhotoPicker
 import kotlinx.coroutines.launch
 
 @Composable
@@ -54,7 +56,10 @@ fun UserEditProfileScreen(
     var bio by rememberSaveable { mutableStateOf("Neighborhood Food Sharer") }
     var email by rememberSaveable { mutableStateOf(currentEmail) }
     var phone by rememberSaveable { mutableStateOf("") }
-    var address by rememberSaveable { mutableStateOf("") }
+    var existingAddress by rememberSaveable { mutableStateOf("") }
+    var avatarUrl by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedPhotoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    var hasInitializedForm by rememberSaveable { mutableStateOf(false) }
     var isLoading by rememberSaveable { mutableStateOf(true) }
     var isSaving by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
@@ -63,18 +68,19 @@ fun UserEditProfileScreen(
     var nameError by rememberSaveable { mutableStateOf<String?>(null) }
     var emailError by rememberSaveable { mutableStateOf<String?>(null) }
     var phoneError by rememberSaveable { mutableStateOf<String?>(null) }
-    var addressError by rememberSaveable { mutableStateOf<String?>(null) }
     var bioError by rememberSaveable { mutableStateOf<String?>(null) }
 
     // 加载用户数据
     LaunchedEffect(Unit) {
         try {
             val user = userRepo.getUser(userId)
-            if (user != null) {
+            if (user != null && !hasInitializedForm) {
                 fullName = user.name.ifBlank { currentName }
                 email = user.email.ifBlank { currentEmail }
                 phone = user.phone ?: ""
-                address = user.address ?: ""
+                existingAddress = user.address ?: ""
+                avatarUrl = user.avatarUrl
+                hasInitializedForm = true
             }
         } catch (e: Exception) {
             errorMessage = e.message
@@ -115,15 +121,6 @@ fun UserEditProfileScreen(
         return phoneError == null
     }
 
-    fun validateAddress(): Boolean {
-        addressError = when {
-            address.isBlank() -> null
-            address.length < 5 -> "Please enter a more complete address"
-            else -> null
-        }
-        return addressError == null
-    }
-
     fun validateBio(): Boolean {
         bioError = when {
             bio.isBlank() -> null
@@ -138,7 +135,6 @@ fun UserEditProfileScreen(
             validateName(),
             validateEmail(),
             validatePhone(),
-            validateAddress(),
             validateBio()
         ).all { it }
     }
@@ -181,43 +177,12 @@ fun UserEditProfileScreen(
                 .height(120.dp),
             contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(OrangeAccent),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (fullName.isNotEmpty()) fullName.take(1).uppercase() else "?",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.3f)),
-                    contentAlignment = Alignment.BottomEnd
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .padding(4.dp)
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(OrangeAccent),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CameraAlt,
-                            contentDescription = "Change Photo",
-                            modifier = Modifier.size(16.dp),
-                            tint = Color.White
-                        )
-                    }
-                }
-            }
+            ProfilePhotoPicker(
+                displayName = fullName,
+                selectedPhotoUri = selectedPhotoUri,
+                existingPhotoUrl = avatarUrl,
+                onPhotoSelected = { selectedPhotoUri = it }
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -375,38 +340,6 @@ fun UserEditProfileScreen(
             )
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = address,
-            onValueChange = {
-                address = it
-                if (addressError != null) validateAddress()
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(100.dp),
-            label = { Text("Address", color = TextGrey) },
-            placeholder = { Text("123 Main Street, City, State, ZIP", color = TextGrey) },
-            shape = RoundedCornerShape(12.dp),
-            maxLines = 3,
-            isError = addressError != null,
-            supportingText = {
-                if (addressError != null) {
-                    Text(addressError!!, color = RedCancelled)
-                }
-            },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = OrangeAccent,
-                unfocusedBorderColor = Color(0xFFDDC0B8),
-                focusedTextColor = TextDark,
-                unfocusedTextColor = TextDark,
-                focusedLabelColor = OrangeAccent,
-                errorBorderColor = RedCancelled,
-                errorLabelColor = RedCancelled
-            )
-        )
-
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
@@ -418,18 +351,22 @@ fun UserEditProfileScreen(
                 isSaving = true
                 scope.launch {
                     try {
+                        val savedAvatarUrl = selectedPhotoUri?.let {
+                            userRepo.uploadProfilePhoto(context, it, userId)
+                        } ?: avatarUrl
                         userRepo.updateUser(
                             userId = userId,
                             name = fullName,
                             email = email,
                             phone = phone,
-                            address = address
+                            address = existingAddress,
+                            avatarUrl = savedAvatarUrl
                         )
                         CurrentUser.user?.let { user ->
                             user.name = fullName
                             user.email = email
                             user.phone = phone
-                            user.address = address
+                            user.avatarUrl = savedAvatarUrl
                         }
                         isSaving = false
                         Toast.makeText(context, "Profile updated!", Toast.LENGTH_SHORT).show()

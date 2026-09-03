@@ -316,4 +316,3 @@ fun PartnerCard(name: String, amount: String) {
         }
     }
 }
-

@@ -4,12 +4,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,6 +40,29 @@ fun HistoryScreen(
     var historyItems by remember { mutableStateOf<List<Any>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var selectedStatus by rememberSaveable { mutableStateOf("All") }
+    var sortOrder by rememberSaveable { mutableStateOf("Newest") }
+
+    val filteredHistoryItems = remember(historyItems, selectedStatus, sortOrder, userRole) {
+        historyItems
+            .filter { item ->
+                val status = when (item) {
+                    is Reservation -> item.status
+                    is CharityRequest -> item.status
+                    else -> ""
+                }
+                selectedStatus == "All" || status == selectedStatus
+            }
+            .sortedWith(compareBy<Any> { item ->
+                when (item) {
+                    is Reservation -> item.pickupDate
+                    is CharityRequest -> item.pickupDate
+                    else -> ""
+                }
+            }.let { comparator ->
+                if (sortOrder == "Newest") comparator.reversed() else comparator
+            })
+    }
 
     LaunchedEffect(Unit) {
         try {
@@ -72,6 +97,39 @@ fun HistoryScreen(
             .padding(paddingValues)
     ) {
 
+        if (!isLoading && errorMessage == null) {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(listOf("All", "Completed", "Cancelled")) { status ->
+                    FilterChip(
+                        selected = selectedStatus == status,
+                        onClick = { selectedStatus = status },
+                        label = { Text(status) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = OrangeAccent,
+                            selectedLabelColor = Color.White
+                        )
+                    )
+                }
+                items(listOf("Newest", "Oldest")) { order ->
+                    FilterChip(
+                        selected = sortOrder == order,
+                        onClick = { sortOrder = order },
+                        label = { Text(order) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = if (order == "Newest") Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    )
+                }
+            }
+        }
+
 
         when {
             isLoading -> {
@@ -84,7 +142,7 @@ fun HistoryScreen(
                     Text("Error: $errorMessage", color = RedCancelled)
                 }
             }
-            historyItems.isEmpty() -> {
+            filteredHistoryItems.isEmpty() -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
@@ -95,13 +153,16 @@ fun HistoryScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "No history found",
+                            text = if (historyItems.isEmpty()) "No history found" else "No matching history",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = TextDark
                         )
                         Text(
-                            text = "Your completed and cancelled items will appear here.",
+                            text = if (historyItems.isEmpty())
+                                "Your completed and cancelled items will appear here."
+                            else
+                                "Try selecting a different status filter.",
                             fontSize = 14.sp,
                             color = TextGrey
                         )
@@ -116,7 +177,7 @@ fun HistoryScreen(
                 ) {
                     when (userRole) {
                         "user" -> {
-                            items(historyItems as List<Reservation>) { item ->
+                            items(filteredHistoryItems.filterIsInstance<Reservation>()) { item ->
                                 HistoryCard(
                                     title = item.foodName,
                                     merchantName = "Merchant: ${item.merchantId.take(8)}",
@@ -124,7 +185,7 @@ fun HistoryScreen(
                                     time = item.pickupTime,
                                     status = item.status,
                                     items = listOf(
-                                        "${item.quantity} units of ${item.foodName}",
+                                        "${item.quantityNum} ${item.unit ?: "units"} of ${item.foodName}",
                                         "Pickup completed successfully"
                                     ),
                                     onViewDetails = { onViewDetails(item.id) }
@@ -132,7 +193,7 @@ fun HistoryScreen(
                             }
                         }
                         "charity" -> {
-                            items(historyItems as List<CharityRequest>) { item ->
+                            items(filteredHistoryItems.filterIsInstance<CharityRequest>()) { item ->
                                 HistoryCard(
                                     title = item.foodName,
                                     merchantName = item.organisationName,

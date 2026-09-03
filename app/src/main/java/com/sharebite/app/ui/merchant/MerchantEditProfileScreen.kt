@@ -1,5 +1,6 @@
 package com.sharebite.app.ui.merchant
 
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.repository.UserRepository
 import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
+import com.sharebite.app.ui.profile.ProfilePhotoPicker
 import kotlinx.coroutines.launch
 
 @Composable
@@ -55,6 +57,8 @@ fun MerchantEditProfileScreen(
     var phoneNumber by rememberSaveable { mutableStateOf("") }
     var briefDescription by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf(currentEmail) }
+    var avatarUrl by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedPhotoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var isLoading by rememberSaveable { mutableStateOf(true) }
     var isSaving by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
@@ -76,6 +80,7 @@ fun MerchantEditProfileScreen(
                 email = user.email.ifBlank { currentEmail }
                 phoneNumber = user.phone ?: ""
                 businessAddress = user.address ?: ""
+                avatarUrl = user.avatarUrl
             }
         } catch (e: Exception) {
             errorMessage = e.message
@@ -192,43 +197,12 @@ fun MerchantEditProfileScreen(
                 .height(120.dp),
             contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(OrangeAccent),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (businessName.isNotEmpty()) businessName.take(1).uppercase() else "?",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.3f)),
-                    contentAlignment = Alignment.BottomEnd
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .padding(4.dp)
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(OrangeAccent),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CameraAlt,
-                            contentDescription = "Change Logo",
-                            modifier = Modifier.size(16.dp),
-                            tint = Color.White
-                        )
-                    }
-                }
-            }
+            ProfilePhotoPicker(
+                displayName = businessName,
+                selectedPhotoUri = selectedPhotoUri,
+                existingPhotoUrl = avatarUrl,
+                onPhotoSelected = { selectedPhotoUri = it }
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -455,18 +429,23 @@ fun MerchantEditProfileScreen(
                 isSaving = true
                 scope.launch {
                     try {
+                        val savedAvatarUrl = selectedPhotoUri?.let {
+                            userRepo.uploadProfilePhoto(context, it, userId)
+                        } ?: avatarUrl
                         userRepo.updateUser(
                             userId = userId,
                             name = businessName,
                             email = email,
                             phone = phoneNumber,
-                            address = businessAddress
+                            address = businessAddress,
+                            avatarUrl = savedAvatarUrl
                         )
                         CurrentUser.user?.let { user ->
                             user.name = businessName
                             user.email = email
                             user.phone = phoneNumber
                             user.address = businessAddress
+                            user.avatarUrl = savedAvatarUrl
                         }
                         isSaving = false
                         Toast.makeText(context, "Profile updated!", Toast.LENGTH_SHORT).show()

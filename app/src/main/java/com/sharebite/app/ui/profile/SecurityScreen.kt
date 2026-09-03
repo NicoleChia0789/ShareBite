@@ -28,7 +28,7 @@ fun SecurityScreen(
     onChangePassword: () -> Unit = {},
 
 
-) {
+    ) {
     val userEmail = CurrentUser.getUserEmail()
     val userRole = CurrentUser.getUserRole()
 

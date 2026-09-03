@@ -12,8 +12,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,9 +25,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import com.sharebite.app.ui.theme.AppTextFieldDefaults
 import com.sharebite.app.ui.theme.BgCream
 import com.sharebite.app.ui.theme.OrangeAccent
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 private val STEP_LABELS = listOf("Details", "Pickup", "Review")
 
@@ -45,17 +53,18 @@ fun MerchantAddDonationScreen(
 
     var currentStep by remember { mutableIntStateOf(0) }
 
-    var foodName by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("") }
-    var quantity by remember { mutableStateOf("") }
+    var foodName by rememberSaveable { mutableStateOf("") }
+    var category by rememberSaveable { mutableStateOf("") }
+    var quantity by rememberSaveable { mutableStateOf("") }
     var photoUri by remember { mutableStateOf<Uri?>(null) }
-    var existingPhotoUrl by remember { mutableStateOf<String?>(null) }
+    var existingPhotoUrl by rememberSaveable { mutableStateOf<String?>(null) }
 
-    var pickupDate by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
+    var pickupDate by rememberSaveable { mutableStateOf("") }
+    var pickupTime by rememberSaveable { mutableStateOf("") }
+    var address by rememberSaveable { mutableStateOf("") }
+    var notes by rememberSaveable { mutableStateOf("") }
 
-    var prefilled by remember { mutableStateOf(false) }
+    var prefilled by rememberSaveable { mutableStateOf(false) }
 
     val isSaving by viewModel.isSaving.collectAsState()
     val saveError by viewModel.saveError.collectAsState()
@@ -65,21 +74,25 @@ fun MerchantAddDonationScreen(
         if (!prefilled && existingListing != null) {
             foodName = existingListing.foodName
             category = existingListing.category
-            quantity = existingListing.quantity
-            existingPhotoUrl = existingListing.photoUrl
+            quantity = existingListing.totalQuantity.toString()
             pickupDate = existingListing.pickupDate
+            pickupTime = existingListing.pickupTime.orEmpty()
             address = existingListing.address
             notes = existingListing.notes ?: ""
+            existingPhotoUrl = existingListing.photoUrl
             prefilled = true
         }
     }
 
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? -> photoUri = uri }
+    ) { uri: Uri? -> photoUri = uri
+        println("🔍 [UI] Photo selected: $photoUri")  // ← 添加这行
+    }
 
     val step0Valid = foodName.isNotBlank() && category.isNotBlank() && quantity.isNotBlank()
-    val step1Valid = pickupDate.isNotBlank()
+    val step1Valid = pickupDate.isNotBlank() && pickupTime.isNotBlank()
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -117,7 +130,39 @@ fun MerchantAddDonationScreen(
                 )
                 1 -> StepPickup(
                     pickupDate = pickupDate,
-                    onDateChange = { pickupDate = it },
+                    pickupTime = pickupTime,
+                    onPickDate = {
+                        val calendar = Calendar.getInstance()
+                        android.app.DatePickerDialog(
+                            context,
+                            { _, year, month, day ->
+                                val selected = Calendar.getInstance().apply { set(year, month, day) }
+                                pickupDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(selected.time)
+                            },
+                            calendar.get(Calendar.YEAR),
+                            calendar.get(Calendar.MONTH),
+                            calendar.get(Calendar.DAY_OF_MONTH)
+                        ).apply {
+                            datePicker.minDate = Calendar.getInstance().apply {
+                                set(Calendar.HOUR_OF_DAY, 0)
+                                set(Calendar.MINUTE, 0)
+                                set(Calendar.SECOND, 0)
+                                set(Calendar.MILLISECOND, 0)
+                            }.timeInMillis
+                        }.show()
+                    },
+                    onPickTime = {
+                        val calendar = Calendar.getInstance()
+                        android.app.TimePickerDialog(
+                            context,
+                            { _, hour, minute ->
+                                pickupTime = String.format(Locale.US, "%02d:%02d:00", hour, minute)
+                            },
+                            calendar.get(Calendar.HOUR_OF_DAY),
+                            calendar.get(Calendar.MINUTE),
+                            false
+                        ).show()
+                    },
                     address = address,
                     onAddressChange = { address = it },
                     notes = notes,
@@ -128,6 +173,7 @@ fun MerchantAddDonationScreen(
                     category = category,
                     quantity = quantity,
                     pickupDate = pickupDate,
+                    pickupTime = pickupTime,
                     notes = notes,
                     photoUri = photoUri,
                     existingPhotoUrl = existingPhotoUrl,
@@ -171,6 +217,7 @@ fun MerchantAddDonationScreen(
                                     photoUri = photoUri,
                                     existingPhotoUrl = existingPhotoUrl,
                                     pickupDate = pickupDate,
+                                    pickupTime = pickupTime,
                                     notes = notes.ifBlank { null },
                                     address = address.ifBlank { null },
                                     onComplete = onSaveSuccess
@@ -182,6 +229,7 @@ fun MerchantAddDonationScreen(
                                     quantity = quantity,
                                     photoUri = photoUri,
                                     pickupDate = pickupDate,
+                                    pickupTime = pickupTime,
                                     notes = notes.ifBlank { null },
                                     address = address.ifBlank { null },
                                     onComplete = onSaveSuccess
@@ -281,6 +329,7 @@ private fun StepDetails(
             label = { Text("Food Name") },
             placeholder = { Text("e.g. Assorted Morning Pastries") },
             modifier = Modifier.fillMaxWidth(),
+            colors = AppTextFieldDefaults.colors(),
             shape = RoundedCornerShape(12.dp),
             singleLine = true
         )
@@ -346,7 +395,9 @@ private fun StepDetails(
 @Composable
 private fun StepPickup(
     pickupDate: String,
-    onDateChange: (String) -> Unit,
+    pickupTime: String,
+    onPickDate: () -> Unit,
+    onPickTime: () -> Unit,
     address: String,
     onAddressChange: (String) -> Unit,
     notes: String,
@@ -355,15 +406,25 @@ private fun StepPickup(
     Column {
         Text("Pickup Info", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(12.dp))
-        OutlinedTextField(
-            value = pickupDate,
-            onValueChange = onDateChange,
-            label = { Text("Pickup Date") },
-            placeholder = { Text("2026-08-28") },
+        OutlinedButton(
+            onClick = onPickDate,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            singleLine = true
-        )
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(Icons.Default.DateRange, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(if (pickupDate.isBlank()) "Select pickup date" else pickupDate)
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        OutlinedButton(
+            onClick = onPickTime,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(Icons.Default.Schedule, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(if (pickupTime.isBlank()) "Select pickup time" else formatPickupTime(pickupTime))
+        }
         Spacer(modifier = Modifier.height(12.dp))
         OutlinedTextField(
             value = address,
@@ -394,6 +455,7 @@ private fun StepReview(
     category: String,
     quantity: String,
     pickupDate: String,
+    pickupTime: String,
     notes: String,
     photoUri: Uri?,
     existingPhotoUrl: String?,
@@ -425,6 +487,7 @@ private fun StepReview(
                 ReviewRow("Category", category)
                 ReviewRow("Quantity", quantity)
                 ReviewRow("Pickup Date", pickupDate)
+                ReviewRow("Pickup Time", formatPickupTime(pickupTime))
                 ReviewRow("Address", address)
                 if (notes.isNotBlank()) ReviewRow("Instructions", notes)
             }
@@ -438,4 +501,11 @@ private fun ReviewRow(label: String, value: String) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
         Text(value.ifBlank { "—" }, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
     }
+}
+
+private fun formatPickupTime(value: String): String = try {
+    val parsed = SimpleDateFormat("HH:mm:ss", Locale.US).apply { isLenient = false }.parse(value)
+    SimpleDateFormat("h:mm a", Locale.getDefault()).format(parsed!!)
+} catch (_: Exception) {
+    value
 }

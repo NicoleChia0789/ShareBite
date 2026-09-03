@@ -16,10 +16,14 @@ data class Reservation(
     @SerialName("merchant_id")
     val merchantId: String = "",
 
+    @SerialName("quantity_num")
+    val quantityNum: Int = 1,
+
+    @SerialName("unit")
+    val unit: String = "units",
+
     @SerialName("food_name")
     val foodName: String = "",
-
-    val quantity: String = "",
 
     @SerialName("pickup_date")
     val pickupDate: String = "",
@@ -27,8 +31,6 @@ data class Reservation(
     @SerialName("pickup_time")
     val pickupTime: String = "",
 
-    // Pending / Confirmed / Cancelled / Completed
-    // 大写开头，跟 charity 统一
     val status: String = "Pending",
 
     val note: String? = null,

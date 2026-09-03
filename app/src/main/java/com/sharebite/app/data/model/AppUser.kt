@@ -17,7 +17,7 @@ data class AppUser(
     val role: String = "charity",
 
     @SerialName("avatar_url")
-    val avatarUrl: String? = null,
+    var avatarUrl: String? = null,
 
     @SerialName("created_at")
     val createdAt: String = ""

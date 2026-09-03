@@ -23,13 +23,7 @@ fun UserHelpScreen(paddingValues: PaddingValues) {
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        Text(
-            text = "Help & Support",
-            fontSize = 22.sp,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-            color = TextDark
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+
 
         Text(
             text = "Frequently Asked Questions",

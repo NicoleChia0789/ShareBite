@@ -30,27 +30,7 @@ fun MerchantHelpScreen(
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        // ── Back Button + Title ──
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
-                    tint = TextDark
-                )
-            }
-            Text(
-                text = "Help & Support",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextDark
-            )
-        }
 
-        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
             text = "Get help with donating food and managing your listings.",

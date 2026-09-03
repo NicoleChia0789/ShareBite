@@ -16,6 +16,10 @@ class LoginRepository {
         name: String,
         role: String
     ): AppUser {
+        if (!PasswordUtils.isStrongPassword(password)) {
+            throw Exception(PasswordUtils.STRONG_PASSWORD_REQUIREMENTS)
+        }
+
         val existing = SupabaseClient.client.postgrest["users"]
             .select {
                 filter { eq("email", email) }
@@ -75,6 +79,8 @@ class LoginRepository {
         currentPassword: String,
         newPassword: String
     ): Boolean {
+        if (!PasswordUtils.isStrongPassword(newPassword)) return false
+
         return try {
             val user = SupabaseClient.client.postgrest["users"]
                 .select {
@@ -130,17 +136,20 @@ class LoginRepository {
     // ---------- 通过邮箱重置密码（忘记密码用） ----------
     suspend fun updatePasswordByEmail(email: String, newPassword: String): Boolean {
         return try {
+            val normalizedEmail = email.trim()
+            if (normalizedEmail.isBlank() || !PasswordUtils.isStrongPassword(newPassword)) return false
+
             // 1️⃣ 先确认用户存在
             val user = SupabaseClient.client.postgrest["users"]
                 .select {
-                    filter { eq("email", email) }
+                    filter { eq("email", normalizedEmail) }
                     limit(1)
                 }
                 .decodeList<AppUser>()
                 .firstOrNull()
 
             if (user == null) {
-                println("❌ updatePasswordByEmail: User not found with email: $email")
+                println("❌ updatePasswordByEmail: User not found with email: $normalizedEmail")
                 return false
             }
 

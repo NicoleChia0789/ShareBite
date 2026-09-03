@@ -80,15 +80,14 @@ class ReservationRepository {
         }
     }
 
-    // ✅ Create reservation for current user
-    // ✅ Create reservation for current user and return the ID
     suspend fun createMyReservation(
         listingId: Long,
         merchantId: String,
         foodName: String,
-        quantity: String,
         pickupDate: String,
         pickupTime: String,
+        quantityNum: Int,      // 新增
+        unit: String,          // 新增
         note: String? = null
     ): Long {
         val userId = CurrentUser.getUserId()
@@ -97,7 +96,8 @@ class ReservationRepository {
         println("  listingId: $listingId")
         println("  merchantId: $merchantId")
         println("  foodName: $foodName")
-        println("  quantity: $quantity")
+        println("  quantityNum: $quantityNum")   // ✅ 打印新字段
+        println("  unit: $unit")                // ✅ 打印新字段
         println("  pickupDate: $pickupDate")
         println("  pickupTime: $pickupTime")
         println("  note: $note")
@@ -107,24 +107,20 @@ class ReservationRepository {
             listingId = listingId,
             merchantId = merchantId,
             foodName = foodName,
-            quantity = quantity,
             pickupDate = pickupDate,
             pickupTime = pickupTime,
             status = "Pending",
-            note = note
+            note = note,
+            quantityNum = quantityNum,   // ✅ 传入新字段
+            unit = unit                  // ✅ 传入新字段
         )
 
         return try {
             val result = SupabaseClient.client.postgrest["reservations"]
-                .insert(newReservation) {
-                    select()
-                }
+                .insert(newReservation) { select() }
                 .decodeList<Reservation>()
                 .firstOrNull()
-
-            val id = result?.id ?: 0L
-            println("✅ Reservation created with ID: $id")
-            id
+            result?.id ?: 0L
         } catch (e: Exception) {
             println("❌ Error creating reservation: ${e.message}")
             e.printStackTrace()

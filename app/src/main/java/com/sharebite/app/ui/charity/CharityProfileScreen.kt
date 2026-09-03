@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.repository.UserRepository
 import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
+import com.sharebite.app.ui.profile.ProfileAvatar
 
 @Composable
 fun CharityProfileScreen(
@@ -44,6 +45,7 @@ fun CharityProfileScreen(
     var fullName by remember { mutableStateOf(userName) }
     var email by remember { mutableStateOf(userEmail) }
     var phone by remember { mutableStateOf("Not set yet") }
+    var avatarUrl by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -54,6 +56,7 @@ fun CharityProfileScreen(
                 fullName = user.name.ifBlank { userName }
                 email = user.email.ifBlank { userEmail }
                 phone = user.phone?.ifBlank { "Not set yet" } ?: "Not set yet"
+                avatarUrl = user.avatarUrl
                 println("✅ Charity user loaded: $fullName, $email")
             } else if (userName.isNotEmpty()) {
                 fullName = userName
@@ -111,20 +114,7 @@ fun CharityProfileScreen(
 
         // ── Avatar + Name + Email + Role ──
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .background(OrangeAccent),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (fullName.isNotEmpty()) fullName.take(1).uppercase() else "?",
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
+            ProfileAvatar(displayName = fullName, photoUrl = avatarUrl)
             Spacer(modifier = Modifier.width(14.dp))
             Column {
                 Text(

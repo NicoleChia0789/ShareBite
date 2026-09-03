@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -35,46 +36,46 @@ fun NotificationSettingsScreen(
 
     // ── 根据不同角色显示不同的开关 ──
     // User 开关
-    var userNewSurplus by remember {
-        mutableStateOf(prefs.getBoolean("user_new_surplus_alerts", true))
+    var userReservationConfirmed by rememberSaveable {
+        mutableStateOf(prefs.getBoolean("user_reservation_confirmed", prefs.getBoolean("user_new_surplus_alerts", true)))
     }
-    var userReservationUpdates by remember {
-        mutableStateOf(prefs.getBoolean("user_reservation_updates", true))
+    var userPickupCompleted by rememberSaveable {
+        mutableStateOf(prefs.getBoolean("user_pickup_completed", prefs.getBoolean("user_reservation_updates", true)))
     }
-    var userMessages by remember {
-        mutableStateOf(prefs.getBoolean("user_messages", false))
+    var userReservationCancelled by rememberSaveable {
+        mutableStateOf(prefs.getBoolean("user_reservation_cancelled", prefs.getBoolean("user_reservation_updates", true)))
     }
 
     // Charity 开关
-    var charityNewSurplus by remember {
-        mutableStateOf(prefs.getBoolean("charity_new_surplus_alerts", true))
+    var charityRequestApproved by rememberSaveable {
+        mutableStateOf(prefs.getBoolean("charity_request_approved", prefs.getBoolean("charity_new_surplus_alerts", true)))
     }
-    var charityRequestApprovals by remember {
-        mutableStateOf(prefs.getBoolean("charity_request_approvals", true))
+    var charityPickupCompleted by rememberSaveable {
+        mutableStateOf(prefs.getBoolean("charity_pickup_completed", prefs.getBoolean("charity_request_approvals", true)))
     }
-    var charityPickupReminders by remember {
-        mutableStateOf(prefs.getBoolean("charity_pickup_reminders", false))
+    var charityRequestRejected by rememberSaveable {
+        mutableStateOf(prefs.getBoolean("charity_request_rejected", prefs.getBoolean("charity_pickup_reminders", true)))
     }
 
     // Merchant 开关
-    var merchantNewRequests by remember {
+    var merchantNewFoodRequests by rememberSaveable {
+        mutableStateOf(prefs.getBoolean("merchant_new_food_requests", prefs.getBoolean("merchant_new_donation_requests", true)))
+    }
+    var merchantNewReservations by rememberSaveable {
+        mutableStateOf(prefs.getBoolean("merchant_new_reservations", prefs.getBoolean("merchant_pickup_confirmations", true)))
+    }
+    var merchantNewDonationRequests by rememberSaveable {
         mutableStateOf(prefs.getBoolean("merchant_new_donation_requests", true))
-    }
-    var merchantPickupConfirmations by remember {
-        mutableStateOf(prefs.getBoolean("merchant_pickup_confirmations", true))
-    }
-    var merchantDailyImpact by remember {
-        mutableStateOf(prefs.getBoolean("merchant_daily_impact_summary", false))
     }
 
     // 通用方法开关
-    var pushNotifications by remember {
+    var pushNotifications by rememberSaveable {
         mutableStateOf(prefs.getBoolean("push_notifications", true))
     }
-    var emailNotifications by remember {
+    var emailNotifications by rememberSaveable {
         mutableStateOf(prefs.getBoolean("email_notifications", false))
     }
-    var smsAlerts by remember {
+    var smsAlerts by rememberSaveable {
         mutableStateOf(prefs.getBoolean("sms_alerts", false))
     }
 
@@ -96,19 +97,19 @@ fun NotificationSettingsScreen(
                 val editor = prefs.edit()
 
                 // 保存 User 设置
-                editor.putBoolean("user_new_surplus_alerts", userNewSurplus)
-                editor.putBoolean("user_reservation_updates", userReservationUpdates)
-                editor.putBoolean("user_messages", userMessages)
+                editor.putBoolean("user_reservation_confirmed", userReservationConfirmed)
+                editor.putBoolean("user_pickup_completed", userPickupCompleted)
+                editor.putBoolean("user_reservation_cancelled", userReservationCancelled)
 
                 // 保存 Charity 设置
-                editor.putBoolean("charity_new_surplus_alerts", charityNewSurplus)
-                editor.putBoolean("charity_request_approvals", charityRequestApprovals)
-                editor.putBoolean("charity_pickup_reminders", charityPickupReminders)
+                editor.putBoolean("charity_request_approved", charityRequestApproved)
+                editor.putBoolean("charity_pickup_completed", charityPickupCompleted)
+                editor.putBoolean("charity_request_rejected", charityRequestRejected)
 
                 // 保存 Merchant 设置
-                editor.putBoolean("merchant_new_donation_requests", merchantNewRequests)
-                editor.putBoolean("merchant_pickup_confirmations", merchantPickupConfirmations)
-                editor.putBoolean("merchant_daily_impact_summary", merchantDailyImpact)
+                editor.putBoolean("merchant_new_food_requests", merchantNewFoodRequests)
+                editor.putBoolean("merchant_new_reservations", merchantNewReservations)
+                editor.putBoolean("merchant_new_donation_requests", merchantNewDonationRequests)
 
                 // 保存通用方法设置
                 editor.putBoolean("push_notifications", pushNotifications)
@@ -160,8 +161,8 @@ fun NotificationSettingsScreen(
                     icon = Icons.Default.Notifications,
                     title = "Reservation Confirmed",
                     description = "Get notified when your reservation has been confirmed",
-                    checked = userNewSurplus,
-                    onCheckedChange = { userNewSurplus = it }
+                    checked = userReservationConfirmed,
+                    onCheckedChange = { userReservationConfirmed = it }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -169,8 +170,8 @@ fun NotificationSettingsScreen(
                     icon = Icons.Default.CalendarToday,
                     title = "Pickup Completed",
                     description = "Get notified when you have successfully picked up your food",
-                    checked = userReservationUpdates,
-                    onCheckedChange = { userReservationUpdates = it }
+                    checked = userPickupCompleted,
+                    onCheckedChange = { userPickupCompleted = it }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -178,8 +179,8 @@ fun NotificationSettingsScreen(
                     icon = Icons.Default.CalendarToday,
                     title = "Reservation Cancelled",
                     description = "Get notified when your reservation has been cancelled",
-                    checked = userReservationUpdates,
-                    onCheckedChange = { userReservationUpdates = it }
+                    checked = userReservationCancelled,
+                    onCheckedChange = { userReservationCancelled = it }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -198,8 +199,8 @@ fun NotificationSettingsScreen(
                     icon = Icons.Default.Notifications,
                     title = "Request Approved",
                     description = "Get notified when your request has been approved",
-                    checked = charityNewSurplus,
-                    onCheckedChange = { charityNewSurplus = it }
+                    checked = charityRequestApproved,
+                    onCheckedChange = { charityRequestApproved = it }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -207,8 +208,8 @@ fun NotificationSettingsScreen(
                     icon = Icons.Default.CheckCircle,
                     title = "Pickup Completed",
                     description = "Get notified when you have successfully picked up your food",
-                    checked = charityRequestApprovals,
-                    onCheckedChange = { charityRequestApprovals = it }
+                    checked = charityPickupCompleted,
+                    onCheckedChange = { charityPickupCompleted = it }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -216,8 +217,8 @@ fun NotificationSettingsScreen(
                     icon = Icons.Default.Alarm,
                     title = "Request Rejected",
                     description = "Get notified when your request has been rejected",
-                    checked = charityPickupReminders,
-                    onCheckedChange = { charityPickupReminders = it }
+                    checked = charityRequestRejected,
+                    onCheckedChange = { charityRequestRejected = it }
                 )
             }
 
@@ -234,8 +235,8 @@ fun NotificationSettingsScreen(
                     icon = Icons.Default.RequestPage,
                     title = "New Food Requests",
                     description = "Get notified when a charity requests your food",
-                    checked = merchantNewRequests,
-                    onCheckedChange = { merchantNewRequests = it }
+                    checked = merchantNewFoodRequests,
+                    onCheckedChange = { merchantNewFoodRequests = it }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -243,8 +244,8 @@ fun NotificationSettingsScreen(
                     icon = Icons.Default.DirectionsCar,
                     title = "New Reservation",
                     description = "Get notified when a user reserves your food items",
-                    checked = merchantPickupConfirmations,
-                    onCheckedChange = { merchantPickupConfirmations = it }
+                    checked = merchantNewReservations,
+                    onCheckedChange = { merchantNewReservations = it }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -252,8 +253,8 @@ fun NotificationSettingsScreen(
                     icon = Icons.Default.DirectionsCar,
                     title = "New Donation Request",
                     description = "Get notified when a charity requests for food",
-                    checked = merchantPickupConfirmations,
-                    onCheckedChange = { merchantPickupConfirmations = it }
+                    checked = merchantNewDonationRequests,
+                    onCheckedChange = { merchantNewDonationRequests = it }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -286,24 +287,7 @@ fun NotificationSettingsScreen(
         )
         Spacer(modifier = Modifier.height(8.dp))
 
-        NotificationToggleItem(
-            icon = Icons.Default.Email,
-            title = "Email Notifications",
-            description = "Daily summaries sent to your inbox.",
-            checked = emailNotifications,
-            onCheckedChange = { emailNotifications = it }
-        )
-        Spacer(modifier = Modifier.height(8.dp))
 
-        NotificationToggleItem(
-            icon = Icons.Default.Sms,
-            title = "SMS Alerts",
-            description = "Text messages for urgent updates.",
-            checked = smsAlerts,
-            onCheckedChange = { smsAlerts = it }
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
 
         // ── Save Button ──
         Button(

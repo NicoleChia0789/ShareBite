@@ -87,29 +87,32 @@ fun UserMakeReservationScreen(
 
     val timeSlots = listOf("10:00 AM", "12:30 PM", "02:00 PM", "04:30 PM")
 
+    var isDataLoaded by rememberSaveable { mutableStateOf(false) }
+
     LaunchedEffect(listingId, reservationId) {
-        try {
-            listing = foodRepo.getListingById(listingId)
-
-            if (reservationId != null) {
-                existingReservation = reservationRepo.getMyReservationById(reservationId)
-                existingReservation?.let { res ->
-                    selectedDate = res.pickupDate
-                    selectedTime = res.pickupTime
-                    note = res.note ?: ""
+        if (!isDataLoaded) {
+            try {
+                listing = foodRepo.getListingById(listingId)
+                if (reservationId != null) {
+                    existingReservation = reservationRepo.getMyReservationById(reservationId)
+                    existingReservation?.let { res ->
+                        selectedDate = res.pickupDate
+                        selectedTime = res.pickupTime
+                        note = res.note ?: ""
+                    }
                 }
+                if (selectedDate == null) {
+                    selectedDate = dateList.firstOrNull()?.first
+                }
+                if (selectedTime == null) {
+                    selectedTime = timeSlots.firstOrNull()
+                }
+                isDataLoaded = true
+            } catch (e: Exception) {
+                errorMessage = e.message
+            } finally {
+                isLoading = false
             }
-
-            if (selectedDate == null) {
-                selectedDate = dateList.firstOrNull()?.first
-            }
-            if (selectedTime == null) {
-                selectedTime = timeSlots.firstOrNull()
-            }
-        } catch (e: Exception) {
-            errorMessage = e.message
-        } finally {
-            isLoading = false
         }
     }
 
@@ -135,7 +138,8 @@ fun UserMakeReservationScreen(
                         listingId = listingId,
                         merchantId = listing!!.merchantId ?: "",
                         foodName = listing!!.foodName,
-                        quantity = "1",  // ✅ 固定为 1
+                        quantityNum = 1,
+                        unit = "unit",
                         pickupDate = selectedDate!!,
                         pickupTime = selectedTime!!,
                         note = note.ifBlank { null }
@@ -461,14 +465,7 @@ fun UserMakeReservationScreen(
                             placeholder = { Text("Let the donor know when you'll be arriving...", color = TextGrey) },
                             shape = RoundedCornerShape(12.dp),
                             maxLines = 3,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = OrangeAccent,
-                                unfocusedBorderColor = Color(0xFFDDC0B8),
-                                focusedTextColor = TextDark,      // ✅ 输入文字黑色
-                                unfocusedTextColor = TextDark,    // ✅ 输入文字黑色
-                                focusedLabelColor = OrangeAccent,
-                                unfocusedLabelColor = TextGrey
-                            )
+                            colors = AppTextFieldDefaults.colors()
                         )
 
                         if (errorMessage != null) {
@@ -529,7 +526,7 @@ fun UserMakeReservationScreen(
             if (showConfirmDialog) {
                 // ✅ 获取正确的 quantity：编辑模式用 existingReservation 的，新建模式用 "1 Unit"
                 val displayQuantity = if (isEditMode && existingReservation != null) {
-                    "${existingReservation!!.quantity} Unit${if (existingReservation!!.quantity != "1") "s" else ""}"
+                    "${existingReservation!!.quantityNum} ${existingReservation!!.unit}"
                 } else {
                     "1 Unit"
                 }

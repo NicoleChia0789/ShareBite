@@ -317,7 +317,7 @@ private fun ReservationCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "${reservation.foodName} × ${reservation.quantity}",
+                text = "${reservation.foodName} × ${reservation.quantityNum} ${reservation.unit}",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextDark

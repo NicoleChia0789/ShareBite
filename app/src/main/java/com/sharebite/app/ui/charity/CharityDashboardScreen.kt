@@ -88,162 +88,162 @@ fun CharityDashboardScreen(
         .take(3)
         .map { ActivityItem(it.id, it.foodName, "${it.pickupDate}, ${it.pickupTime}", it.status) }
 
-        if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = OrangeAccent)
-            }
-            return
-        }
-
-        if (errorMessage != null) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Error: $errorMessage", color = RedCancelled)
-            }
-            return
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
+    if (isLoading) {
+        Box(
+            modifier = Modifier.fillMaxSize().padding(paddingValues),
+            contentAlignment = Alignment.Center
         ) {
-
-            // ---------- HERO SECTION ----------
-            Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                Text(
-                    "Hi, $userName 👋",
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextDark
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "Welcome back! Browse fresh surplus food nearby, or post a request to let donors know what your community needs.",
-                    fontSize = 14.sp,
-                    color = TextGrey,
-                    lineHeight = 20.sp
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = onCreateRequest,
-                    colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
-                    shape = RoundedCornerShape(8.dp)  // 可选的，保持一致风格
-                ) {
-                    Text("+ Create Food Request", color = Color.White)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // ---------- STATS GRID (2x2) ----------
-            Column(
-                modifier = Modifier.padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    StatCard("Pending", formatWithThousandSeparator(pending), OrangeAccent, Modifier.weight(1f))
-                    StatCard("Confirmed", formatWithThousandSeparator(confirmed), GreenConfirmed, Modifier.weight(1f))
-                }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    StatCard("Completed", completed.toString(), GreyCompleted, Modifier.weight(1f))
-                    StatCard("Cancelled", cancelled.toString(), RedCancelled, Modifier.weight(1f))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // ---------- RECENT ACTIVITY ----------
-            Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text("Recent Activity", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                        Text("Confirmed donations ready for pickup", fontSize = 12.sp, color = TextGrey)
-                    }
-                    Text(
-                        "View All",
-                        color = OrangeAccent,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        modifier = Modifier.clickable { onViewAllClick() }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                recentActivities.forEach { activity ->
-                    ActivityCard(activity, onClick = { onActivityClick(activity.requestId) })
-                    Spacer(modifier = Modifier.height(10.dp))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // ---------- YOUR IMPACT THIS MONTH ----------
-            Card(
-                modifier = Modifier
-                    .padding(horizontal = 20.dp)
-                    .fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = CardCream)
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Text(
-                        "Your Impact This Month",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = OrangeAccent
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "Based on confirmed and completed requests",
-                        fontSize = 11.sp,
-                        color = TextGrey
-                    )
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            "$totalPortionsThisMonth",
-                            fontSize = 36.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = GreenConfirmed
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            "portions rescued",
-                            fontSize = 14.sp,
-                            color = TextDark,
-                            modifier = Modifier.padding(bottom = 6.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        "$availableCount more donations are available near you right now.",
-                        fontSize = 12.sp,
-                        color = TextGrey
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
+            CircularProgressIndicator(color = OrangeAccent)
         }
+        return
     }
+
+    if (errorMessage != null) {
+        Box(
+            modifier = Modifier.fillMaxSize().padding(paddingValues),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Error: $errorMessage", color = RedCancelled)
+        }
+        return
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .verticalScroll(rememberScrollState())
+    ) {
+
+        // ---------- HERO SECTION ----------
+        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+            Text(
+                "Hi, $userName 👋",
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextDark
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Welcome back! Browse fresh surplus food nearby, or post a request to let donors know what your community needs.",
+                fontSize = 14.sp,
+                color = TextGrey,
+                lineHeight = 20.sp
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onCreateRequest,
+                colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                shape = RoundedCornerShape(8.dp)  // 可选的，保持一致风格
+            ) {
+                Text("+ Create Food Request", color = Color.White)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // ---------- STATS GRID (2x2) ----------
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                StatCard("Pending", formatWithThousandSeparator(pending), OrangeAccent, Modifier.weight(1f))
+                StatCard("Confirmed", formatWithThousandSeparator(confirmed), GreenConfirmed, Modifier.weight(1f))
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                StatCard("Completed", completed.toString(), GreyCompleted, Modifier.weight(1f))
+                StatCard("Cancelled", cancelled.toString(), RedCancelled, Modifier.weight(1f))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // ---------- RECENT ACTIVITY ----------
+        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("Recent Activity", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                    Text("Confirmed donations ready for pickup", fontSize = 12.sp, color = TextGrey)
+                }
+                Text(
+                    "View All",
+                    color = OrangeAccent,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    modifier = Modifier.clickable { onViewAllClick() }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            recentActivities.forEach { activity ->
+                ActivityCard(activity, onClick = { onActivityClick(activity.requestId) })
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // ---------- YOUR IMPACT THIS MONTH ----------
+        Card(
+            modifier = Modifier
+                .padding(horizontal = 20.dp)
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = CardCream)
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Text(
+                    "Your Impact This Month",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = OrangeAccent
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Based on confirmed and completed requests",
+                    fontSize = 11.sp,
+                    color = TextGrey
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        "$totalPortionsThisMonth",
+                        fontSize = 36.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GreenConfirmed
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        "portions rescued",
+                        fontSize = 14.sp,
+                        color = TextDark,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    "$availableCount more donations are available near you right now.",
+                    fontSize = 12.sp,
+                    color = TextGrey
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
 
 
 @Composable

@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.repository.UserRepository
 import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
+import com.sharebite.app.ui.profile.ProfileAvatar
 
 @Composable
 fun UserProfileScreen(
@@ -31,7 +32,6 @@ fun UserProfileScreen(
     onLogout: () -> Unit,
     onReservationHistory: () -> Unit = {},
     onEditProfile: () -> Unit = {},
-    onAddressClick: () -> Unit = {},
     onSecurityClick: () -> Unit = {},
     onNotificationSettingsClick: () -> Unit = {}
 ) {
@@ -45,7 +45,7 @@ fun UserProfileScreen(
     var fullName by remember { mutableStateOf(userName) }
     var email by remember { mutableStateOf(userEmail) }
     var phone by remember { mutableStateOf("Not set yet") }
-    var address by remember { mutableStateOf("Not set yet") }
+    var avatarUrl by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -56,7 +56,7 @@ fun UserProfileScreen(
                 fullName = user.name.ifBlank { userName }
                 email = user.email.ifBlank { userEmail }
                 phone = user.phone?.ifBlank { "Not set yet" } ?: "Not set yet"
-                address = user.address?.ifBlank { "Not set yet" } ?: "Not set yet"
+                avatarUrl = user.avatarUrl
                 println("✅ User loaded: $fullName, $email")
             } else if (userName.isNotEmpty()) {
                 fullName = userName
@@ -114,20 +114,7 @@ fun UserProfileScreen(
 
         // ── Avatar + Name + Email + Role ──
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .background(OrangeAccent),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (fullName.isNotEmpty()) fullName.take(1).uppercase() else "?",
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
+            ProfileAvatar(displayName = fullName, photoUrl = avatarUrl)
             Spacer(modifier = Modifier.width(14.dp))
             Column {
                 Text(
@@ -224,16 +211,7 @@ fun UserProfileScreen(
 
 
 
-                // 3. Address
-                ProfileMenuItem(
-                    icon = Icons.Default.LocationOn,
-                    title = "Address",
-                    subtitle = "Manage your primary location",
-                    onClick = onAddressClick
-                )
-                Divider(color = Color(0xFFEFE6D9), modifier = Modifier.padding(horizontal = 16.dp))
-
-                // 4. Account Security
+                // Account Security
                 ProfileMenuItem(
                     icon = Icons.Default.Lock,
                     title = "Account Security",

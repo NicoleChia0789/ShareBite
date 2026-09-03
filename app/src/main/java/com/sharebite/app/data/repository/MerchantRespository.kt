@@ -3,6 +3,7 @@ package com.sharebite.app.data.repository
 import com.sharebite.app.data.model.CharityRequest
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.model.Reservation
+import com.sharebite.app.data.model.UserSummary
 import com.sharebite.app.data.remote.SupabaseClient
 import com.sharebite.app.data.session.CurrentUser
 import io.github.jan.supabase.postgrest.postgrest
@@ -19,10 +20,10 @@ private data class NewFoodListing(
     @SerialName("food_name") val foodName: String,
     val category: String,
     val description: String? = null,
-    val quantity: String,
+    // ✅ 已删除 val quantity: String
     @SerialName("photo_url") val photoUrl: String? = null,
     @SerialName("pickup_date") val pickupDate: String? = null,
-    // ✅ 移除 pickupTime
+    @SerialName("pickup_time") val pickupTime: String? = null,
     @SerialName("deadline") val deadline: String? = null,
     val address: String? = null,
     @SerialName("distance_km") val distanceKm: Double = 0.0,
@@ -35,7 +36,6 @@ private data class NewFoodListing(
     @SerialName("remaining_quantity") val remainingQuantity: Int = 10,
     @SerialName("dietary_type") val dietaryType: String? = null
 )
-
 @Serializable
 private data class ListingInsertResponse(
     @SerialName("id") val id: Long
@@ -58,7 +58,10 @@ class MerchantRepository {
         return try {
             SupabaseClient.client.postgrest["food_listings"]
                 .select {
-                    filter { eq("merchant_id", merchantId) }
+                    filter {
+                        eq("merchant_id", merchantId)
+                        eq("status", "available")  // ⚠️ 只查 available 状态
+                    }
                     order("created_at", Order.DESCENDING)
                 }
                 .decodeList<FoodListing>()
@@ -91,6 +94,19 @@ class MerchantRepository {
                 }
                 .decodeList<Reservation>()
         } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun getReservationUsers(): List<UserSummary> {
+        return try {
+            SupabaseClient.client.postgrest["users"]
+                .select(columns = Columns.list("id", "name", "avatar_url")) {
+                    filter { eq("role", "user") }
+                }
+                .decodeList<UserSummary>()
+        } catch (e: Exception) {
+            println("❌ [Repository] Failed to load reservation users: ${e.message}")
             emptyList()
         }
     }
@@ -155,21 +171,91 @@ class MerchantRepository {
             }
     }
 
-    // ✅ 移除 pickupTime 参数
+    /**
+     * Reserves stock for a pending reservation before confirming it.
+     * All values use the existing bigint/integer columns from Supabase; no schema
+     * change or new column is required.
+     */
+    suspend fun approveReservation(reservation: Reservation) {
+        require(reservation.quantityNum > 0) { "Reservation quantity must be greater than zero" }
+        val listing = getOwnedListing(reservation.listingId)
+        require(listing.remainingQuantity >= reservation.quantityNum) {
+            "Only ${listing.remainingQuantity} ${listing.unit ?: "units"} remaining"
+        }
+        updateListingInventory(
+            listing = listing,
+            newRemaining = listing.remainingQuantity - reservation.quantityNum
+        )
+        try {
+            updateReservationStatus(reservation.id, "Confirmed")
+        } catch (error: Exception) {
+            updateListingInventory(listing, listing.remainingQuantity)
+            throw error
+        }
+    }
+
+    /** Reserves stock for a charity request that is linked to a merchant listing. */
+    suspend fun approveLinkedRequest(request: CharityRequest) {
+        val listingId = request.listingId?.toLongOrNull()
+            ?: error("This charity request is not linked to a donation")
+        require(request.quantity > 0) { "Request quantity must be greater than zero" }
+        val listing = getOwnedListing(listingId)
+        require(listing.remainingQuantity >= request.quantity) {
+            "Only ${listing.remainingQuantity} ${listing.unit ?: "units"} remaining"
+        }
+        updateListingInventory(listing, listing.remainingQuantity - request.quantity)
+        try {
+            updateRequestStatus(request.id, "Confirmed")
+        } catch (error: Exception) {
+            updateListingInventory(listing, listing.remainingQuantity)
+            throw error
+        }
+    }
+
+    private suspend fun getOwnedListing(listingId: Long): FoodListing {
+        val merchantId = CurrentUser.getUserId()
+        return SupabaseClient.client.postgrest["food_listings"]
+            .select {
+                filter {
+                    eq("id", listingId)
+                    eq("merchant_id", merchantId)
+                }
+            }
+            .decodeList<FoodListing>()
+            .firstOrNull()
+            ?: error("Donation listing not found")
+    }
+
+    private suspend fun updateListingInventory(listing: FoodListing, newRemaining: Int) {
+        val safeRemaining = newRemaining.coerceIn(0, listing.totalQuantity)
+        SupabaseClient.client.postgrest["food_listings"]
+            .update({
+                set("remaining_quantity", safeRemaining)
+                set("status", if (safeRemaining == 0) "claimed" else "available")
+            }) {
+                filter {
+                    eq("id", listing.id)
+                    eq("merchant_id", CurrentUser.getUserId())
+                }
+            }
+    }
+
     suspend fun createListing(
         foodName: String,
         category: String,
-        quantity: String,
-        photoUri: String?,
+        // ✅ 已删除 quantity: String
+        photoUrl: String?,
         pickupDate: String?,
+        pickupTime: String?,
         notes: String?,
         description: String?,
         address: String?,
         distanceKm: Double,
         dietaryType: String?,
         totalQuantity: Int,
-        remainingQuantity: Int
+        remainingQuantity: Int  // ✅ 保留
     ): Long {
+        println("🔍 [Repository] Received photoUrl: '$photoUrl'")
         val merchantId = CurrentUser.getUserId()
         val newListing = NewFoodListing(
             merchantId = merchantId,
@@ -177,11 +263,11 @@ class MerchantRepository {
             foodName = foodName,
             category = category,
             description = description,
-            quantity = quantity,
-            photoUrl = photoUri,
+            // ✅ 不再传入 quantity
+            photoUrl = photoUrl,
             pickupDate = pickupDate,
-            // ✅ 不再传入 pickupTime
-            deadline = pickupDate, // 用 pickupDate 作为 deadline（或设为 null）
+            pickupTime = pickupTime,
+            deadline = if (pickupDate != null && pickupTime != null) "$pickupDate $pickupTime" else null,
             address = address,
             distanceKm = distanceKm,
             latitude = null,
@@ -190,7 +276,7 @@ class MerchantRepository {
             status = "available",
             portionInfo = null,
             totalQuantity = totalQuantity,
-            remainingQuantity = remainingQuantity,
+            remainingQuantity = remainingQuantity,  // ✅ 使用传入的 remainingQuantity
             dietaryType = dietaryType
         )
         val result = SupabaseClient.client.postgrest["food_listings"]
@@ -221,6 +307,7 @@ class MerchantRepository {
         quantity: String,
         photoUrl: String?,
         pickupDate: String?,
+        pickupTime: String?,
         notes: String?,
         address: String?
     ) {
@@ -229,11 +316,13 @@ class MerchantRepository {
             .update({
                 set("food_name", foodName)
                 set("category", category)
-                set("quantity", quantity)
+//                set("quantity", quantity)
+                set("total_quantity", quantity.toIntOrNull() ?: 0)      // ✅ Use total_quantity
+                set("remaining_quantity", quantity.toIntOrNull() ?: 0)  // ✅ Use remaining_quantity
                 set("photo_url", photoUrl)
                 set("pickup_date", pickupDate)
-                // ✅ 不再设置 pickup_time
-                set("deadline", pickupDate) // 用 pickupDate 作为 deadline
+                set("pickup_time", pickupTime)
+                set("deadline", if (pickupDate != null && pickupTime != null) "$pickupDate $pickupTime" else null)
                 set("notes", notes)
                 set("address", address)
             }) {
@@ -243,6 +332,7 @@ class MerchantRepository {
                 }
             }
     }
+
     suspend fun claimRequest(requestId: Long, merchantId: String) {
         SupabaseClient.client.postgrest["charity_requests"]
             .update({
@@ -250,6 +340,17 @@ class MerchantRepository {
                 set("status", "Confirmed")  // 或 "Pending"，按业务需求
             }) {
                 filter { eq("id", requestId) }
+            }
+    }
+
+    suspend fun updateListingStatus(listingId: Long, status: String) {
+        val merchantId = CurrentUser.getUserId()
+        SupabaseClient.client.postgrest["food_listings"]
+            .update({ set("status", status) }) {
+                filter {
+                    eq("id", listingId)
+                    eq("merchant_id", merchantId)
+                }
             }
     }
 }

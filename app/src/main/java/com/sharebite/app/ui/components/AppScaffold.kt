@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,10 +30,10 @@ fun AppScaffold(
     onNavigate: (String) -> Unit,
     topBarTitle: String = "ShareBite",
     onNotificationClick: () -> Unit = {},
-
     showBackButton: Boolean = false,
     onBackClick: () -> Unit = {},
-    onLogoutClick: () -> Unit = {},  // ✅ Added logout callback
+    onLogoutClick: () -> Unit = {},
+    role: String = "user", // ✅ 新增 role 参数
     content: @Composable (PaddingValues) -> Unit
 ) {
     val screenWidthDp = LocalConfiguration.current.screenWidthDp
@@ -52,11 +51,9 @@ fun AppScaffold(
             },
             actions = {
                 if (!showBackButton) {
-
                     IconButton(onClick = onNotificationClick) {
                         Icon(Icons.Default.Notifications, contentDescription = "Notifications")
                     }
-                    // ✅ Logout button
                     IconButton(onClick = onLogoutClick) {
                         Icon(Icons.Default.Logout, contentDescription = "Logout")
                     }
@@ -66,20 +63,34 @@ fun AppScaffold(
         )
     }
 
-    // 详情页（showBackButton = true）不显示底部/左侧导航栏，让画面更专注
     if (isTablet && !showBackButton) {
         Row(modifier = Modifier.fillMaxSize()) {
-            TabletNavRail(currentRoute = currentRoute, onNavigate = onNavigate)
-            Scaffold(containerColor = BgCream, topBar = topBar) { padding -> content(padding) }
+            TabletNavRail(
+                currentRoute = currentRoute,
+                onNavigate = onNavigate,
+                role = role // ✅ 传递 role
+            )
+            Scaffold(containerColor = BgCream, topBar = topBar) { padding ->
+                content(padding)
+            }
         }
     } else if (!showBackButton) {
         Scaffold(
             containerColor = BgCream,
             topBar = topBar,
-            bottomBar = { BottomNavBar(currentRoute = currentRoute, onNavigate = onNavigate) }
-        ) { padding -> content(padding) }
+            bottomBar = {
+                BottomNavBar(
+                    currentRoute = currentRoute,
+                    onNavigate = onNavigate,
+                    role = role // ✅ 传递 role
+                )
+            }
+        ) { padding ->
+            content(padding)
+        }
     } else {
-        // 详情页：不管手机或平板，都只显示上方返回栏 + 内容
-        Scaffold(containerColor = BgCream, topBar = topBar) { padding -> content(padding) }
+        Scaffold(containerColor = BgCream, topBar = topBar) { padding ->
+            content(padding)
+        }
     }
 }

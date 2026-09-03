@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.material3.SelectableDates
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.window.DialogProperties
 import com.sharebite.app.data.session.CurrentUser
 
@@ -41,12 +42,12 @@ fun PostRequestScreen(
     val organisationName = CurrentUser.getUserName()
 
     // 表单状态
-    var foodName by remember { mutableStateOf("") }
-    var selectedCategories by remember { mutableStateOf<List<String>>(emptyList()) }
-    var quantity by remember { mutableStateOf("") }
-    var pickupDate by remember { mutableStateOf("") }
-    var pickupTime by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
+    var foodName by rememberSaveable { mutableStateOf("") }
+    var selectedCategories by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+    var quantity by rememberSaveable { mutableStateOf("") }
+    var pickupDate by rememberSaveable { mutableStateOf("") }
+    var pickupTime by rememberSaveable { mutableStateOf("") }
+    var note by rememberSaveable { mutableStateOf("") }
 
     var isSubmitting by remember { mutableStateOf(false) }
     var snackbarMessage by remember { mutableStateOf<String?>(null) }
@@ -55,8 +56,8 @@ fun PostRequestScreen(
     var showTimePicker by remember { mutableStateOf(false) }
 
     // 错误弹窗状态
-    var showErrorDialog by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf("") }
+    var showErrorDialog by rememberSaveable { mutableStateOf(false) }
+    var errorMessage by rememberSaveable { mutableStateOf("") }
 
     fun toggleCategory(category: String) {
         selectedCategories = if (selectedCategories.contains(category)) {
@@ -305,7 +306,7 @@ fun PostRequestScreen(
                             category = selectedCategories.joinToString(","),
                             quantity = quantity.toInt(),
                             pickupDate = pickupDate,
-                            pickupTime = pickupTime,
+                            pickupTime = formatTimeForDb(pickupTime),  // ← 加上转换
                             organisationName = organisationName,
                             peopleServed = 30,
                             note = note

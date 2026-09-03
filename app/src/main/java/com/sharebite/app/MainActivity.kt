@@ -17,8 +17,6 @@ import androidx.compose.ui.unit.dp
 import com.sharebite.app.data.repository.LoginRepository
 import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.navigation.AppNavHost
-import com.sharebite.app.ui.navigation.ForgotPasswordRoute
-import com.sharebite.app.ui.navigation.ResetPasswordRoute
 import com.sharebite.app.ui.profile.ForgotPasswordScreen
 import com.sharebite.app.ui.profile.ResetPasswordScreen
 import com.sharebite.app.ui.profile.SignIn
@@ -98,7 +96,7 @@ fun ShareBiteApp() {
                 showForgotPassword = false
             },
             onSendResetLink = { email ->
-                resetEmail = email
+                resetEmail = email.trim()
                 showForgotPassword = false
                 showResetPassword = true
             }

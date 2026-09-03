@@ -32,7 +32,7 @@ fun ListingCard(listing: FoodListing) {
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(listing.foodName, fontWeight = FontWeight.SemiBold)
-                Text("${listing.quantity} left", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text("${listing.remainingQuantity} left", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                 Text(listing.category, style = MaterialTheme.typography.labelSmall, color = OrangeAccent)
             }
             OutlinedButton(onClick = {}, modifier = Modifier.height(36.dp)) { Text("View") }
@@ -81,7 +81,7 @@ fun ReservationCard(reservation: Reservation) {
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text("User: ${reservation.userId}", fontWeight = FontWeight.Bold)
-                    Text("Reserved: ${reservation.quantity} x ${reservation.foodName}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text("Reserved: ${reservation.quantityNum} x ${reservation.foodName}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                     Text("${reservation.pickupDate} at ${reservation.pickupTime}", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                 }
                 Spacer(modifier = Modifier.weight(1f))
@@ -90,4 +90,3 @@ fun ReservationCard(reservation: Reservation) {
         }
     }
 }
-
