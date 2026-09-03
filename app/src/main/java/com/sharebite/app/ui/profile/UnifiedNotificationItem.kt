@@ -32,6 +32,7 @@ import com.sharebite.app.data.model.CharityRequest
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.repository.CharityRepository
 import com.sharebite.app.data.repository.DismissedNotificationRepository
+import com.sharebite.app.data.repository.MerchantRepository
 import com.sharebite.app.data.repository.ReservationRepository
 import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
@@ -47,7 +48,15 @@ private data class NotificationItem(
     val type: String,  // "reservation", "request"
     val status: String,
     val isGeneral: Boolean = false  // ✅ 标记是否 General Request
-)
+) {
+    val uniqueKey: String
+        get() = "$type:$id"
+
+    // Request IDs remain positive for compatibility with existing dismissed rows.
+    // Reservation IDs use the negative namespace so equal IDs cannot collide.
+    val dismissedId: Long
+        get() = if (type == "reservation") -id else id
+}
 
 @Composable
 fun UnifiedNotificationsScreen(
@@ -61,6 +70,7 @@ fun UnifiedNotificationsScreen(
 
     val reservationRepo = remember { ReservationRepository() }
     val charityRepo = remember { CharityRepository() }
+    val merchantRepo = remember { MerchantRepository() }
     val dismissedRepo = remember { DismissedNotificationRepository() }
 
     var notifications by remember { mutableStateOf<List<NotificationItem>>(emptyList()) }
@@ -80,13 +90,13 @@ fun UnifiedNotificationsScreen(
                 val items = when (role) {
                     "user" -> loadUserNotifications(reservationRepo)
                     "charity" -> loadCharityNotifications(charityRepo)
-                    "merchant" -> loadMerchantNotifications(reservationRepo, charityRepo)
+                    "merchant" -> loadMerchantNotifications(merchantRepo)
                     else -> emptyList()
                 }
                 val dismissed = dismissedRepo.getMyDismissedIds()
                 notifications = items
                 dismissedIds = dismissed
-                popupNotification = items.firstOrNull { it.id !in dismissed }
+                popupNotification = items.firstOrNull { it.dismissedId !in dismissed }
             } catch (e: Exception) {
                 errorMessage = e.message
             }
@@ -107,7 +117,7 @@ fun UnifiedNotificationsScreen(
 
     // 过滤通知
     val visibleNotifications = if (selectedTab == "Active") {
-        notifications.filter { it.id !in dismissedIds }
+        notifications.filter { it.dismissedId !in dismissedIds }
     } else {
         notifications
     }
@@ -122,108 +132,108 @@ fun UnifiedNotificationsScreen(
         ) {
 
 
-        // Tabs
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(tabs) { tab ->
-                FilterChip(
-                    selected = selectedTab == tab,
-                    onClick = { selectedTab = tab },
-                    label = { Text(tab) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = OrangeAccent,
-                        selectedLabelColor = Color.White
+            // Tabs
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(tabs) { tab ->
+                    FilterChip(
+                        selected = selectedTab == tab,
+                        onClick = { selectedTab = tab },
+                        label = { Text(tab) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = OrangeAccent,
+                            selectedLabelColor = Color.White
+                        )
                     )
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        when {
-            isLoading -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = OrangeAccent)
                 }
             }
-            errorMessage != null -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.Error,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = RedCancelled
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Error: $errorMessage", color = RedCancelled)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = { loadNotifications() },
-                            colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent)
-                        ) {
-                            Text("Retry", color = Color.White)
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            when {
+                isLoading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = OrangeAccent)
+                    }
+                }
+                errorMessage != null -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp),
+                                tint = RedCancelled
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Error: $errorMessage", color = RedCancelled)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = { loadNotifications() },
+                                colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent)
+                            ) {
+                                Text("Retry", color = Color.White)
+                            }
+                        }
+                    }
+                }
+                visibleNotifications.isEmpty() -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.NotificationsOff,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = TextGrey
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = if (selectedTab == "Active") "No new notifications" else "No notifications yet",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextDark
+                            )
+                            Text(
+                                text = "We'll notify you when something happens",
+                                fontSize = 14.sp,
+                                color = TextGrey
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(visibleNotifications, key = { it.uniqueKey }) { notification ->
+                            val isDismissed = notification.dismissedId in dismissedIds
+                            NotificationCard(
+                                notification = notification,
+                                isDismissed = isDismissed,
+                                onDismiss = {
+                                    scope.launch {
+                                        try {
+                                            dismissedRepo.dismiss(notification.dismissedId)
+                                            dismissedIds = dismissedIds + notification.dismissedId
+                                        } catch (e: Exception) {
+                                            errorMessage = e.message
+                                        }
+                                    }
+                                },
+                                onClick = {
+                                    if (!isDismissed) {
+                                        onNotificationClick(notification.id, notification.type)
+                                    }
+                                }
+                            )
                         }
                     }
                 }
             }
-            visibleNotifications.isEmpty() -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.NotificationsOff,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = TextGrey
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = if (selectedTab == "Active") "No new notifications" else "No notifications yet",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextDark
-                        )
-                        Text(
-                            text = "We'll notify you when something happens",
-                            fontSize = 14.sp,
-                            color = TextGrey
-                        )
-                    }
-                }
-            }
-            else -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(visibleNotifications, key = { it.id }) { notification ->
-                        val isDismissed = notification.id in dismissedIds
-                        NotificationCard(
-                            notification = notification,
-                            isDismissed = isDismissed,
-                            onDismiss = {
-                                scope.launch {
-                                    try {
-                                        dismissedRepo.dismiss(notification.id)
-                                        dismissedIds = dismissedIds + notification.id
-                                    } catch (e: Exception) {
-                                        errorMessage = e.message
-                                    }
-                                }
-                            },
-                            onClick = {
-                                if (!isDismissed) {
-                                    onNotificationClick(notification.id, notification.type)
-                                }
-                            }
-                        )
-                    }
-                }
-            }
-        }
         }
 
         AnimatedVisibility(
@@ -322,6 +332,7 @@ fun GlobalNotificationBanner(
     val context = LocalContext.current
     val reservationRepo = remember { ReservationRepository() }
     val charityRepo = remember { CharityRepository() }
+    val merchantRepo = remember { MerchantRepository() }
     val dismissedRepo = remember { DismissedNotificationRepository() }
 
     var popupNotification by remember { mutableStateOf<NotificationItem?>(null) }
@@ -341,12 +352,12 @@ fun GlobalNotificationBanner(
                     val items = when (role) {
                         "user" -> loadUserNotifications(reservationRepo)
                         "charity" -> loadCharityNotifications(charityRepo)
-                        "merchant" -> loadMerchantNotifications(reservationRepo, charityRepo)
+                        "merchant" -> loadMerchantNotifications(merchantRepo)
                         else -> emptyList()
                     }
                     val dismissed = dismissedRepo.getMyDismissedIds()
                     val eligibleItems = items.filter {
-                        it.id !in dismissed && isNotificationEnabled(it, role, prefs)
+                        it.dismissedId !in dismissed && isNotificationEnabled(it, role, prefs)
                     }
                     val currentKeys = eligibleItems
                         .map { "${it.type}:${it.id}:${it.status}" }
@@ -512,20 +523,21 @@ private suspend fun loadCharityNotifications(
 
 // ─── Merchant 通知 ───
 // ✅ 只显示 Pending 状态
-// ✅ 区分 General Request (merchantId == null) 和 Direct Request (merchantId != null)
+// ✅ 区分 General Request (merchantId blank) 和 Direct Request (merchantId present)
 // ✅ 显示 User Reservations (Pending)
 private suspend fun loadMerchantNotifications(
-    reservationRepo: ReservationRepository,
-    charityRepo: CharityRepository
+    merchantRepo: MerchantRepository
 ): List<NotificationItem> {
     val items = mutableListOf<NotificationItem>()
 
     // 1️⃣ 获取所有 Charity Requests (只显示 Pending)
-    val allRequests = charityRepo.getMyAllRequests()
+    val allRequests = (
+            merchantRepo.getAllGeneralRequests() + merchantRepo.getMyAllRequests()
+            ).distinctBy { it.id }
 
     // 1a) General Request（公开请求，merchant_id 为 NULL）
     val generalRequests = allRequests
-        .filter { it.merchantId == null && it.status == "Pending" }
+        .filter { it.merchantId.isNullOrBlank() && it.status == "Pending" }
         .sortedByDescending { it.createdAt }
         .map { request ->
             NotificationItem(
@@ -542,7 +554,7 @@ private suspend fun loadMerchantNotifications(
 
     // 1b) Direct Request（针对特定商家的请求，merchant_id 不为 NULL）
     val directRequests = allRequests
-        .filter { it.merchantId != null && it.status == "Pending" }
+        .filter { !it.merchantId.isNullOrBlank() && it.status == "Pending" }
         .sortedByDescending { it.createdAt }
         .map { request ->
             NotificationItem(
@@ -558,7 +570,7 @@ private suspend fun loadMerchantNotifications(
     items.addAll(directRequests)
 
     // 2️⃣ User Reservations（只显示 Pending）
-    val reservations = reservationRepo.getMyReservations()
+    val reservations = merchantRepo.getMyReservations()
     items.addAll(
         reservations
             .filter { it.status == "Pending" }

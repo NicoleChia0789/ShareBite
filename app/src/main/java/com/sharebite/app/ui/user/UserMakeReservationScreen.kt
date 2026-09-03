@@ -61,15 +61,15 @@ fun UserMakeReservationScreen(
     var selectedTime by rememberSaveable { mutableStateOf<String?>(null) }
 
     // ✅ 确认弹窗状态
-    var showConfirmDialog by remember { mutableStateOf(false) }
+    var showConfirmDialog by rememberSaveable { mutableStateOf(false) }
 
     // ✅ 是否为编辑模式
     val isEditMode = reservationId != null
 
     val dateList = remember {
         val calendar = Calendar.getInstance()
-        val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val displayFormat = SimpleDateFormat("EEE d", Locale.getDefault())
+        val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val displayFormat = SimpleDateFormat("EEE d", Locale.US)
         val dates = mutableListOf<Triple<String, String, String>>()
         for (i in 0..6) {
             val date = calendar.time
@@ -77,7 +77,7 @@ fun UserMakeReservationScreen(
                 Triple(
                     format.format(date),
                     displayFormat.format(date),
-                    SimpleDateFormat("EEE", Locale.getDefault()).format(date)
+                    SimpleDateFormat("EEE", Locale.US).format(date)
                 )
             )
             calendar.add(Calendar.DAY_OF_YEAR, 1)
@@ -85,40 +85,70 @@ fun UserMakeReservationScreen(
         dates
     }
 
-    val timeSlots = listOf("10:00 AM", "12:30 PM", "02:00 PM", "04:30 PM")
-
-    var isDataLoaded by rememberSaveable { mutableStateOf(false) }
+    val allTimeSlots = remember(listing?.pickupTime) {
+        buildMerchantPickupSlots(listing?.pickupTime)
+    }
+    val deadlineDate = remember(listing?.deadline) { parseReservationDeadline(listing?.deadline.orEmpty()) }
+    val availableDates = remember(dateList, deadlineDate) {
+        dateList.filter { (dateStr, _, _) ->
+            deadlineDate == null || parseReservationDate(dateStr)?.let { !it.after(deadlineDate) } == true
+        }
+    }
+    val availableTimeSlots = remember(selectedDate, deadlineDate) {
+        allTimeSlots.filter { time ->
+            val selectedDateTime = parseReservationDateTime(selectedDate, time)
+            selectedDateTime != null && (deadlineDate == null || !selectedDateTime.after(deadlineDate))
+        }
+    }
 
     LaunchedEffect(listingId, reservationId) {
-        if (!isDataLoaded) {
-            try {
-                listing = foodRepo.getListingById(listingId)
-                if (reservationId != null) {
-                    existingReservation = reservationRepo.getMyReservationById(reservationId)
-                    existingReservation?.let { res ->
+        isLoading = true
+        try {
+            listing = foodRepo.getListingById(listingId)
+            if (reservationId != null) {
+                existingReservation = reservationRepo.getMyReservationById(reservationId)
+                existingReservation?.let { res ->
+                    if (selectedDate == null) {
                         selectedDate = res.pickupDate
+                    }
+                    if (selectedTime == null) {
                         selectedTime = res.pickupTime
+                    }
+                    if (note.isBlank()) {
                         note = res.note ?: ""
                     }
                 }
-                if (selectedDate == null) {
-                    selectedDate = dateList.firstOrNull()?.first
-                }
-                if (selectedTime == null) {
-                    selectedTime = timeSlots.firstOrNull()
-                }
-                isDataLoaded = true
-            } catch (e: Exception) {
-                errorMessage = e.message
-            } finally {
-                isLoading = false
             }
+        } catch (e: Exception) {
+            errorMessage = e.message
+        } finally {
+            isLoading = false
+        }
+    }
+
+    LaunchedEffect(availableDates, availableTimeSlots) {
+        if (selectedDate == null || availableDates.none { it.first == selectedDate }) {
+            selectedDate = availableDates.firstOrNull()?.first
+        }
+        if (selectedTime == null || selectedTime !in availableTimeSlots) {
+            selectedTime = availableTimeSlots.firstOrNull()
         }
     }
 
     // ✅ 实际提交函数
     fun submitReservation() {
         if (isSubmitting || listing == null || selectedDate == null || selectedTime == null) return
+        val selectedDateTime = parseReservationDateTime(selectedDate, selectedTime)
+        if (selectedDateTime == null || selectedTime !in availableTimeSlots) {
+            errorMessage = "Please choose a pickup time before the merchant deadline."
+            showConfirmDialog = false
+            return
+        }
+        if (listing!!.status != "available" || listing!!.remainingQuantity <= 0) {
+            errorMessage = "This food is fully reserved."
+            showConfirmDialog = false
+            return
+        }
         showConfirmDialog = false
         scope.launch {
             isSubmitting = true
@@ -139,7 +169,7 @@ fun UserMakeReservationScreen(
                         merchantId = listing!!.merchantId ?: "",
                         foodName = listing!!.foodName,
                         quantityNum = 1,
-                        unit = "unit",
+                        unit = listing!!.unit ?: "unit",
                         pickupDate = selectedDate!!,
                         pickupTime = selectedTime!!,
                         note = note.ifBlank { null }
@@ -326,7 +356,7 @@ fun UserMakeReservationScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                items(dateList) { (dateStr, displayStr, dayOfWeek) ->
+                                items(availableDates) { (dateStr, displayStr, dayOfWeek) ->
                                     val isSelected = dateStr == selectedDate
                                     Card(
                                         modifier = Modifier
@@ -376,45 +406,61 @@ fun UserMakeReservationScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                timeSlots.chunked(2).forEach { rowSlots ->
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        rowSlots.forEach { time ->
-                                            val isSelected = time == selectedTime
-                                            Card(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .clickable { selectedTime = time },
-                                                shape = RoundedCornerShape(50),
-                                                colors = CardDefaults.cardColors(
-                                                    containerColor = if (isSelected) OrangeAccent else Color.White
-                                                ),
-                                                border = if (!isSelected)
-                                                    androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDDC0B8))
-                                                else null,
-                                                elevation = CardDefaults.cardElevation(
-                                                    defaultElevation = if (isSelected) 4.dp else 1.dp
-                                                )
-                                            ) {
-                                                Text(
-                                                    time,
+                                if (availableTimeSlots.isEmpty()) {
+                                    Text(
+                                        text = "No pickup times are available before the merchant deadline.",
+                                        fontSize = 12.sp,
+                                        color = RedCancelled
+                                    )
+                                }
+                                allTimeSlots.chunked(2).forEach { rowSlots ->
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            rowSlots.forEach { time ->
+                                                val isSelected = time == selectedTime
+                                                val isAvailable = time in availableTimeSlots
+                                                Card(
                                                     modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                                                    fontSize = 13.sp,
-                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                    color = if (isSelected) Color.White else TextDark,
-                                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                                )
+                                                        .weight(1f)
+                                                        .clickable(enabled = isAvailable) { selectedTime = time },
+                                                    shape = RoundedCornerShape(50),
+                                                    colors = CardDefaults.cardColors(
+                                                        containerColor = when {
+                                                            isSelected -> OrangeAccent
+                                                            isAvailable -> Color.White
+                                                            else -> Color(0xFFE9E0DB)
+                                                        }
+                                                    ),
+                                                    border = if (!isSelected && isAvailable)
+                                                        androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDDC0B8))
+                                                    else null,
+                                                    elevation = CardDefaults.cardElevation(
+                                                        defaultElevation = if (isSelected) 4.dp else 0.dp
+                                                    )
+                                                ) {
+                                                    Text(
+                                                        time,
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                                                        fontSize = 13.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                        color = when {
+                                                            isSelected -> Color.White
+                                                            isAvailable -> TextDark
+                                                            else -> TextGrey.copy(alpha = 0.55f)
+                                                        },
+                                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                                    )
+                                                }
+                                            }
+                                            if (rowSlots.size == 1) {
+                                                Spacer(modifier = Modifier.weight(1f))
                                             }
                                         }
-                                        if (rowSlots.size == 1) {
-                                            Spacer(modifier = Modifier.weight(1f))
-                                        }
                                     }
-                                }
                             }
                         }
 
@@ -504,7 +550,7 @@ fun UserMakeReservationScreen(
                         ),
                         shape = RoundedCornerShape(50),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
-                        enabled = !isSubmitting && selectedDate != null && selectedTime != null
+                        enabled = !isSubmitting && selectedDate != null && selectedTime != null && selectedTime in availableTimeSlots
                     ) {
                         if (isSubmitting) {
                             CircularProgressIndicator(
@@ -829,4 +875,93 @@ private fun ConfirmReservationDialog(
             }
         }
     }
+}
+
+private fun parseReservationDeadline(deadline: String): Date? {
+    if (deadline.isBlank()) return null
+
+    val normalizedDeadline = deadline.trim()
+        .substringBefore('+')
+        .removeSuffix("Z")
+        .replace(Regex("T\\s*"), " ")
+
+    val formats = listOf(
+        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US),
+        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US),
+        SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS", Locale.US),
+        SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    )
+
+    formats.forEach { format ->
+        try {
+            format.isLenient = false
+            return format.parse(normalizedDeadline)
+        } catch (_: Exception) {
+        }
+    }
+
+    return null
+}
+
+private fun parseReservationDate(date: String): Date? {
+    return try {
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+            isLenient = false
+        }.parse(date)
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun parseReservationDateTime(date: String?, time: String?): Date? {
+    if (date.isNullOrBlank() || time.isNullOrBlank()) return null
+
+    val normalizedTime = time.trim().substringBefore('+').removeSuffix("Z")
+    val formats = listOf(
+        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US),
+        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US),
+        SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.US)
+    )
+
+    formats.forEach { format ->
+        try {
+            format.isLenient = false
+            return format.parse("$date $normalizedTime")
+        } catch (_: Exception) {
+        }
+    }
+    return null
+}
+
+private fun buildMerchantPickupSlots(pickupTime: String?): List<String> {
+    val slots = pickupTime
+        ?.split(',', ';', '|', '\n')
+        ?.map { it.trim() }
+        ?.filter { it.isNotBlank() }
+        ?.map { formatReservationTimeSlot(it) }
+        ?.distinct()
+        .orEmpty()
+
+    return slots.ifEmpty { listOf("10:00 AM", "12:30 PM", "02:00 PM", "04:30 PM") }
+}
+
+private fun formatReservationTimeSlot(time: String): String {
+    val normalizedTime = time.trim().substringBefore('+').removeSuffix("Z")
+    val formats = listOf(
+        SimpleDateFormat("HH:mm:ss", Locale.US),
+        SimpleDateFormat("HH:mm", Locale.US),
+        SimpleDateFormat("hh:mm a", Locale.US)
+    )
+
+    formats.forEach { format ->
+        try {
+            format.isLenient = false
+            val parsed = format.parse(normalizedTime)
+            if (parsed != null) {
+                return SimpleDateFormat("hh:mm a", Locale.US).format(parsed)
+            }
+        } catch (_: Exception) {
+        }
+    }
+    return normalizedTime
 }

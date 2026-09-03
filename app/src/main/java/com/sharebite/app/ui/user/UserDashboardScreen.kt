@@ -26,6 +26,7 @@ import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.data.repository.ReservationRepository
 import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
+import com.sharebite.app.util.formatDateTimeForDisplay
 
 @Composable
 fun UserDashboardScreen(
@@ -54,9 +55,9 @@ fun UserDashboardScreen(
             // ✅ 统计非 Cancelled 的预订数量
             activeReservationsCount = allReservations.count { it.status != "Cancelled" }
 
-            // ✅ Recent Reservations 只显示非 Cancelled 的，取前3条
+            // ✅ Recent Reservations 按状态优先级显示：Pending > Confirmed > Completed > Cancelled
             recentReservations = allReservations
-                .filter { it.status != "Cancelled" }
+                .sortedBy { reservationStatusPriority(it.status) }
                 .take(3)
 
         } catch (e: Exception) {
@@ -129,13 +130,15 @@ fun UserDashboardScreen(
                     "Available Now",
                     nearbyListings.size.toString(),
                     OrangeAccent,
-                    Modifier.weight(1f)
+                    Modifier.weight(1f),
+                    onClick = onBrowseClick
                 )
                 DashboardStatCard(
                     "My Reservations",
                     activeReservationsCount.toString(),  // ✅ 显示非 Cancelled 的数量
                     GreenConfirmed,
-                    Modifier.weight(1f)
+                    Modifier.weight(1f),
+                    onClick = onViewAllReservations
                 )
             }
         }
@@ -276,7 +279,7 @@ private fun FoodListingCard(listing: FoodListing, onClick: () -> Unit) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(listing.merchantName, fontSize = 11.sp, color = TextGrey, maxLines = 1)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("Ends: ${listing.deadline}", fontSize = 10.sp, color = RedCancelled)
+                Text("Ends: ${formatDateTimeForDisplay(listing.deadline)}", fontSize = 10.sp, color = RedCancelled)
             }
         }
     }
@@ -348,9 +351,15 @@ private fun RecentReservationCard(reservation: Reservation, onClick: () -> Unit,
 }
 
 @Composable
-private fun DashboardStatCard(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
+private fun DashboardStatCard(
+    label: String,
+    value: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
     Card(
-        modifier = modifier,
+        modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -363,5 +372,15 @@ private fun DashboardStatCard(label: String, value: String, color: Color, modifi
             Text(value, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = color)
             Text(label.uppercase(), fontSize = 11.sp, color = TextGrey)
         }
+    }
+}
+
+private fun reservationStatusPriority(status: String): Int {
+    return when (status.lowercase()) {
+        "pending" -> 0
+        "confirmed" -> 1
+        "completed" -> 2
+        "cancelled" -> 3
+        else -> 4
     }
 }

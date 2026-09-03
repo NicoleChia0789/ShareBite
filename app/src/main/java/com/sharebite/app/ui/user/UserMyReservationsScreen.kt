@@ -14,11 +14,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.repository.ReservationRepository
+import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.components.WithdrawConfirmDialog
 import com.sharebite.app.ui.theme.*
@@ -41,10 +43,13 @@ fun UserMyReservationsScreen(
     paddingValues: PaddingValues,
     onViewClick: (Long) -> Unit,
     onEditReservation: (Long, Long) -> Unit,
+    onReserveAgain: (Long) -> Unit = {},
     onBrowseClick: () -> Unit = {}
 ) {
     val userId = CurrentUser.getUserId()
     val repository = remember { ReservationRepository() }
+    val listingRepository = remember { FoodListingRepository() }
+    val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val locale = configuration.locales.get(0)
     val coroutineScope = rememberCoroutineScope()
@@ -199,6 +204,21 @@ fun UserMyReservationsScreen(
                         onViewClick = { onViewClick(reservation.id) },
                         onEditClick = { onEditReservation(reservation.listingId, reservation.id) },
                         onCancelClick = { cancelTargetId = reservation.id },
+                        onDirectionsClick = {
+                            coroutineScope.launch {
+                                try {
+                                    val listing = listingRepository.getListingById(reservation.listingId)
+                                    val uri = if (listing.latitude != null && listing.longitude != null) {
+                                        android.net.Uri.parse("geo:${listing.latitude},${listing.longitude}?q=${listing.latitude},${listing.longitude}(${android.net.Uri.encode(listing.merchantName)})")
+                                    } else {
+                                        android.net.Uri.parse("geo:0,0?q=${android.net.Uri.encode(listing.address)}")
+                                    }
+                                    context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, uri))
+                                } catch (_: Exception) {
+                                }
+                            }
+                        },
+                        onReserveAgain = { onReserveAgain(reservation.listingId) },
                         locale = locale
                     )
                 }
@@ -246,6 +266,8 @@ private fun ReservationCard(
     onViewClick: () -> Unit,
     onEditClick: () -> Unit,
     onCancelClick: () -> Unit,
+    onDirectionsClick: () -> Unit,
+    onReserveAgain: () -> Unit,
     locale: Locale
 ) {
     val isPending = reservation.status == "Pending"
@@ -255,24 +277,29 @@ private fun ReservationCard(
 
     val statusColor = when (reservation.status) {
         "Confirmed" -> GreenConfirmed
-        "Pending" -> OrangeAccent
+        "Pending" -> Color(0xFFE65100)
         "Cancelled" -> RedCancelled
         "Completed" -> GreyCompleted
         else -> TextGrey
     }
     val statusBg = when (reservation.status) {
-        "Confirmed" -> Color(0xFFE3F5E6)
-        "Pending" -> NavSelectedBg
-        "Cancelled" -> Color(0xFFFFEDED)
-        "Completed" -> Color(0xFFEEEEEE)
-        else -> Color(0xFFEEEEEE)
+        "Confirmed" -> Color(0xFFE8F5E9)
+        "Pending" -> Color(0xFFFFF3E0)
+        "Cancelled" -> Color(0xFFFFEBEE)
+        "Completed" -> Color(0xFFF5F5F5)
+        else -> Color(0xFFF5F5F5)
     }
 
-    val statusHeadline = when {
-        isPending -> "PENDING"
-        isConfirmed -> "CONFIRMED"
-        isCompleted -> "COMPLETED"
-        isCancelled -> "CANCELLED"
+    val statusHeadline = when (reservation.status) {
+        "Pending", "Confirmed" -> {
+            if (reservation.pickupDate == getUserTodayDateString()) {
+                "PICK UP TODAY"
+            } else {
+                "PICK UP ON ${formatUserShortDate(reservation.pickupDate).uppercase()}"
+            }
+        }
+        "Completed" -> "COLLECTED ON ${formatUserShortDate(reservation.pickupDate).uppercase()}"
+        "Cancelled" -> "CANCELLED"
         else -> ""
     }
 
@@ -380,7 +407,15 @@ private fun ReservationCard(
                             }
                             Text("View", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = OrangeAccent)
                         }
-                        Text("Confirmed", fontSize = 12.sp, color = TextGrey)
+                        Button(
+                            onClick = onDirectionsClick,
+                            colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent, contentColor = Color.White),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(Icons.Default.Directions, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Directions", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
 
@@ -396,7 +431,15 @@ private fun ReservationCard(
                             }
                             Text("View", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = OrangeAccent)
                         }
-                        Text("Completed", fontSize = 12.sp, color = TextGrey)
+                        OutlinedButton(
+                            onClick = onReserveAgain,
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = GreenConfirmed),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Reserve Again", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
 
@@ -418,4 +461,19 @@ private fun ReservationCard(
             }
         }
     }
+}
+
+private fun formatUserShortDate(dateStr: String): String {
+    return try {
+        val inputFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        val outputFormat = java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.US)
+        val date = inputFormat.parse(dateStr)
+        if (date != null) outputFormat.format(date) else dateStr
+    } catch (e: Exception) {
+        dateStr
+    }
+}
+
+private fun getUserTodayDateString(): String {
+    return java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
 }

@@ -595,11 +595,11 @@ private fun formatDbDate(date: Date): String =
     SimpleDateFormat("yyyy-MM-dd", Locale.US).format(date)
 
 private fun formatDisplayDate(date: Date): String =
-    SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(date)
+    SimpleDateFormat("d MMM yyyy", Locale.US).format(date)
 
 private fun formatHeaderDate(date: String): String = try {
     val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }.parse(date)
-    SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).format(parsed!!)
+    SimpleDateFormat("EEE, d MMM yyyy", Locale.US).format(parsed!!)
 } catch (_: Exception) {
     date
 }
@@ -610,7 +610,7 @@ private fun formatDisplayTime(time: String): String {
     for (pattern in patterns) {
         try {
             val parsed = SimpleDateFormat(pattern, Locale.US).apply { isLenient = false }.parse(normalized)
-            return SimpleDateFormat("h:mm a", Locale.getDefault()).format(parsed!!)
+            return SimpleDateFormat("h:mm a", Locale.US).format(parsed!!)
         } catch (_: Exception) {
             // Try the next accepted format.
         }

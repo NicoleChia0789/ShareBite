@@ -8,6 +8,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +22,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.repository.LoginRepository
@@ -31,8 +35,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 
 @Composable
 fun SignUp(
+    selectedRole: String = "User",
     onSignUpClick: (String) -> Unit = {}, // ✅ Pass role only
-    onLoginClick: () -> Unit = {}
+    onLoginClick: () -> Unit = {},
+    onChooseRoleClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val authRepository = remember { LoginRepository() }
@@ -42,22 +48,22 @@ fun SignUp(
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var confirmPassword by rememberSaveable { mutableStateOf("") }
-    var selectedRole by rememberSaveable { mutableStateOf("User") }
     var isLoading by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) } // ✅ New state
+    var confirmPasswordVisible by rememberSaveable { mutableStateOf(false) } // ✅ New state
     val isPasswordStrong = PasswordUtils.isStrongPassword(password)
 
-    val roles = listOf("User", "Merchant", "Charity")
 
-    val primaryNavy = Color(0xFF2C3E50)
+    val primaryNavy = Color(0xFF38251B)
     val accentOrange = Color(0xFFFF7A45)
-    val softGray = Color(0xFFF8F9FA)
-    val cardWhite = Color(0xFFFFFFFF)
-    val mutedGray = Color(0xFF7F8C8D)
-    val lightGray = Color(0xFF95A5A6)
-    val borderGray = Color(0xFFE0E0E0)
-    val placeholderGray = Color(0xFFBDC3C7)
-    val blueAccent = Color(0xFF3498DB)
+    val softGray = Color(0xFFFFF8EF)
+    val cardWhite = Color(0xFFFFFDF9)
+    val mutedGray = Color(0xFF826F63)
+    val lightGray = Color(0xFF826F63)
+    val borderGray = Color(0xFFF0DCCB)
+    val placeholderGray = Color(0xFFB4A399)
+    val blueAccent = accentOrange
     val textDark = Color(0xFF1E1B16) // ✅ Darker text color for input
 
     val scrollState = rememberScrollState()
@@ -77,73 +83,22 @@ fun SignUp(
                 .imePadding(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // ── App Header ──
-            Text(
-                text = "ShareBite",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = primaryNavy,
-                letterSpacing = 0.5.sp
+            AuthHeader(
+                title = "Registering as $selectedRole",
+                subtitle = "Create your ShareBite account."
             )
+
             Text(
-                text = "Create your account",
-                fontSize = 15.sp,
-                color = mutedGray,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-            Text(
-                text = "Join our community to start sharing today.",
+                text = "Change role",
                 fontSize = 13.sp,
-                color = lightGray,
-                modifier = Modifier.padding(top = 2.dp)
+                fontWeight = FontWeight.SemiBold,
+                color = accentOrange,
+                modifier = Modifier
+                    .clickable(onClick = onChooseRoleClick)
+                    .padding(vertical = 6.dp)
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // ── Role Selection ──
-            Text(
-                text = "I am signing up as a:",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = primaryNavy,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                roles.forEach { role ->
-                    val isSelected = selectedRole == role
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                if (isSelected) primaryNavy else Color.White
-                            )
-                            .border(
-                                width = 1.5.dp,
-                                color = if (isSelected) primaryNavy else borderGray,
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                            .clickable { selectedRole = role }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = role,
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) Color.White else primaryNavy
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // ── Card Container ──
             Card(
@@ -182,15 +137,15 @@ fun SignUp(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = blueAccent,
                             unfocusedBorderColor = borderGray,
-                            focusedTextColor = textDark, // ✅ Darker text
-                            unfocusedTextColor = textDark, // ✅ Darker text
+                            focusedTextColor = textDark,
+                            unfocusedTextColor = textDark,
                             focusedPlaceholderColor = placeholderGray,
                             unfocusedPlaceholderColor = placeholderGray
                         ),
                         singleLine = true,
                         textStyle = TextStyle(
                             fontSize = 14.sp,
-                            color = textDark // ✅ Darker text
+                            color = textDark
                         )
                     )
 
@@ -221,8 +176,8 @@ fun SignUp(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = blueAccent,
                             unfocusedBorderColor = borderGray,
-                            focusedTextColor = textDark, // ✅ Darker text
-                            unfocusedTextColor = textDark, // ✅ Darker text
+                            focusedTextColor = textDark,
+                            unfocusedTextColor = textDark,
                             focusedPlaceholderColor = placeholderGray,
                             unfocusedPlaceholderColor = placeholderGray
                         ),
@@ -230,7 +185,7 @@ fun SignUp(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         textStyle = TextStyle(
                             fontSize = 14.sp,
-                            color = textDark // ✅ Darker text
+                            color = textDark
                         )
                     )
 
@@ -261,18 +216,29 @@ fun SignUp(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = blueAccent,
                             unfocusedBorderColor = borderGray,
-                            focusedTextColor = textDark, // ✅ Darker text
-                            unfocusedTextColor = textDark, // ✅ Darker text
+                            focusedTextColor = textDark,
+                            unfocusedTextColor = textDark,
                             focusedPlaceholderColor = placeholderGray,
                             unfocusedPlaceholderColor = placeholderGray
                         ),
                         singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         textStyle = TextStyle(
                             fontSize = 14.sp,
-                            color = textDark // ✅ Darker text
-                        )
+                            color = textDark
+                        ),
+                        trailingIcon = {
+                            IconButton(
+                                onClick = { passwordVisible = !passwordVisible }
+                            ) {
+                                Icon(
+                                    imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                                    tint = Color(0xFF7F8C8D)
+                                )
+                            }
+                        }
                     )
 
                     Spacer(modifier = Modifier.height(4.dp))
@@ -309,18 +275,29 @@ fun SignUp(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = blueAccent,
                             unfocusedBorderColor = borderGray,
-                            focusedTextColor = textDark, // ✅ Darker text
-                            unfocusedTextColor = textDark, // ✅ Darker text
+                            focusedTextColor = textDark,
+                            unfocusedTextColor = textDark,
                             focusedPlaceholderColor = placeholderGray,
                             unfocusedPlaceholderColor = placeholderGray
                         ),
                         singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
+                        visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         textStyle = TextStyle(
                             fontSize = 14.sp,
-                            color = textDark // ✅ Darker text
-                        )
+                            color = textDark
+                        ),
+                        trailingIcon = {
+                            IconButton(
+                                onClick = { confirmPasswordVisible = !confirmPasswordVisible }
+                            ) {
+                                Icon(
+                                    imageVector = if (confirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = if (confirmPasswordVisible) "Hide password" else "Show password",
+                                    tint = Color(0xFF7F8C8D)
+                                )
+                            }
+                        }
                     )
 
                     if (errorMessage != null) {
@@ -333,8 +310,6 @@ fun SignUp(
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
-
-
 
                     // ── Create Account Button ──
                     Button(
@@ -373,7 +348,6 @@ fun SignUp(
                                             email = ""
                                             password = ""
                                             confirmPassword = ""
-
 
                                             Toast.makeText(
                                                 context,

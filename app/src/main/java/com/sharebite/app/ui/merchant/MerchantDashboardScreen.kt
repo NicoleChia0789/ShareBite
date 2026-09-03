@@ -27,12 +27,6 @@ import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.model.UserSummary
 import com.sharebite.app.data.model.Reservation as ReservationModel
 import com.sharebite.app.data.session.CurrentUser
-import com.sharebite.app.ui.theme.BgCream
-import com.sharebite.app.ui.theme.GreenConfirmed
-import com.sharebite.app.ui.theme.OrangeAccent
-import com.sharebite.app.ui.theme.RedCancelled
-import com.sharebite.app.ui.theme.TextDark
-import com.sharebite.app.ui.theme.TextGrey
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -47,6 +41,7 @@ fun MerchantDashboardScreen(
     onViewImpact: () -> Unit,
     onViewPickupHistory: () -> Unit,
     onViewPickupSchedule: () -> Unit,
+    onListingClick: (Long) -> Unit,
     onRequestClick: (Long) -> Unit,
     onReservationClick: (Long) -> Unit,
     viewModel: MerchantViewModel
@@ -93,6 +88,7 @@ fun MerchantDashboardScreen(
         reservations.filter { it.status.equals("Completed", ignoreCase = true) }.forEach { res ->
             items.add(
                 ActivityItem.Reservation(
+                    id = res.id,
                     user = usersById[res.userId]?.name?.takeIf { it.isNotBlank() }
                         ?: "Individual user",
                     food = res.foodName,
@@ -106,6 +102,7 @@ fun MerchantDashboardScreen(
         requests.filter { it.status.equals("Completed", ignoreCase = true) }.forEach { req ->
             items.add(
                 ActivityItem.Request(
+                    id = req.id,
                     org = req.organisationName,
                     food = req.foodName,
                     quantity = req.quantity,
@@ -126,11 +123,11 @@ fun MerchantDashboardScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .background(BgCream)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = OrangeAccent)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else {
             LazyColumn(
@@ -145,12 +142,12 @@ fun MerchantDashboardScreen(
                             "Welcome back, $username! 👋",
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
-                            color = TextDark
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             "Here is what is happening today.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextGrey
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -194,7 +191,7 @@ fun MerchantDashboardScreen(
                         MyListingsSection(
                             items = recentListings,
                             onViewAll = onViewAllListings,
-                            onItemClick = { /* 可跳转到详情，目前没有直接方法，留空或跳转全部 */ }
+                            onItemClick = { listing -> onListingClick(listing.id) }
                         )
                     }
                 }
@@ -203,13 +200,19 @@ fun MerchantDashboardScreen(
                 item {
                     RecentActivitySection(
                         activities = recentItems,
-                        onSeeAllClick = onViewPickupHistory
+                        onSeeAllClick = onViewPickupHistory,
+                        onActivityClick = { activity ->
+                            when (activity) {
+                                is ActivityItem.Reservation -> onReservationClick(activity.id)
+                                is ActivityItem.Request -> onRequestClick(activity.id)
+                            }
+                        }
                     )
                 }
 
                 // 7️⃣ Impact Report（保留原有设计）
                 item {
-                    ImpactEntryCard(onViewReport = onViewImpact)
+                    ImpactReportSection(onViewReport = onViewImpact)
                 }
             }
         }
@@ -235,15 +238,15 @@ fun KPIGrid(
     ) {
         KPICard(
             icon = Icons.Default.Inbox,
-            label = "Pending Review",
+            label = "Pending",
             value = pending.toString(),
-            iconColor = OrangeAccent,
+            iconColor = MaterialTheme.colorScheme.primary,
             onClick = onPendingClick,
             modifier = Modifier.weight(1f)
         )
         KPICard(
             icon = Icons.Default.LocalShipping,
-            label = "Upcoming Pickups",
+            label = "Upcoming",
             value = inProgress.toString(),
             iconColor = Color(0xFF1976D2),
             onClick = onUpcomingClick,
@@ -303,7 +306,7 @@ fun KPICard(
                 text = value,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextDark
+                color = MaterialTheme.colorScheme.onSurface
             )
             // 标签在下方
             Box(
@@ -313,7 +316,7 @@ fun KPICard(
                 Text(
                     text = label,
                     fontSize = 12.sp,
-                    color = TextGrey,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Medium,
                     maxLines = 2,
                     textAlign = TextAlign.Center
@@ -355,7 +358,7 @@ fun CreateDonationCard(onCreateClick: () -> Unit) {
             }
             Button(
                 onClick = onCreateClick,
-                colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(50)
             ) {
                 Text("Get Started", color = Color.White, fontWeight = FontWeight.Bold)
@@ -385,10 +388,10 @@ fun AwaitingActionSection(
                 "Awaiting Action ($totalPendingCount)",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextDark
+                color = MaterialTheme.colorScheme.onSurface
             )
             TextButton(onClick = onViewAll) {
-                Text("View All", color = OrangeAccent, fontWeight = FontWeight.Bold)
+                Text("View All", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -409,11 +412,11 @@ fun AwaitingActionSection(
                     Icon(
                         Icons.Default.CheckCircle,
                         contentDescription = null,
-                        tint = GreenConfirmed,
+                        tint = MaterialTheme.colorScheme.primaryContainer,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("All clear! No pending requests.", color = TextGrey, fontSize = 14.sp)
+                    Text("All clear! No pending requests.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                 }
             }
         } else {
@@ -479,7 +482,7 @@ fun AwaitingActionCard(
                             .size(44.dp)
                             .clip(CircleShape)
                             .background(
-                                if (isCharity) OrangeAccent.copy(alpha = 0.15f)
+                                if (isCharity) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                                 else Color(0xFFE3F2FD)
                             ),
                         contentAlignment = Alignment.Center
@@ -487,7 +490,7 @@ fun AwaitingActionCard(
                         Text(
                             text = title.take(1).uppercase(),
                             fontWeight = FontWeight.Bold,
-                            color = if (isCharity) OrangeAccent else Color(0xFF1976D2),
+                            color = if (isCharity) MaterialTheme.colorScheme.primary else Color(0xFF1976D2),
                             fontSize = 18.sp
                         )
                     }
@@ -496,13 +499,13 @@ fun AwaitingActionCard(
                             text = title,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
-                            color = TextDark,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1
                         )
                         Text(
                             text = "$quantity $food",
                             fontSize = 13.sp,
-                            color = TextGrey
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -510,7 +513,7 @@ fun AwaitingActionCard(
                 if (isCharity) {
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = OrangeAccent.copy(alpha = 0.12f)
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -521,13 +524,13 @@ fun AwaitingActionCard(
                                 Icons.Default.Business,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp),
-                                tint = OrangeAccent
+                                tint = MaterialTheme.colorScheme.primary
                             )
                             Text(
                                 "Charity",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = OrangeAccent
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -552,7 +555,7 @@ fun AwaitingActionCard(
                 onClick = onClick,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent)
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
             ) {
                 Icon(
                     Icons.Default.ArrowForward,
@@ -572,7 +575,8 @@ fun AwaitingActionCard(
 @Composable
 fun RecentActivitySection(
     activities: List<ActivityItem>,
-    onSeeAllClick: () -> Unit
+    onSeeAllClick: () -> Unit,
+    onActivityClick: (ActivityItem) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
@@ -584,10 +588,10 @@ fun RecentActivitySection(
                 "Recent Completed Pickups",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextDark
+                color = MaterialTheme.colorScheme.onSurface
             )
             TextButton(onClick = onSeeAllClick) {
-                Text("See all", color = OrangeAccent, fontWeight = FontWeight.Bold)
+                Text("See all", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -601,7 +605,7 @@ fun RecentActivitySection(
                 Text(
                     "No recent activity.",
                     modifier = Modifier.padding(16.dp),
-                    color = TextGrey,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp
                 )
             }
@@ -615,7 +619,8 @@ fun RecentActivitySection(
                             subtitle = "${activity.quantity} × ${activity.food}",
                             meta = "User reservation completed.",
                             timestamp = activity.timestamp,
-                            status = activity.status
+                            status = activity.status,
+                            onClick = { onActivityClick(activity) }
                         )
                     }
                     is ActivityItem.Request -> {
@@ -625,7 +630,8 @@ fun RecentActivitySection(
                             subtitle = "${activity.quantity} × ${activity.food}",
                             meta = "Charity pickup completed.",
                             timestamp = activity.timestamp,
-                            status = activity.status
+                            status = activity.status,
+                            onClick = { onActivityClick(activity) }
                         )
                     }
                 }
@@ -641,10 +647,11 @@ fun ActivityCard(
     subtitle: String,
     meta: String,
     timestamp: String?,
-    status: String
+    status: String,
+    onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(1.dp)
@@ -665,20 +672,20 @@ fun ActivityCard(
                     icon,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
-                    tint = GreenConfirmed
+                    tint = MaterialTheme.colorScheme.primaryContainer
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
-                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = TextGrey, fontSize = 13.sp)
-                Text(meta, style = MaterialTheme.typography.bodySmall, color = TextGrey, fontSize = 12.sp)
+                Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                Text(meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }
             val timeAgo = formatTimeAgo(timestamp)
             Text(
                 timeAgo,
                 style = MaterialTheme.typography.labelSmall,
-                color = TextGrey,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp
             )
         }
@@ -703,10 +710,10 @@ fun DiscoverNeedsSection(
                 "Discover Needs",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextDark
+                color = MaterialTheme.colorScheme.onSurface
             )
             TextButton(onClick = { /* navigate to full list */ }) {
-                Text("See all", color = OrangeAccent, fontWeight = FontWeight.Bold)
+                Text("See all", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -744,13 +751,13 @@ fun DiscoverNeedCard(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(OrangeAccent.copy(alpha = 0.15f)),
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     request.organisationName.take(1).uppercase(),
                     fontWeight = FontWeight.Bold,
-                    color = OrangeAccent,
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 18.sp
                 )
             }
@@ -759,14 +766,14 @@ fun DiscoverNeedCard(
                 request.organisationName,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 14.sp,
-                color = TextDark,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1
             )
 
             Text(
                 "${request.quantity} × ${request.foodName}",
                 fontSize = 13.sp,
-                color = TextGrey,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2
             )
 
@@ -777,7 +784,7 @@ fun DiscoverNeedCard(
                 onClick = onClick,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent)
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text("Offer Help", fontSize = 12.sp, fontWeight = FontWeight.Medium)
             }
@@ -800,9 +807,9 @@ fun MyListingsSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("My Listings", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
+            Text("My Listings", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             TextButton(onClick = onViewAll) {
-                Text("View All", color = OrangeAccent, fontWeight = FontWeight.Bold)
+                Text("View All", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -828,7 +835,7 @@ fun MyListingItem(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.aspectRatio(1f),
+        modifier = modifier.aspectRatio(1f).clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(2.dp)
@@ -857,7 +864,7 @@ fun MyListingItem(
                     Icon(
                         Icons.Default.Fastfood,
                         contentDescription = null,
-                        tint = OrangeAccent,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -867,13 +874,13 @@ fun MyListingItem(
                 listing.foodName,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
-                color = TextDark,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1
             )
             Text(
                 "${listing.remainingQuantity} left",
                 fontSize = 10.sp,
-                color = TextGrey
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             // 如果需要点击，可以加一个按钮，但这里暂时没有，因为用户没有要求在此处加按钮
             // 如果有需要，可以加一个 "View" 按钮，但用户只要求移除卡片整体点击，所以现在整体无点击
@@ -885,55 +892,14 @@ fun MyListingItem(
 // 卡片无整体点击，只有按钮（点击内部文字或图标都会触发，但只能通过按钮）
 
 @Composable
-fun ImpactEntryCard(onViewReport: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
-        elevation = CardDefaults.cardElevation(2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(GreenConfirmed.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Insights,
-                    contentDescription = null,
-                    tint = GreenConfirmed,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "Impact Report",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = TextDark
-                )
-                Text(
-                    "See your lifetime donations & badges",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextGrey,
-                    fontSize = 13.sp
-                )
-            }
-            // 这里使用 TextButton 而不是直接 Text，确保只有按钮可点击
-            TextButton(
-                onClick = onViewReport,
-                colors = ButtonDefaults.textButtonColors(contentColor = OrangeAccent)
-            ) {
-                Text("View →", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            }
+fun ImpactReportSection(onViewReport: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Impact Report", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+        Text("Track your donation impact, completed pickups and earned badges.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Button(onClick = onViewReport, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+            Icon(Icons.Default.Insights, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("View Impact Report", fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -942,6 +908,7 @@ fun ImpactEntryCard(onViewReport: () -> Unit) {
 
 sealed class ActivityItem(open val timestamp: String?) {
     data class Reservation(
+        val id: Long,
         val user: String,
         val food: String,
         val quantity: Int,
@@ -951,6 +918,7 @@ sealed class ActivityItem(open val timestamp: String?) {
     ) : ActivityItem(timestamp)
 
     data class Request(
+        val id: Long,
         val org: String,
         val food: String,
         val quantity: Int,
@@ -968,7 +936,7 @@ sealed class PendingItem(open val createdAt: String?) {
 
 fun formatTimeAgo(timestamp: String?): String {
     return try {
-        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.getDefault())
+        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.US)
         val date = format.parse(timestamp) ?: return "now"
 
         val diff = Date().time - date.time

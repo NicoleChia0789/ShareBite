@@ -26,7 +26,7 @@ object FutureOnlySelectableDates : SelectableDates {
 fun isDateTimeInPast(dateStr: String, timeStr: String): Boolean {
     if (dateStr.isBlank() || timeStr.isBlank()) return false
     return try {
-        val format = SimpleDateFormat("yyyy-MM-dd h:mm a", Locale.getDefault())
+        val format = SimpleDateFormat("yyyy-MM-dd h:mm a", Locale.US)
         val selected = format.parse("$dateStr $timeStr")
         val now = Calendar.getInstance().time
         selected != null && selected.before(now)
@@ -37,7 +37,7 @@ fun isDateTimeInPast(dateStr: String, timeStr: String): Boolean {
 
 // 取得目前的日期字符串（今天）
 fun getTodayDateString(): String {
-    val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
     return format.format(Calendar.getInstance().time)
 }
 
@@ -50,9 +50,9 @@ fun formatTimeForDb(input: String): String {
     if (trimmed.contains('T')) {
         return try {
             val cleaned = trimmed.substringBefore('Z').substringBefore('+')
-            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
             val date = sdf.parse(cleaned)
-            SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(date)
+            SimpleDateFormat("HH:mm:ss", Locale.US).format(date)
         } catch (e: Exception) {
             "00:00:00"
         }
@@ -62,9 +62,9 @@ fun formatTimeForDb(input: String): String {
     // ✅ 修正：使用 RegexOption.IGNORE_CASE 代替 ignoreCase 布尔参数
     if (trimmed.contains(Regex("(?i)[AP]M"))) {  // 或 Regex("[AP]M", RegexOption.IGNORE_CASE)
         return try {
-            val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
+            val sdf = SimpleDateFormat("h:mm a", Locale.US)
             val date = sdf.parse(trimmed.uppercase())
-            SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(date)
+            SimpleDateFormat("HH:mm:ss", Locale.US).format(date)
         } catch (e: Exception) {
             "00:00:00"
         }
@@ -78,4 +78,19 @@ fun formatTimeForDb(input: String): String {
 
     // 4. 如果已经是 "HH:mm:ss" 则直接返回，否则回退
     return trimmed
+}
+
+fun isDateTimeWithinDeadline(dateStr: String, timeStr: String, deadline: String): Boolean {
+    if (dateStr.isBlank() || timeStr.isBlank() || deadline.isBlank()) return true
+    val normalizedDeadline = deadline.trim()
+        .substringBefore('+')
+        .removeSuffix("Z")
+        .replace(Regex("T\\s*"), " ")
+    val deadlineDate = listOf("yyyy-MM-dd HH:mm:ss.SSS", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm")
+        .firstNotNullOfOrNull { pattern -> runCatching { SimpleDateFormat(pattern, Locale.getDefault()).apply { isLenient = false }.parse(normalizedDeadline) }.getOrNull() }
+        ?: return true
+    val selectedDateTime = listOf("yyyy-MM-dd h:mm a", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm")
+        .firstNotNullOfOrNull { pattern -> runCatching { SimpleDateFormat(pattern, Locale.getDefault()).apply { isLenient = false }.parse("$dateStr $timeStr") }.getOrNull() }
+        ?: return false
+    return !selectedDateTime.after(deadlineDate)
 }

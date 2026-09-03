@@ -51,6 +51,7 @@ fun CharityDashboardScreen(
     paddingValues: PaddingValues,
     onCreateRequest: () -> Unit,
     onViewAllClick: () -> Unit,
+    onStatusClick: (String) -> Unit,
     onActivityClick: (Long) -> Unit
 ) {
     val repository = remember { CharityRepository() }
@@ -151,15 +152,15 @@ fun CharityDashboardScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                StatCard("Pending", formatWithThousandSeparator(pending), OrangeAccent, Modifier.weight(1f))
-                StatCard("Confirmed", formatWithThousandSeparator(confirmed), GreenConfirmed, Modifier.weight(1f))
+                StatCard("Pending", formatWithThousandSeparator(pending), OrangeAccent, Modifier.weight(1f)) { onStatusClick("Pending") }
+                StatCard("Confirmed", formatWithThousandSeparator(confirmed), GreenConfirmed, Modifier.weight(1f)) { onStatusClick("Confirmed") }
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                StatCard("Completed", completed.toString(), GreyCompleted, Modifier.weight(1f))
-                StatCard("Cancelled", cancelled.toString(), RedCancelled, Modifier.weight(1f))
+                StatCard("Completed", completed.toString(), GreyCompleted, Modifier.weight(1f)) { onStatusClick("Completed") }
+                StatCard("Cancelled", cancelled.toString(), RedCancelled, Modifier.weight(1f)) { onStatusClick("Cancelled") }
             }
         }
 
@@ -247,9 +248,9 @@ fun CharityDashboardScreen(
 
 
 @Composable
-private fun StatCard(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
+private fun StatCard(label: String, value: String, color: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Card(
-        modifier = modifier,
+        modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -320,6 +321,7 @@ fun CharityDashboardScreenPreview() {
         paddingValues = PaddingValues(),
         onCreateRequest = {},
         onViewAllClick = {},
+        onStatusClick = {},
         onActivityClick = {}
     )
 }

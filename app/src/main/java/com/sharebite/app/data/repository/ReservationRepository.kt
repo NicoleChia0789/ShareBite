@@ -102,6 +102,12 @@ class ReservationRepository {
         println("  pickupTime: $pickupTime")
         println("  note: $note")
 
+        val listing = getListing(listingId)
+        if (listing == null || listing.status != "available" || listing.remainingQuantity < quantityNum) {
+            println("❌ Not enough remaining quantity for listing $listingId")
+            return 0L
+        }
+
         val newReservation = Reservation(
             userId = userId,
             listingId = listingId,
@@ -120,7 +126,20 @@ class ReservationRepository {
                 .insert(newReservation) { select() }
                 .decodeList<Reservation>()
                 .firstOrNull()
-            result?.id ?: 0L
+            val newReservationId = result?.id ?: 0L
+            if (newReservationId > 0) {
+                try {
+                    updateListingInventory(
+                        listingId = listingId,
+                        totalQuantity = listing.totalQuantity,
+                        newRemaining = listing.remainingQuantity - quantityNum
+                    )
+                } catch (inventoryError: Exception) {
+                    deleteMyReservation(newReservationId)
+                    throw inventoryError
+                }
+            }
+            newReservationId
         } catch (e: Exception) {
             println("❌ Error creating reservation: ${e.message}")
             e.printStackTrace()
@@ -152,6 +171,7 @@ class ReservationRepository {
     // ✅ Cancel my reservation
     suspend fun cancelMyReservation(reservationId: Long) {
         val userId = CurrentUser.getUserId()
+        val reservation = getMyReservationById(reservationId)
         SupabaseClient.client.postgrest["reservations"]
             .update(
                 { set("status", "Cancelled") }
@@ -161,6 +181,9 @@ class ReservationRepository {
                     eq("user_id", userId) // ✅ Ensure it belongs to current user
                 }
             }
+        if (reservation != null && reservation.status != "Cancelled") {
+            restoreListingInventory(reservation.listingId, reservation.quantityNum)
+        }
     }
 
     // ✅ Delete my reservation
@@ -176,4 +199,40 @@ class ReservationRepository {
     }
 
 
+    private suspend fun getListing(listingId: Long): com.sharebite.app.data.model.FoodListing? {
+        return try {
+            SupabaseClient.client.postgrest["food_listings"]
+                .select {
+                    filter { eq("id", listingId) }
+                    limit(1)
+                }
+                .decodeSingle<com.sharebite.app.data.model.FoodListing>()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private suspend fun updateListingInventory(
+        listingId: Long,
+        totalQuantity: Int,
+        newRemaining: Int
+    ) {
+        val safeRemaining = newRemaining.coerceIn(0, totalQuantity)
+        SupabaseClient.client.postgrest["food_listings"]
+            .update({
+                set("remaining_quantity", safeRemaining)
+                set("status", if (safeRemaining == 0) "claimed" else "available")
+            }) {
+                filter { eq("id", listingId) }
+            }
+    }
+
+    private suspend fun restoreListingInventory(listingId: Long, quantity: Int) {
+        val listing = getListing(listingId) ?: return
+        updateListingInventory(
+            listingId = listingId,
+            totalQuantity = listing.totalQuantity,
+            newRemaining = listing.remainingQuantity + quantity
+        )
+    }
 }

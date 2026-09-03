@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.Refresh
 import com.sharebite.app.ui.components.WithdrawConfirmDialog
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import kotlinx.coroutines.launch
 import android.content.Intent
 import android.net.Uri
@@ -37,6 +38,7 @@ private val statusTabs = listOf("All", "Pending", "Confirmed", "Completed", "Can
 @Composable
 fun MyRequestsScreen(
     paddingValues: PaddingValues,
+    initialStatus: String? = null,
     onViewClick: (Long) -> Unit,
     onEditClick: (Long) -> Unit,
     onWithdrawClick: (Long) -> Unit,
@@ -51,8 +53,8 @@ fun MyRequestsScreen(
     var allRequests by remember { mutableStateOf<List<CharityRequest>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var selectedStatus by remember { mutableStateOf("All") }
-    var withdrawTargetId by remember { mutableStateOf<Long?>(null) }
+    var selectedStatus by rememberSaveable(initialStatus) { mutableStateOf(initialStatus ?: "All") }
+    var withdrawTargetId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     suspend fun loadRequests() {
         try {
@@ -415,8 +417,8 @@ private fun RequestCard(
 
 private fun formatShortDate(dateStr: String): String {
     return try {
-        val inputFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-        val outputFormat = java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.getDefault())
+        val inputFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        val outputFormat = java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.US)
         val date = inputFormat.parse(dateStr)
         if (date != null) outputFormat.format(date) else dateStr
     } catch (e: Exception) {

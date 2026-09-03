@@ -5,6 +5,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +19,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,10 +29,15 @@ import kotlinx.coroutines.launch
 import android.widget.Toast
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.navigation.NavController
+import com.sharebite.app.ui.theme.ShareBiteBorder
+import com.sharebite.app.ui.theme.ShareBiteCream
+import com.sharebite.app.ui.theme.ShareBiteMuted
+import com.sharebite.app.ui.theme.ShareBiteOrange
+import com.sharebite.app.ui.theme.ShareBiteSurface
+import com.sharebite.app.ui.theme.ShareBiteText
 
 @Composable
 fun SignIn(
-
     onSignInSuccess: (String) -> Unit = {}, // ✅ Pass role only
     onSignUpClick: () -> Unit = {},
     onForgotPasswordClick: () -> Unit = {}
@@ -41,40 +50,33 @@ fun SignIn(
     var password by rememberSaveable { mutableStateOf("") }
     var isLoading by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) } // ✅ New state
 
-    val textDark = Color(0xFF1E1B16) // ✅ Darker text color for input
+    val textDark = ShareBiteText
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8F9FA))
+            .background(ShareBiteCream)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 24.dp)
-                .padding(top = 60.dp)
+                .padding(top = 40.dp)
                 .padding(bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "ShareBite",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF2C3E50),
-                letterSpacing = 0.5.sp
+            AuthHeader(
+                title = "Welcome back",
+                subtitle = "Sign in to continue sharing good food."
             )
-            Text(
-                text = "Welcome back!",
-                fontSize = 15.sp,
-                color = Color(0xFF7F8C8D),
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
+            Spacer(modifier = Modifier.height(16.dp))
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = ShareBiteSurface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
@@ -86,7 +88,7 @@ fun SignIn(
                         text = "Email Address",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF2C3E50),
+                        color = ShareBiteText,
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
                     OutlinedTextField(
@@ -101,24 +103,24 @@ fun SignIn(
                         placeholder = {
                             Text(
                                 "jane@example.com",
-                                color = Color(0xFFBDC3C7),
+                                color = ShareBiteMuted,
                                 fontSize = 14.sp
                             )
                         },
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF3498DB),
-                            unfocusedBorderColor = Color(0xFFE0E0E0),
-                            focusedTextColor = textDark, // ✅ Darker text
-                            unfocusedTextColor = textDark, // ✅ Darker text
-                            focusedPlaceholderColor = Color(0xFFBDC3C7),
-                            unfocusedPlaceholderColor = Color(0xFFBDC3C7)
+                            focusedBorderColor = ShareBiteOrange,
+                            unfocusedBorderColor = ShareBiteBorder,
+                            focusedTextColor = textDark,
+                            unfocusedTextColor = textDark,
+                            focusedPlaceholderColor = ShareBiteMuted,
+                            unfocusedPlaceholderColor = ShareBiteMuted
                         ),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         textStyle = TextStyle(
                             fontSize = 14.sp,
-                            color = textDark // ✅ Darker text
+                            color = textDark
                         )
                     )
 
@@ -128,7 +130,7 @@ fun SignIn(
                         text = "Password",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF2C3E50),
+                        color = ShareBiteText,
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
                     OutlinedTextField(
@@ -143,26 +145,37 @@ fun SignIn(
                         placeholder = {
                             Text(
                                 "••••••••",
-                                color = Color(0xFFBDC3C7),
+                                color = ShareBiteMuted,
                                 fontSize = 14.sp
                             )
                         },
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF3498DB),
-                            unfocusedBorderColor = Color(0xFFE0E0E0),
-                            focusedTextColor = textDark, // ✅ Darker text
-                            unfocusedTextColor = textDark, // ✅ Darker text
-                            focusedPlaceholderColor = Color(0xFFBDC3C7),
-                            unfocusedPlaceholderColor = Color(0xFFBDC3C7)
+                            focusedBorderColor = ShareBiteOrange,
+                            unfocusedBorderColor = ShareBiteBorder,
+                            focusedTextColor = textDark,
+                            unfocusedTextColor = textDark,
+                            focusedPlaceholderColor = ShareBiteMuted,
+                            unfocusedPlaceholderColor = ShareBiteMuted
                         ),
                         singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         textStyle = TextStyle(
                             fontSize = 14.sp,
-                            color = textDark // ✅ Darker text
-                        )
+                            color = textDark
+                        ),
+                        trailingIcon = {
+                            IconButton(
+                                onClick = { passwordVisible = !passwordVisible }
+                            ) {
+                                Icon(
+                                    imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                                    tint = ShareBiteMuted
+                                )
+                            }
+                        }
                     )
 
                     if (errorMessage != null) {
@@ -184,7 +197,7 @@ fun SignIn(
                         Text(
                             text = "Forgot password?",
                             fontSize = 13.sp,
-                            color = Color(0xFF3498DB),
+                            color = ShareBiteOrange,
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.End
                         )
@@ -235,7 +248,7 @@ fun SignIn(
                             .height(48.dp)
                             .clip(RoundedCornerShape(14.dp)),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFF7A45),
+                            containerColor = ShareBiteOrange,
                             contentColor = Color.White
                         ),
                         shape = RoundedCornerShape(14.dp),
@@ -258,29 +271,24 @@ fun SignIn(
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-
-
-
-
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Row(
-                modifier = Modifier.padding(bottom = 16.dp),
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = "Don't have an account? ",
                     fontSize = 13.sp,
-                    color = Color(0xFF7F8C8D)
+                    color = ShareBiteMuted
                 )
                 Text(
                     text = "Sign up",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF2C3E50),
+                    color = ShareBiteOrange,
                     modifier = Modifier.clickable { onSignUpClick() }
                 )
             }

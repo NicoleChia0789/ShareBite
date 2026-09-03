@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.sharebite.app.data.model.CharityRequest
 import com.sharebite.app.data.repository.CharityRepository
+import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.ui.theme.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -38,33 +40,40 @@ fun EditRequestScreen(
     onCancel: () -> Unit
 ) {
     val repository = remember { CharityRepository() }
+    val listingRepository = remember { FoodListingRepository() }
     val coroutineScope = rememberCoroutineScope()
 
     var original by remember { mutableStateOf<CharityRequest?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var loadError by remember { mutableStateOf<String?>(null) }
 
-    var quantity by remember { mutableStateOf("") }
-    var pickupDate by remember { mutableStateOf("") }
-    var pickupTime by remember { mutableStateOf("") }
-    var peopleServed by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
+    var pickupDate by rememberSaveable { mutableStateOf("") }
+    var pickupTime by rememberSaveable { mutableStateOf("") }
+    var peopleServed by rememberSaveable { mutableStateOf("") }
+    var note by rememberSaveable { mutableStateOf("") }
+    var merchantDeadline by rememberSaveable { mutableStateOf("") }
 
-    var isSaving by remember { mutableStateOf(false) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
-    var showErrorDialog by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf("") }
+    var hasInitializedForm by rememberSaveable(requestId) { mutableStateOf(false) }
+    var isSaving by rememberSaveable { mutableStateOf(false) }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
+    var showTimePicker by rememberSaveable { mutableStateOf(false) }
+    var showErrorDialog by rememberSaveable { mutableStateOf(false) }
+    var errorMessage by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(requestId) {
         try {
             val data = repository.getMyRequestById(requestId)
             original = data
-            quantity = data?.quantity?.toString() ?: ""
-            pickupDate = data?.pickupDate ?: ""
-            pickupTime = data?.pickupTime ?: ""
-            peopleServed = data?.peopleServed?.toString() ?: ""
-            note = data?.note ?: ""
+            data?.listingId?.toLongOrNull()?.let { listingId ->
+                merchantDeadline = listingRepository.getListingById(listingId).deadline
+            }
+            if (!hasInitializedForm) {
+                pickupDate = data?.pickupDate ?: ""
+                pickupTime = data?.pickupTime ?: ""
+                peopleServed = data?.peopleServed?.toString()?.let(::filterQuantityInput) ?: ""
+                note = data?.note ?: ""
+                hasInitializedForm = true
+            }
         } catch (e: Exception) {
             loadError = e.message
         } finally {
@@ -74,13 +83,16 @@ fun EditRequestScreen(
 
     fun validateForm(): List<String> {
         val errors = mutableListOf<String>()
-        if (!isQuantityValid(quantity)) {
-            errors.add("Quantity must be between 1 and ${formatWithThousandSeparator(MAX_QUANTITY)}")
-        }
+        if (!isQuantityValid(peopleServed)) errors.add("People served must be between 1 and ${formatWithThousandSeparator(MAX_QUANTITY)}")
         if (pickupDate.isBlank()) errors.add("Collection date")
         if (pickupTime.isBlank()) errors.add("Collection time")
         if (pickupDate.isNotBlank() && pickupTime.isNotBlank() && isDateTimeInPast(pickupDate, pickupTime)) {
             errors.add("Collection date/time cannot be in the past")
+        }
+        if (pickupDate.isNotBlank() && pickupTime.isNotBlank() && merchantDeadline.isNotBlank() &&
+            !isDateTimeWithinDeadline(pickupDate, pickupTime, merchantDeadline)
+        ) {
+            errors.add("Collection date/time must be on or before the merchant deadline")
         }
         return errors
     }
@@ -160,25 +172,6 @@ fun EditRequestScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // ----- Quantity needed -----
-                    OutlinedTextField(
-                        value = quantity,
-                        onValueChange = { quantity = filterQuantityInput(it) },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Quantity needed") },
-                        supportingText = {
-                            if (quantity.isNotBlank()) {
-                                Text("= ${formatWithThousandSeparator(quantity)} units")
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = AppTextFieldDefaults.colors()
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
                     // ----- Collection date -----
                     Box(
                         modifier = Modifier
@@ -239,7 +232,7 @@ fun EditRequestScreen(
                         label = { Text("People served") },
                         supportingText = {
                             if (peopleServed.isNotBlank()) {
-                                Text("= ${formatWithThousandSeparator(peopleServed)} people")
+                                Text("= ${formatWithThousandSeparator(peopleServed)} units")
                             }
                         },
                         shape = RoundedCornerShape(12.dp),
@@ -289,10 +282,10 @@ fun EditRequestScreen(
                                 try {
                                     repository.updateMyRequest(
                                         requestId = requestId,
-                                        quantity = quantity.toInt(),
+                                        quantity = quantityValue(peopleServed) ?: 0,
                                         pickupDate = pickupDate,
                                         pickupTime = formatTimeForDb(pickupTime),  // ← 加上转换
-                                        peopleServed = peopleServed.toIntOrNull() ?: 0,
+                                        peopleServed = quantityValue(peopleServed) ?: 0,
                                         note = note.ifBlank { null }
                                     )
                                     isSaving = false
@@ -341,7 +334,7 @@ fun EditRequestScreen(
     // ----- Date Picker -----
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = System.currentTimeMillis(),
+            initialSelectedDateMillis = parseEditDateMillis(pickupDate) ?: System.currentTimeMillis(),
             selectableDates = FutureOnlySelectableDates
         )
         Dialog(
@@ -380,7 +373,7 @@ fun EditRequestScreen(
                             onClick = {
                                 datePickerState.selectedDateMillis?.let { millis ->
                                     val date = Date(millis)
-                                    val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                    val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
                                     pickupDate = format.format(date)
                                 }
                                 showDatePicker = false
@@ -395,7 +388,8 @@ fun EditRequestScreen(
 
     // ----- Time Picker -----
     if (showTimePicker) {
-        val timePickerState = rememberTimePickerState(initialHour = 17, initialMinute = 0, is24Hour = false)
+        val (initialHour, initialMinute) = parseEditTime(pickupTime)
+        val timePickerState = rememberTimePickerState(initialHour = initialHour, initialMinute = initialMinute, is24Hour = false)
         Dialog(
             onDismissRequest = { showTimePicker = false },
             properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -457,3 +451,14 @@ fun EditRequestScreen(
         )
     }
 }
+
+private fun parseEditDateMillis(value: String): Long? = runCatching {
+    SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }.parse(value)?.time
+}.getOrNull()
+
+private fun parseEditTime(value: String): Pair<Int, Int> = runCatching {
+    val parsed = SimpleDateFormat("h:mm a", Locale.US).apply { isLenient = false }.parse(value)
+        ?: return@runCatching 17 to 0
+    val calendar = Calendar.getInstance().apply { time = parsed }
+    calendar.get(Calendar.HOUR_OF_DAY) to calendar.get(Calendar.MINUTE)
+}.getOrDefault(17 to 0)

@@ -201,14 +201,6 @@ fun MerchantProfileScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column {
-                // 1. Donation History
-                ProfileMenuItem(
-                    icon = Icons.Default.History,
-                    title = "Donation History",
-                    subtitle = "View past contributions",
-                    onClick = onDonationHistory
-                )
-                Divider(color = Color(0xFFEFE6D9), modifier = Modifier.padding(horizontal = 16.dp))
 
                 // 2. Account Security
                 ProfileMenuItem(

@@ -21,6 +21,7 @@ import com.sharebite.app.ui.profile.ForgotPasswordScreen
 import com.sharebite.app.ui.profile.ResetPasswordScreen
 import com.sharebite.app.ui.profile.SignIn
 import com.sharebite.app.ui.profile.SignUp
+import com.sharebite.app.ui.profile.ChooseRoleScreen
 import com.sharebite.app.ui.theme.ShareBiteTheme
 import kotlinx.coroutines.launch
 
@@ -45,10 +46,13 @@ class MainActivity : ComponentActivity() {
 fun ShareBiteApp() {
     var isAuthenticated by rememberSaveable { mutableStateOf(CurrentUser.isLoggedIn()) }
     var userRole by rememberSaveable { mutableStateOf(CurrentUser.user?.role ?: "") }
-    var showSignIn by rememberSaveable { mutableStateOf(false) }
+    var showSignIn by rememberSaveable { mutableStateOf(!CurrentUser.isLoggedIn()) }
+    var showChooseRole by rememberSaveable { mutableStateOf(false) }
+    var selectedSignUpRole by rememberSaveable { mutableStateOf("User") }
     var showForgotPassword by rememberSaveable { mutableStateOf(false) }
     var showResetPassword by rememberSaveable { mutableStateOf(false) }
     var resetEmail by rememberSaveable { mutableStateOf("") }
+    var darkMode by rememberSaveable { mutableStateOf(false) }
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -59,87 +63,107 @@ fun ShareBiteApp() {
         userRole = CurrentUser.user?.role ?: ""
     }
 
-    // ✅ ResetPassword 页面（认证前）
-    if (showResetPassword) {
-        ResetPasswordScreen(
-            paddingValues = PaddingValues(0.dp),
-            email = resetEmail,
-            onBack = {
-                showResetPassword = false
-                showForgotPassword = true
-            },
-            onReset = { email, newPassword ->
-                coroutineScope.launch {
-                    try {
-                        val success = loginRepo.updatePasswordByEmail(email, newPassword)
-                        if (success) {
-                            Toast.makeText(context, "Password reset successfully!", Toast.LENGTH_SHORT).show()
-                            showResetPassword = false
-                            showForgotPassword = false
-                        } else {
-                            Toast.makeText(context, "Failed to reset password", Toast.LENGTH_SHORT).show()
+    ShareBiteTheme(darkTheme = darkMode) {
+        when {
+            showResetPassword -> {
+                ResetPasswordScreen(
+                    paddingValues = PaddingValues(0.dp),
+                    email = resetEmail,
+                    onBack = {
+                        showResetPassword = false
+                        showForgotPassword = true
+                    },
+                    onReset = { email, newPassword ->
+                        coroutineScope.launch {
+                            try {
+                                val success = loginRepo.updatePasswordByEmail(email, newPassword)
+                                if (success) {
+                                    Toast.makeText(context, "Password reset successfully!", Toast.LENGTH_SHORT).show()
+                                    showResetPassword = false
+                                    showForgotPassword = false
+                                } else {
+                                    Toast.makeText(context, "Failed to reset password", Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
                         }
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
-                }
+                )
             }
-        )
-        return
-    }
 
-    // ✅ ForgotPassword 页面（认证前）
-    if (showForgotPassword) {
-        ForgotPasswordScreen(
-            paddingValues = PaddingValues(0.dp),
-            onBack = {
-                showForgotPassword = false
-            },
-            onSendResetLink = { email ->
-                resetEmail = email.trim()
-                showForgotPassword = false
-                showResetPassword = true
+            showForgotPassword -> {
+                ForgotPasswordScreen(
+                    paddingValues = PaddingValues(0.dp),
+                    onBack = {
+                        showForgotPassword = false
+                    },
+                    onSendResetLink = { email ->
+                        resetEmail = email.trim()
+                        showForgotPassword = false
+                        showResetPassword = true
+                    }
+                )
             }
-        )
-        return
-    }
 
-    // ✅ 已认证 → 进入主应用
-    if (isAuthenticated && userRole.isNotEmpty()) {
-        AppNavHost(
-            role = userRole,
-            onLogout = {
-                CurrentUser.logout()
-                isAuthenticated = false
-                userRole = ""
-                showSignIn = false
+            isAuthenticated && userRole.isNotEmpty() -> {
+                AppNavHost(
+                    role = userRole,
+                    darkMode = darkMode,
+                    onToggleDarkMode = { darkMode = !darkMode },
+                    onLogout = {
+                        CurrentUser.logout()
+                        isAuthenticated = false
+                        userRole = ""
+                        showSignIn = true
+                    }
+                )
             }
-        )
-    } else {
-        // ✅ 未认证 → 显示登录/注册
-        if (showSignIn) {
-            SignIn(
-                onSignInSuccess = { role ->
-                    userRole = role
-                    isAuthenticated = true
-                },
-                onSignUpClick = {
-                    showSignIn = false
-                },
-                onForgotPasswordClick = {
-                    showForgotPassword = true
-                }
-            )
-        } else {
-            SignUp(
-                onSignUpClick = { role ->
-                    userRole = role
-                    isAuthenticated = true
-                },
-                onLoginClick = {
-                    showSignIn = true
-                }
-            )
+
+            showChooseRole -> {
+                ChooseRoleScreen(
+                    onRoleSelected = { role ->
+                        selectedSignUpRole = role
+                        showChooseRole = false
+                    },
+                    onBack = {
+                        showChooseRole = false
+                        showSignIn = true
+                    }
+                )
+            }
+
+            showSignIn -> {
+                SignIn(
+                    onSignInSuccess = { role ->
+                        userRole = role
+                        isAuthenticated = true
+                    },
+                    onSignUpClick = {
+                        showSignIn = false
+                        showChooseRole = true
+                    },
+                    onForgotPasswordClick = {
+                        showForgotPassword = true
+                    }
+                )
+            }
+
+            else -> {
+                SignUp(
+                    selectedRole = selectedSignUpRole,
+                    onSignUpClick = { role ->
+                        userRole = role
+                        isAuthenticated = true
+                    },
+                    onLoginClick = {
+                        showSignIn = true
+                    },
+                    onChooseRoleClick = {
+                        showChooseRole = true
+                    }
+                )
+            }
         }
     }
 }

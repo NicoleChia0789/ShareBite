@@ -22,10 +22,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.model.CharityRequest
 import com.sharebite.app.ui.theme.AppTextFieldDefaults
-import com.sharebite.app.ui.theme.BgCream
-import com.sharebite.app.ui.theme.OrangeAccent
-import com.sharebite.app.ui.theme.TextDark
-import com.sharebite.app.ui.theme.TextGrey
 
 @Composable
 fun MerchantCharityPlazaScreen(
@@ -53,23 +49,13 @@ fun MerchantCharityPlazaScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .background(BgCream)
+            .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
         Text(
-            "Charity Requests",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = TextDark,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 4.dp),
-            textAlign = TextAlign.Center
-        )
-        Text(
             "Browse food requests from charities and offer help.",
             style = MaterialTheme.typography.bodyMedium,
-            color = TextGrey,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 12.dp),
@@ -88,7 +74,7 @@ fun MerchantCharityPlazaScreen(
                     Icons.Default.Search,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
-                    tint = TextGrey
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
             shape = RoundedCornerShape(50),
@@ -99,7 +85,7 @@ fun MerchantCharityPlazaScreen(
 
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = OrangeAccent)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else if (pendingRequests.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -108,11 +94,11 @@ fun MerchantCharityPlazaScreen(
                         Icons.Default.Storefront,
                         contentDescription = null,
                         modifier = Modifier.size(48.dp),
-                        tint = TextGrey
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("No charity requests available.", color = TextGrey, fontSize = 16.sp)
-                    Text("Check back later for new opportunities.", color = TextGrey, fontSize = 14.sp)
+                    Text("No charity requests available.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
+                    Text("Check back later for new opportunities.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                 }
             }
         } else {
@@ -159,13 +145,13 @@ fun CharityPlazaCard(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(OrangeAccent.copy(alpha = 0.15f)),
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             request.organisationName.take(1).uppercase(),
                             fontWeight = FontWeight.Bold,
-                            color = OrangeAccent,
+                            color = MaterialTheme.colorScheme.primary,
                             fontSize = 18.sp
                         )
                     }
@@ -175,26 +161,26 @@ fun CharityPlazaCard(
                             request.foodName,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
-                            color = TextDark
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             "${request.quantity} × from ${request.organisationName}",
                             fontSize = 13.sp,
-                            color = TextGrey
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = OrangeAccent.copy(alpha = 0.12f)
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                 ) {
                     Text(
                         "Urgent",
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = OrangeAccent
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -202,7 +188,7 @@ fun CharityPlazaCard(
             Text(
                 "Pickup: ${request.pickupDate} at ${request.pickupTime}",
                 fontSize = 12.sp,
-                color = TextGrey
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -210,7 +196,7 @@ fun CharityPlazaCard(
             Button(
                 onClick = onOfferHelp,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(50)
             ) {
                 Text("Offer Help", color = Color.White, fontWeight = FontWeight.Bold)

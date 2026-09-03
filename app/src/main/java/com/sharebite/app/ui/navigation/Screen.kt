@@ -19,12 +19,16 @@ sealed class Screen(
     val icon: ImageVector
 ) {
     object Home : Screen("home", "Home", Icons.Default.Home)
-    object Browse : Screen("browse", "Browse", Icons.Default.Search)
-    object Requests : Screen("requests", "Requests", Icons.Default.Assignment)
+    object Browse : Screen("browse", "Browse", Icons.Default.Storefront)
+    object Requests : Screen("requests", "Requests", Icons.Default.Assignment) {
+        const val baseRoute = "requests"
+        const val routeWithStatus = "requests?status={status}"
+        fun createRoute(status: String? = null) = if (status.isNullOrBlank()) baseRoute else "$baseRoute?status=$status"
+    }
     object Profile : Screen("profile", "Profile", Icons.Default.Person)
 
     // ✅ 新增：Charity Plaza（仅 Merchant 使用）
-    object CharityPlaza : Screen("charity_plaza", "Charity Plaza", Icons.Default.Storefront)
+    object CharityPlaza : Screen("charity_plaza", "Charity", Icons.Default.Search)
 }
 
 // ✅ 根据角色返回不同的 Bottom Nav 列表

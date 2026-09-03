@@ -1,6 +1,7 @@
 package com.sharebite.app.data.repository
 
 import com.sharebite.app.data.model.FoodListing
+import com.sharebite.app.data.model.isExpired
 import com.sharebite.app.data.remote.SupabaseClient
 import com.sharebite.app.data.session.CurrentUser
 import io.github.jan.supabase.postgrest.postgrest
@@ -16,6 +17,7 @@ class FoodListingRepository {
                 order("created_at", Order.DESCENDING)
             }
             .decodeList<FoodListing>()
+            .filterNot { it.isExpired() }
     }
 
     // ✅ Get merchant's own listings (for merchant dashboard)
@@ -30,6 +32,7 @@ class FoodListingRepository {
                 order("created_at", Order.DESCENDING)
             }
             .decodeList<FoodListing>()
+            .filterNot { it.isExpired() }
     }
 
     // ✅ Get merchant's own listings including claimed/closed
@@ -41,15 +44,20 @@ class FoodListingRepository {
                 order("created_at", Order.DESCENDING)
             }
             .decodeList<FoodListing>()
+            .filterNot { it.isExpired() }
     }
 
     suspend fun getListingById(id: Long): FoodListing {
-        return SupabaseClient.client.postgrest["food_listings"]
+        val listing = SupabaseClient.client.postgrest["food_listings"]
             .select {
                 filter { eq("id", id) }
                 limit(1)
             }
             .decodeSingle<FoodListing>()
+        if (listing.isExpired()) {
+            throw IllegalStateException("This food listing has passed its deadline.")
+        }
+        return listing
     }
 
     suspend fun getAvailableCount(): Int {

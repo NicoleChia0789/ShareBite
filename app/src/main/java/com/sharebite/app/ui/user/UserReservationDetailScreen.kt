@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.data.repository.ReservationRepository
@@ -45,7 +46,7 @@ fun UserReservationDetailScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isCancelling by remember { mutableStateOf(false) }
     var showCancelDialog by remember { mutableStateOf(false) }
-    var foodImage by remember { mutableStateOf<String?>(null) }
+    var foodListing by remember { mutableStateOf<FoodListing?>(null) }
 
     LaunchedEffect(reservationId) {
         try {
@@ -53,7 +54,7 @@ fun UserReservationDetailScreen(
             reservation?.listingId?.let { listingId ->
                 try {
                     val listing = foodRepo.getListingById(listingId)
-                    foodImage = listing.photoUrl
+                    foodListing = listing
                 } catch (e: Exception) {
                     // 忽略
                 }
@@ -97,17 +98,27 @@ fun UserReservationDetailScreen(
             val item = reservation!!
             val statusColor = when (item.status) {
                 "Confirmed" -> GreenConfirmed
-                "Pending" -> OrangeAccent
+                "Pending" -> Color(0xFFE65100)
                 "Cancelled" -> RedCancelled
                 "Completed" -> GreyCompleted
                 else -> TextGrey
             }
             val statusBg = when (item.status) {
-                "Confirmed" -> Color(0xFFE3F5E6)
-                "Pending" -> NavSelectedBg
-                "Cancelled" -> Color(0xFFFFEDED)
-                "Completed" -> Color(0xFFEEEEEE)
-                else -> Color(0xFFEEEEEE)
+                "Confirmed" -> Color(0xFFE8F5E9)
+                "Pending" -> Color(0xFFFFF3E0)
+                "Cancelled" -> Color(0xFFFFEBEE)
+                "Completed" -> Color(0xFFF5F5F5)
+                else -> Color(0xFFF5F5F5)
+            }
+            val statusHeadline = when (item.status) {
+                "Pending", "Confirmed" -> if (item.pickupDate == getReservationTodayDateString()) {
+                    "PICK UP TODAY"
+                } else {
+                    "PICK UP ON ${formatReservationShortDate(item.pickupDate).uppercase()}"
+                }
+                "Completed" -> "COLLECTED ON ${formatReservationShortDate(item.pickupDate).uppercase()}"
+                "Cancelled" -> "CANCELLED"
+                else -> item.status.uppercase()
             }
 
             val step1Completed = true
@@ -132,9 +143,9 @@ fun UserReservationDetailScreen(
                             .fillMaxWidth()
                             .height(200.dp)
                     ) {
-                        if (!foodImage.isNullOrBlank()) {
+                        if (!foodListing?.photoUrl.isNullOrBlank()) {
                             AsyncImage(
-                                model = foodImage,
+                                model = foodListing?.photoUrl,
                                 contentDescription = item.foodName,
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -183,8 +194,8 @@ fun UserReservationDetailScreen(
                                     tint = statusColor
                                 )
                                 Text(
-                                    text = item.status,
-                                    fontSize = 14.sp,
+                                    text = item.status.uppercase(),
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = statusColor
                                 )
@@ -207,6 +218,12 @@ fun UserReservationDetailScreen(
                                 .align(Alignment.BottomStart)
                                 .padding(16.dp)
                         ) {
+                            Text(
+                                text = statusHeadline,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = statusColor
+                            )
                             Text(
                                 text = item.foodName,
                                 fontSize = 20.sp,
@@ -342,7 +359,7 @@ fun UserReservationDetailScreen(
                                             color = TextGrey
                                         )
                                         Text(
-                                            text = "452 Artisan Way, Northside Arts District",
+                                            text = foodListing?.address?.ifBlank { "Pickup address not available" } ?: "Pickup address not available",
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Medium,
                                             color = TextDark
@@ -353,7 +370,7 @@ fun UserReservationDetailScreen(
                                             color = OrangeAccent,
                                             fontWeight = FontWeight.Medium,
                                             modifier = Modifier.clickable {
-                                                val uri = Uri.parse("geo:0,0?q=452+Artisan+Way")
+                                                val uri = Uri.parse("geo:0,0?q=${Uri.encode(foodListing?.address.orEmpty())}")
                                                 context.startActivity(Intent(Intent.ACTION_VIEW, uri))
                                             }
                                         )
@@ -521,25 +538,31 @@ fun UserReservationDetailScreen(
 
                         if (item.status == "Pending" || item.status == "Confirmed") {
                             Button(
-                                onClick = { showCancelDialog = true },
+                                onClick = {
+                                    if (item.status == "Confirmed") {
+                                        openReservationDirections(context, foodListing)
+                                    } else {
+                                        showCancelDialog = true
+                                    }
+                                },
                                 modifier = Modifier
                                     .weight(if (item.status == "Pending") 1f else 1f)
                                     .height(48.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.Transparent,
-                                    contentColor = RedCancelled
+                                    containerColor = if (item.status == "Confirmed") OrangeAccent else Color.Transparent,
+                                    contentColor = if (item.status == "Confirmed") Color.White else RedCancelled
                                 ),
                                 shape = RoundedCornerShape(50),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, RedCancelled)
+                                border = if (item.status == "Confirmed") null else androidx.compose.foundation.BorderStroke(1.dp, RedCancelled)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Cancel,
+                                    imageVector = if (item.status == "Confirmed") Icons.Default.Directions else Icons.Default.Cancel,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Cancel",
+                                    text = if (item.status == "Confirmed") "Directions" else "Cancel",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -548,18 +571,24 @@ fun UserReservationDetailScreen(
 
                         if (item.status != "Pending" && item.status != "Confirmed") {
                             Button(
-                                onClick = onBack,
+                                onClick = {
+                                    if (item.status == "Completed") {
+                                        onEditClick(item.listingId, 0L)
+                                    } else {
+                                        onBack()
+                                    }
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(48.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color.Transparent,
-                                    contentColor = TextGrey
+                                    contentColor = if (item.status == "Completed") GreenConfirmed else TextGrey
                                 ),
                                 shape = RoundedCornerShape(50)
                             ) {
                                 Text(
-                                    text = "← Back",
+                                    text = if (item.status == "Completed") "Reserve Again" else "Back",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -689,4 +718,28 @@ private fun TimelineStep(
             )
         }
     }
+}
+
+private fun formatReservationShortDate(dateStr: String): String {
+    return try {
+        val inputFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        val outputFormat = java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.US)
+        val date = inputFormat.parse(dateStr)
+        if (date != null) outputFormat.format(date) else dateStr
+    } catch (e: Exception) {
+        dateStr
+    }
+}
+
+private fun getReservationTodayDateString(): String {
+    return java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+}
+
+private fun openReservationDirections(context: android.content.Context, listing: FoodListing?) {
+    val uri = if (listing?.latitude != null && listing.longitude != null) {
+        Uri.parse("geo:${listing.latitude},${listing.longitude}?q=${listing.latitude},${listing.longitude}(${Uri.encode(listing.merchantName)})")
+    } else {
+        Uri.parse("geo:0,0?q=${Uri.encode(listing?.address.orEmpty())}")
+    }
+    context.startActivity(Intent(Intent.ACTION_VIEW, uri))
 }

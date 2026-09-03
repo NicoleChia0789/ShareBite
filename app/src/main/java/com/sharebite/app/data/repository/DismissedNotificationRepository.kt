@@ -17,7 +17,8 @@ data class DismissedNotification(
 
 class DismissedNotificationRepository {
 
-    // ✅ Get dismissed IDs for current user
+    // Request notifications use positive IDs. Reservation notifications use
+    // negative IDs so records from different tables never hide each other.
     suspend fun getMyDismissedIds(): Set<Long> {
         val userId = CurrentUser.getUserId()
         return try {
@@ -33,13 +34,12 @@ class DismissedNotificationRepository {
         }
     }
 
-    // ✅ Dismiss notification for current user
-    suspend fun dismiss(requestId: Long) {
+    suspend fun dismiss(notificationId: Long) {
         val userId = CurrentUser.getUserId()
         SupabaseClient.client.postgrest["dismissed_notifications"]
             .insert(
                 DismissedNotification(
-                    requestId = requestId,
+                    requestId = notificationId,
                     userId = userId
                 )
             )

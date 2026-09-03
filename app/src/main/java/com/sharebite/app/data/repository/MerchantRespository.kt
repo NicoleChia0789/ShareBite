@@ -4,6 +4,7 @@ import com.sharebite.app.data.model.CharityRequest
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.model.UserSummary
+import com.sharebite.app.data.model.isExpired
 import com.sharebite.app.data.remote.SupabaseClient
 import com.sharebite.app.data.session.CurrentUser
 import io.github.jan.supabase.postgrest.postgrest
@@ -65,6 +66,7 @@ class MerchantRepository {
                     order("created_at", Order.DESCENDING)
                 }
                 .decodeList<FoodListing>()
+                .filterNot { it.isExpired() }
         } catch (e: Exception) {
             emptyList()
         }
@@ -172,26 +174,12 @@ class MerchantRepository {
     }
 
     /**
-     * Reserves stock for a pending reservation before confirming it.
-     * All values use the existing bigint/integer columns from Supabase; no schema
-     * change or new column is required.
+     * User reservations reserve stock when they are created, so approval only
+     * changes the reservation status.
      */
     suspend fun approveReservation(reservation: Reservation) {
         require(reservation.quantityNum > 0) { "Reservation quantity must be greater than zero" }
-        val listing = getOwnedListing(reservation.listingId)
-        require(listing.remainingQuantity >= reservation.quantityNum) {
-            "Only ${listing.remainingQuantity} ${listing.unit ?: "units"} remaining"
-        }
-        updateListingInventory(
-            listing = listing,
-            newRemaining = listing.remainingQuantity - reservation.quantityNum
-        )
-        try {
-            updateReservationStatus(reservation.id, "Confirmed")
-        } catch (error: Exception) {
-            updateListingInventory(listing, listing.remainingQuantity)
-            throw error
-        }
+        updateReservationStatus(reservation.id, "Confirmed")
     }
 
     /** Reserves stock for a charity request that is linked to a merchant listing. */
@@ -253,7 +241,9 @@ class MerchantRepository {
         distanceKm: Double,
         dietaryType: String?,
         totalQuantity: Int,
-        remainingQuantity: Int  // ✅ 保留
+        remainingQuantity: Int,  // ✅ 保留
+        latitude: Double? = null,
+        longitude: Double? = null
     ): Long {
         println("🔍 [Repository] Received photoUrl: '$photoUrl'")
         val merchantId = CurrentUser.getUserId()
@@ -270,8 +260,8 @@ class MerchantRepository {
             deadline = if (pickupDate != null && pickupTime != null) "$pickupDate $pickupTime" else null,
             address = address,
             distanceKm = distanceKm,
-            latitude = null,
-            longitude = null,
+            latitude = latitude,
+            longitude = longitude,
             notes = notes,
             status = "available",
             portionInfo = null,
@@ -309,7 +299,10 @@ class MerchantRepository {
         pickupDate: String?,
         pickupTime: String?,
         notes: String?,
-        address: String?
+        address: String?,
+        dietaryType: String?,
+        latitude: Double?,
+        longitude: Double?
     ) {
         val merchantId = CurrentUser.getUserId()
         SupabaseClient.client.postgrest["food_listings"]
@@ -325,6 +318,9 @@ class MerchantRepository {
                 set("deadline", if (pickupDate != null && pickupTime != null) "$pickupDate $pickupTime" else null)
                 set("notes", notes)
                 set("address", address)
+                set("dietary_type", dietaryType)
+                set("latitude", latitude)
+                set("longitude", longitude)
             }) {
                 filter {
                     eq("id", listingId)

@@ -5,12 +5,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Fastfood
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,10 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.sharebite.app.data.model.FoodListing
-import com.sharebite.app.ui.theme.BgCream
-import com.sharebite.app.ui.theme.OrangeAccent
-import java.text.SimpleDateFormat
+import java.text.NumberFormat
 import java.util.*
+import com.sharebite.app.util.formatDateTimeForDisplay
 
 @Composable
 fun MerchantAllListingsScreen(
@@ -35,28 +36,39 @@ fun MerchantAllListingsScreen(
     onAddDonationClick: () -> Unit
 ) {
     val listings by viewModel.listings.collectAsState()
+    var deadlineOrder by rememberSaveable { mutableStateOf("Ascending") }
+    val listingListState = rememberLazyListState()
+
+    val filteredListings = remember(listings, deadlineOrder) {
+        if (deadlineOrder == "Descending") listings.sortedByDescending { it.deadline }
+        else listings.sortedBy { it.deadline }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.loadMerchantData()
+    }
+
+    LaunchedEffect(deadlineOrder) {
+        listingListState.scrollToItem(0)
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .background(BgCream)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
             // ── Header ──
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                Text(
-                    "My Listings",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E1B16)
-                )
+//                Text(
+//                    "My Listings",
+//                    style = MaterialTheme.typography.headlineSmall,
+//                    fontWeight = FontWeight.Bold,
+//                    color = Color(0xFF1E1B16)
+//                )
                 Text(
                     "Manage your community food contributions.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -64,9 +76,15 @@ fun MerchantAllListingsScreen(
                 )
             }
 
-            // ❌ 搜索栏已移除
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                Text("Filter by deadline", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = deadlineOrder == "Ascending", onClick = { deadlineOrder = "Ascending" }, label = { Text("Deadline ↑") })
+                    FilterChip(selected = deadlineOrder == "Descending", onClick = { deadlineOrder = "Descending" }, label = { Text("Deadline ↓") })
+                }
+            }
 
-            if (listings.isEmpty()) {
+            if (filteredListings.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("📭", fontSize = 48.sp)
@@ -82,19 +100,20 @@ fun MerchantAllListingsScreen(
             } else {
                 // ── Section Header with count ──
                 Text(
-                    "YOUR ACTIVE DONATIONS (${listings.size})",
+                    "YOUR ACTIVE DONATIONS (${filteredListings.size})",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = OrangeAccent,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
+                    state = listingListState,
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(listings) { listing ->
+                    items(filteredListings, key = { it.id }) { listing ->
                         ListingCardSimplified(
                             listing = listing,
                             onClick = { onListingClick(listing.id) }
@@ -107,7 +126,7 @@ fun MerchantAllListingsScreen(
         // ✅ Floating Action Button – Add Donation
         FloatingActionButton(
             onClick = onAddDonationClick,
-            containerColor = OrangeAccent,
+            containerColor = MaterialTheme.colorScheme.primary,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(24.dp)
@@ -124,8 +143,7 @@ fun ListingCardSimplified(
     listing: FoodListing,
     onClick: () -> Unit
 ) {
-    val isActive = listing.status == "available"
-    val timeString = formatTime(listing.createdAt)
+    val remainingText = "${NumberFormat.getNumberInstance(Locale.US).format(listing.remainingQuantity)} units left"
 
     Card(
         modifier = Modifier
@@ -137,7 +155,7 @@ fun ListingCardSimplified(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // ── Photo ──
@@ -159,7 +177,7 @@ fun ListingCardSimplified(
                         Icon(
                             Icons.Default.Fastfood,
                             contentDescription = null,
-                            tint = OrangeAccent,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(30.dp)
                         )
                     }
@@ -174,34 +192,25 @@ fun ListingCardSimplified(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        "${listing.remainingQuantity} units left",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Text("Deadline:", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(formatDateTimeForDisplay(listing.deadline), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                     ) {
                         Text(
                             listing.category,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = OrangeAccent
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
                         )
-                        // Status badge
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = if (isActive) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
-                        ) {
-                            Text(
-                                if (isActive) "Active" else "Inactive",
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isActive) Color(0xFF2E7D32) else Color.Red
-                            )
-                        }
                     }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(remainingText, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -224,7 +233,7 @@ fun ListingCardSimplified(
                 onClick = onClick,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent)
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text("View Details →", fontWeight = FontWeight.Medium)
             }
@@ -232,22 +241,3 @@ fun ListingCardSimplified(
     }
 }
 
-// ─── Helper: format timestamp ──────────────────────────────────────
-
-fun formatTime(timestamp: String): String {
-    return try {
-        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.getDefault())
-        val date = format.parse(timestamp)
-        if (date == null) return ""
-        SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(date)
-    } catch (e: Exception) {
-        try {
-            val simpleFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-            val date = simpleFormat.parse(timestamp)
-            if (date == null) return ""
-            SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(date)
-        } catch (e2: Exception) {
-            ""
-        }
-    }
-}

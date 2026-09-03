@@ -1,6 +1,9 @@
 package com.sharebite.app.ui.merchant
 
 import android.net.Uri
+import android.Manifest
+import android.app.Activity
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -10,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.DateRange
@@ -23,20 +27,27 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import com.sharebite.app.ui.theme.AppTextFieldDefaults
-import com.sharebite.app.ui.theme.BgCream
-import com.sharebite.app.ui.theme.OrangeAccent
+import com.sharebite.app.ui.theme.*
+import com.sharebite.app.ui.charity.filterQuantityInput
+import com.sharebite.app.ui.charity.quantityValue
+import com.sharebite.app.ui.charity.foodCategoryOptions
+import com.sharebite.app.util.LocationUtils
+import androidx.core.content.ContextCompat
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
 private val STEP_LABELS = listOf("Details", "Pickup", "Review")
+private val dietaryOptions = listOf("Regular", "Vegetarian", "Vegan", "Gluten-Free", "Nut-Free")
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun MerchantAddDonationScreen(
     paddingValues: PaddingValues,
@@ -55,6 +66,7 @@ fun MerchantAddDonationScreen(
 
     var foodName by rememberSaveable { mutableStateOf("") }
     var category by rememberSaveable { mutableStateOf("") }
+    var dietaryType by rememberSaveable { mutableStateOf("Regular") }
     var quantity by rememberSaveable { mutableStateOf("") }
     var photoUri by remember { mutableStateOf<Uri?>(null) }
     var existingPhotoUrl by rememberSaveable { mutableStateOf<String?>(null) }
@@ -62,9 +74,20 @@ fun MerchantAddDonationScreen(
     var pickupDate by rememberSaveable { mutableStateOf("") }
     var pickupTime by rememberSaveable { mutableStateOf("") }
     var address by rememberSaveable { mutableStateOf("") }
+    var latitude by rememberSaveable { mutableStateOf<Double?>(null) }
+    var longitude by rememberSaveable { mutableStateOf<Double?>(null) }
     var notes by rememberSaveable { mutableStateOf("") }
 
     var prefilled by rememberSaveable { mutableStateOf(false) }
+    var dateTimeError by rememberSaveable { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(pickupDate, pickupTime) {
+        dateTimeError = when {
+            pickupDate.isBlank() || pickupTime.isBlank() -> null
+            isDateTimeInPast(pickupDate, pickupTime) -> "Collection date/time cannot be in the past"
+            else -> null
+        }
+    }
 
     val isSaving by viewModel.isSaving.collectAsState()
     val saveError by viewModel.saveError.collectAsState()
@@ -74,10 +97,13 @@ fun MerchantAddDonationScreen(
         if (!prefilled && existingListing != null) {
             foodName = existingListing.foodName
             category = existingListing.category
-            quantity = existingListing.totalQuantity.toString()
+            dietaryType = existingListing.dietaryType ?: "Regular"
+            quantity = filterQuantityInput(existingListing.totalQuantity.toString())
             pickupDate = existingListing.pickupDate
             pickupTime = existingListing.pickupTime.orEmpty()
             address = existingListing.address
+            latitude = existingListing.latitude
+            longitude = existingListing.longitude
             notes = existingListing.notes ?: ""
             existingPhotoUrl = existingListing.photoUrl
             prefilled = true
@@ -92,13 +118,43 @@ fun MerchantAddDonationScreen(
 
     val step0Valid = foodName.isNotBlank() && category.isNotBlank() && quantity.isNotBlank()
     val step1Valid = pickupDate.isNotBlank() && pickupTime.isNotBlank()
+            && !isDateTimeInPast(pickupDate, pickupTime)
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val locationUtils = remember { LocationUtils(context as Activity) }
+    var locationMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var hasLocationPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    fun useCurrentLocation() {
+        scope.launch {
+            locationMessage = "Detecting location..."
+            val settingsOk = locationUtils.checkLocationSettings()
+            val location = if (settingsOk) locationUtils.getCurrentLocation() else null
+            if (location != null) {
+                latitude = location.latitude
+                longitude = location.longitude
+                if (address.isBlank()) {
+                    address = "${location.latitude}, ${location.longitude}"
+                }
+                locationMessage = "Location added for distance detection."
+            } else {
+                locationMessage = "Could not detect location. Please enable GPS and try again."
+            }
+        }
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        hasLocationPermission = granted
+        if (granted) useCurrentLocation() else locationMessage = "Location permission denied."
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .background(BgCream)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
             modifier = Modifier
@@ -122,8 +178,10 @@ fun MerchantAddDonationScreen(
                     onFoodNameChange = { foodName = it },
                     category = category,
                     onCategoryChange = { category = it },
+                    dietaryType = dietaryType,
+                    onDietaryTypeChange = { dietaryType = it },
                     quantity = quantity,
-                    onQuantityChange = { quantity = it },
+                    onQuantityChange = { quantity = filterQuantityInput(it) },
                     photoUri = photoUri,
                     existingPhotoUrl = existingPhotoUrl,
                     onPickImage = { imagePicker.launch("image/*") }
@@ -131,6 +189,7 @@ fun MerchantAddDonationScreen(
                 1 -> StepPickup(
                     pickupDate = pickupDate,
                     pickupTime = pickupTime,
+                    dateTimeError = dateTimeError,
                     onPickDate = {
                         val calendar = Calendar.getInstance()
                         android.app.DatePickerDialog(
@@ -165,12 +224,17 @@ fun MerchantAddDonationScreen(
                     },
                     address = address,
                     onAddressChange = { address = it },
+                    onUseCurrentLocation = {
+                        if (hasLocationPermission) useCurrentLocation() else permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                    },
+                    locationMessage = locationMessage,
                     notes = notes,
                     onNotesChange = { notes = it }
                 )
                 2 -> StepReview(
                     foodName = foodName,
                     category = category,
+                    dietaryType = dietaryType,
                     quantity = quantity,
                     pickupDate = pickupDate,
                     pickupTime = pickupTime,
@@ -213,6 +277,7 @@ fun MerchantAddDonationScreen(
                                     listingId = listingId,
                                     foodName = foodName,
                                     category = category,
+                                    dietaryType = dietaryType,
                                     quantity = quantity,
                                     photoUri = photoUri,
                                     existingPhotoUrl = existingPhotoUrl,
@@ -220,18 +285,23 @@ fun MerchantAddDonationScreen(
                                     pickupTime = pickupTime,
                                     notes = notes.ifBlank { null },
                                     address = address.ifBlank { null },
+                                    latitude = latitude,
+                                    longitude = longitude,
                                     onComplete = onSaveSuccess
                                 )
                             } else {
                                 viewModel.createListing(
                                     foodName = foodName,
                                     category = category,
+                                    dietaryType = dietaryType,
                                     quantity = quantity,
                                     photoUri = photoUri,
                                     pickupDate = pickupDate,
                                     pickupTime = pickupTime,
                                     notes = notes.ifBlank { null },
                                     address = address.ifBlank { null },
+                                    latitude = latitude,
+                                    longitude = longitude,
                                     onComplete = onSaveSuccess
                                 )
                             }
@@ -244,7 +314,7 @@ fun MerchantAddDonationScreen(
                     else -> true
                 },
                 modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 if (isSaving) {
@@ -280,7 +350,7 @@ private fun StepIndicator(currentStep: Int, steps: List<String>) {
                     modifier = Modifier
                         .size(28.dp)
                         .background(
-                            if (isActive) OrangeAccent else Color(0xFFE0E0E0),
+                            if (isActive) MaterialTheme.colorScheme.primary else Color(0xFFE0E0E0),
                             CircleShape
                         ),
                     contentAlignment = Alignment.Center
@@ -291,7 +361,7 @@ private fun StepIndicator(currentStep: Int, steps: List<String>) {
                 Text(
                     label,
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (isActive) OrangeAccent else Color.Gray
+                    color = if (isActive) MaterialTheme.colorScheme.primary else Color.Gray
                 )
             }
             if (index != steps.lastIndex) {
@@ -300,7 +370,7 @@ private fun StepIndicator(currentStep: Int, steps: List<String>) {
                         .weight(1f)
                         .padding(horizontal = 4.dp)
                         .height(2.dp)
-                        .background(if (index < currentStep) OrangeAccent else Color(0xFFE0E0E0))
+                        .background(if (index < currentStep) MaterialTheme.colorScheme.primary else Color(0xFFE0E0E0))
                 )
             }
         }
@@ -308,12 +378,15 @@ private fun StepIndicator(currentStep: Int, steps: List<String>) {
 }
 
 // ─── Step Details ─────────────────────────────
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun StepDetails(
     foodName: String,
     onFoodNameChange: (String) -> Unit,
     category: String,
     onCategoryChange: (String) -> Unit,
+    dietaryType: String,
+    onDietaryTypeChange: (String) -> Unit,
     quantity: String,
     onQuantityChange: (String) -> Unit,
     photoUri: Uri?,
@@ -334,15 +407,21 @@ private fun StepDetails(
             singleLine = true
         )
         Spacer(modifier = Modifier.height(12.dp))
-        OutlinedTextField(
-            value = category,
-            onValueChange = onCategoryChange,
-            label = { Text("Category") },
-            placeholder = { Text("e.g. Bakery, Produce") },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            singleLine = true
-        )
+        Text("Category", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+        Spacer(modifier = Modifier.height(6.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            foodCategoryOptions.forEach { option ->
+                FilterChip(selected = category == option, onClick = { onCategoryChange(option) }, label = { Text(option) })
+            }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Text("Dietary needs", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+        Spacer(modifier = Modifier.height(6.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            dietaryOptions.forEach { option ->
+                FilterChip(selected = dietaryType == option, onClick = { onDietaryTypeChange(option) }, label = { Text(option) })
+            }
+        }
         Spacer(modifier = Modifier.height(12.dp))
         OutlinedTextField(
             value = quantity,
@@ -381,7 +460,7 @@ private fun StepDetails(
                         imageVector = Icons.Default.AddAPhoto,
                         contentDescription = "Upload Photo",
                         modifier = Modifier.size(40.dp),
-                        tint = OrangeAccent
+                        tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("Tap to add photo", color = Color.Gray, fontSize = 13.sp)
@@ -400,8 +479,11 @@ private fun StepPickup(
     onPickTime: () -> Unit,
     address: String,
     onAddressChange: (String) -> Unit,
+    onUseCurrentLocation: () -> Unit,
+    locationMessage: String?,
     notes: String,
-    onNotesChange: (String) -> Unit
+    onNotesChange: (String) -> Unit,
+    dateTimeError: String? = null
 ) {
     Column {
         Text("Pickup Info", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -425,6 +507,14 @@ private fun StepPickup(
             Spacer(Modifier.width(8.dp))
             Text(if (pickupTime.isBlank()) "Select pickup time" else formatPickupTime(pickupTime))
         }
+        if (dateTimeError != null) {
+            Text(
+                text = dateTimeError,
+                color = Color.Red,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
         Spacer(modifier = Modifier.height(12.dp))
         OutlinedTextField(
             value = address,
@@ -433,8 +523,15 @@ private fun StepPickup(
             placeholder = { Text("123 Main Street, KL") },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            singleLine = true
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
+        TextButton(onClick = onUseCurrentLocation, modifier = Modifier.fillMaxWidth()) {
+            Text("Use current GPS location")
+        }
+        if (locationMessage != null) {
+            Text(locationMessage, fontSize = 12.sp, color = Color.Gray)
+        }
         Spacer(modifier = Modifier.height(12.dp))
         OutlinedTextField(
             value = notes,
@@ -453,6 +550,7 @@ private fun StepPickup(
 private fun StepReview(
     foodName: String,
     category: String,
+    dietaryType: String,
     quantity: String,
     pickupDate: String,
     pickupTime: String,
@@ -485,6 +583,7 @@ private fun StepReview(
                 }
                 ReviewRow("Food Name", foodName)
                 ReviewRow("Category", category)
+                ReviewRow("Dietary Needs", dietaryType)
                 ReviewRow("Quantity", quantity)
                 ReviewRow("Pickup Date", pickupDate)
                 ReviewRow("Pickup Time", formatPickupTime(pickupTime))
@@ -505,7 +604,7 @@ private fun ReviewRow(label: String, value: String) {
 
 private fun formatPickupTime(value: String): String = try {
     val parsed = SimpleDateFormat("HH:mm:ss", Locale.US).apply { isLenient = false }.parse(value)
-    SimpleDateFormat("h:mm a", Locale.getDefault()).format(parsed!!)
+    SimpleDateFormat("h:mm a", Locale.US).format(parsed!!)
 } catch (_: Exception) {
     value
 }

@@ -48,7 +48,7 @@ fun TabletNavRail(
                         else -> screen.label
                     }
                 }
-                Screen.CharityPlaza -> "Charity Requests"  // ✅ 改名
+                Screen.CharityPlaza -> "Charity"
                 else -> screen.label
             }
 

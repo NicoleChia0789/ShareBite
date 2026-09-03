@@ -3,6 +3,7 @@ package com.sharebite.app.ui.user
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -64,8 +65,7 @@ fun UserFoodDetailScreen(
     val countdownText = remember(listing?.deadline) {
         listing?.let {
             try {
-                val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                val deadline = format.parse(it.deadline)
+                val deadline = parseFoodDetailDeadline(it.deadline)
                 val now = Date()
                 if (deadline != null && deadline.after(now)) {
                     val diff = deadline.time - now.time
@@ -77,6 +77,9 @@ fun UserFoodDetailScreen(
                 "N/A"
             }
         } ?: "N/A"
+    }
+    val deadlineText = remember(listing?.deadline) {
+        formatFoodDetailDeadline(listing?.deadline.orEmpty())
     }
 
     val viewersCount = remember { (2..5).random() }
@@ -270,6 +273,11 @@ fun UserFoodDetailScreen(
                                         fontWeight = FontWeight.Bold,
                                         color = if (countdownText.contains("Expired")) RedCancelled else OrangeAccent
                                     )
+                                    Text(
+                                        text = "Deadline: $deadlineText",
+                                        fontSize = 12.sp,
+                                        color = TextGrey
+                                    )
                                 }
                             }
                         }
@@ -288,17 +296,12 @@ fun UserFoodDetailScreen(
                             ) {
                                 InfoRow(
                                     Icons.Default.Category,
-                                    "Quantity",
-                                    "${item.totalQuantity} ${item.unit ?: ""}".ifBlank { "N/A" }
+                                    "Remaining",
+                                    "${item.remainingQuantity} ${item.unit ?: "units"}".ifBlank { "N/A" }
                                 )
-                                InfoRow(Icons.Default.DateRange, "Pickup Date", item.pickupDate.ifBlank { "N/A" })
-                                InfoRow(Icons.Default.Schedule, "Deadline", item.deadline.ifBlank { "N/A" })
                                 InfoRow(Icons.Default.LocationOn, "Address", item.address.ifBlank { "N/A" })
                                 if (!item.portionInfo.isNullOrBlank()) {
                                     InfoRow(Icons.Default.Restaurant, "Portion Info", item.portionInfo)
-                                }
-                                if (item.distanceKm > 0) {
-                                    InfoRow(Icons.Default.Map, "Distance", "${item.distanceKm} km")
                                 }
                             }
                         }
@@ -341,71 +344,83 @@ fun UserFoodDetailScreen(
                             }
                         }
 
+                        Text(
+                            text = "Pickup Location",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextDark
+                        )
+
                         // ── Map ──
                         if (item.latitude != null && item.longitude != null &&
                             item.latitude != 0.0 && item.longitude != 0.0
                         ) {
-                            Text(
-                                text = "Pickup Location",
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextDark
-                            )
-
                             val location = LatLng(item.latitude, item.longitude)
                             val cameraPositionState = rememberCameraPositionState {
                                 position = CameraPosition.fromLatLngZoom(location, 15f)
                             }
 
-                            GoogleMap(
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(180.dp)
-                                    .clip(RoundedCornerShape(14.dp)),
-                                cameraPositionState = cameraPositionState,
-                                uiSettings = MapUiSettings(
-                                    scrollGesturesEnabled = false,
-                                    zoomControlsEnabled = false,
-                                    zoomGesturesEnabled = false
-                                )
+                                    .height(240.dp)
+                                    .clip(RoundedCornerShape(16.dp))
                             ) {
-                                Marker(
-                                    state = MarkerState(position = location),
-                                    title = item.foodName,
-                                    snippet = item.address
-                                )
-                            }
+                                GoogleMap(
+                                    modifier = Modifier.fillMaxSize(),
+                                    cameraPositionState = cameraPositionState,
+                                    uiSettings = MapUiSettings(
+                                        zoomControlsEnabled = true,
+                                        myLocationButtonEnabled = false
+                                    ),
+                                    properties = MapProperties(isMyLocationEnabled = false)
+                                ) {
+                                    Marker(
+                                        state = MarkerState(position = location),
+                                        title = item.merchantName,
+                                        snippet = item.address,
+                                        onClick = {
+                                            openFoodDetailNavigation(context, item.latitude, item.longitude, item.merchantName)
+                                            true
+                                        }
+                                    )
+                                }
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                                Surface(
+                                    modifier = Modifier
+                                        .align(Alignment.TopStart)
+                                        .padding(8.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color.White.copy(alpha = 0.92f)
+                                ) {
+                                    Text(
+                                        item.merchantName,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextDark,
+                                        maxLines = 1
+                                    )
+                                }
 
-                            OutlinedButton(
-                                onClick = {
-                                    val uri = Uri.parse("google.navigation:q=${item.latitude},${item.longitude}")
-                                    val intent = Intent(Intent.ACTION_VIEW, uri).apply {
-                                        setPackage("com.google.android.apps.maps")
-                                    }
-                                    if (intent.resolveActivity(context.packageManager) != null) {
-                                        context.startActivity(intent)
-                                    } else {
-                                        val browserUri = Uri.parse(
-                                            "https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}"
-                                        )
-                                        context.startActivity(Intent(Intent.ACTION_VIEW, browserUri))
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth().height(48.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = OrangeAccent
-                                ),
-                                shape = RoundedCornerShape(50)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Directions,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "Get Directions", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Surface(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .padding(8.dp)
+                                        .clickable {
+                                            openFoodDetailNavigation(context, item.latitude, item.longitude, item.merchantName)
+                                        },
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = OrangeAccent
+                                ) {
+                                    Text(
+                                        "Tap to navigate",
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
                             }
                         }
 
@@ -433,11 +448,12 @@ fun UserFoodDetailScreen(
                         ),
                         shape = RoundedCornerShape(50),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
-                        enabled = item.status == "available" && !hasActiveReservation  // ✅ 添加条件
+                        enabled = item.status == "available" && item.remainingQuantity > 0 && !hasActiveReservation  // ✅ 添加条件
                     ) {
                         Text(
                             text = when {
                                 item.status != "available" -> "Not Available"
+                                item.remainingQuantity <= 0 -> "Fully Reserved"
                                 hasActiveReservation -> "Already Reserved"
                                 else -> "Reserve Now"
                             },
@@ -477,4 +493,41 @@ private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label
             fontWeight = FontWeight.Medium
         )
     }
+}
+
+private fun parseFoodDetailDeadline(deadline: String): Date? {
+    if (deadline.isBlank()) return null
+
+    val formats = listOf(
+        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US),
+        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US),
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US),
+        SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    )
+
+    formats.forEach { format ->
+        try {
+            format.isLenient = false
+            return format.parse(deadline)
+        } catch (_: Exception) {
+        }
+    }
+    return null
+}
+
+private fun formatFoodDetailDeadline(deadline: String): String {
+    val parsed = parseFoodDetailDeadline(deadline) ?: return deadline.ifBlank { "N/A" }
+    return SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(parsed)
+}
+
+private fun openFoodDetailNavigation(
+    context: android.content.Context,
+    lat: Double?,
+    lng: Double?,
+    merchantName: String
+) {
+    val latitude = lat ?: 3.1390
+    val longitude = lng ?: 101.6869
+    val uri = Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude(${Uri.encode(merchantName)})")
+    context.startActivity(Intent(Intent.ACTION_VIEW, uri))
 }

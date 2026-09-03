@@ -21,6 +21,7 @@ import com.sharebite.app.data.repository.CharityRepository
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
+import com.sharebite.app.util.formatDateTimeForDisplay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -43,9 +44,9 @@ fun ApplyForFoodScreen(
     var peopleServed by rememberSaveable { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf("") }
 
-    var isSubmitting by remember { mutableStateOf(false) }
-    var showErrorDialog by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf("") }
+    var isSubmitting by rememberSaveable { mutableStateOf(false) }
+    var showErrorDialog by rememberSaveable { mutableStateOf(false) }
+    var errorMessage by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(listingId, Unit) {
         isLoadingListing = true
@@ -63,6 +64,11 @@ fun ApplyForFoodScreen(
         val errors = mutableListOf<String>()
         if (organisationName.isBlank()) errors.add("Organisation name")
         if (peopleServed.isBlank()) errors.add("People served")
+        val requestedUnits = quantityValue(peopleServed) ?: 0
+        val remainingUnits = listing?.remainingQuantity ?: 0
+        if (requestedUnits > remainingUnits) {
+            errors.add("People served cannot be more than ${formatWithThousandSeparator(remainingUnits.toString())} available units")
+        }
         return errors
     }
 
@@ -90,6 +96,8 @@ fun ApplyForFoodScreen(
             }
             else -> {
                 val data = listing!!
+                val requestedUnits = quantityValue(peopleServed) ?: 0
+                val exceedsRemaining = requestedUnits > data.remainingQuantity
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -133,9 +141,9 @@ fun ApplyForFoodScreen(
                                 color = TextGrey
                             )
                             Spacer(modifier = Modifier.height(10.dp))
-                            FixedDetailRow(label = "Quantity",             value = "${data.totalQuantity} ${data.unit ?: ""}")
+                            FixedDetailRow(label = "Available quantity", value = "${data.remainingQuantity} ${data.unit ?: "units"}")
                             FixedDetailRow(label = "Collection date", value = data.pickupDate)
-                            FixedDetailRow(label = "Collection time", value = data.pickupTime ?: data.deadline)
+                            FixedDetailRow(label = "Collection time", value = formatDateTimeForDisplay(data.pickupTime ?: data.deadline))
                         }
                     }
 
@@ -182,7 +190,7 @@ fun ApplyForFoodScreen(
                         placeholder = { Text("e.g. 30") },
                         supportingText = {
                             if (peopleServed.isNotBlank()) {
-                                Text("= ${formatWithThousandSeparator(peopleServed)} people")
+                                Text("= ${formatWithThousandSeparator(peopleServed)} units")
                             }
                         },
                         shape = RoundedCornerShape(12.dp),
@@ -190,6 +198,13 @@ fun ApplyForFoodScreen(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         colors = AppTextFieldDefaults.colors()
                     )
+                    if (exceedsRemaining) {
+                        Text(
+                            text = "Only ${formatWithThousandSeparator(data.remainingQuantity.toString())} ${data.unit ?: "units"} available.",
+                            fontSize = 12.sp,
+                            color = RedCancelled
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -227,11 +242,11 @@ fun ApplyForFoodScreen(
                                         listingId = data.id.toString(),
                                         foodName = data.foodName,
                                         category = data.category,
-                                        quantity = data.totalQuantity,
+                                        quantity = quantityValue(peopleServed) ?: 0,
                                         pickupDate = data.pickupDate,
                                         pickupTime = formatTimeForDb(rawPickupTime),  // ← 加上转换
                                         organisationName = organisationName,
-                                        peopleServed = peopleServed.toIntOrNull() ?: 0,
+                                        peopleServed = quantityValue(peopleServed) ?: 0,
                                         note = note.ifBlank { null }
                                     )
                                     isSubmitting = false
@@ -248,7 +263,7 @@ fun ApplyForFoodScreen(
                             .height(52.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
                         shape = RoundedCornerShape(12.dp),
-                        enabled = !isSubmitting
+                        enabled = !isSubmitting && !exceedsRemaining
                     ) {
                         if (isSubmitting) {
                             CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)

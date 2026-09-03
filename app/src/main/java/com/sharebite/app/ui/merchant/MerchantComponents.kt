@@ -80,7 +80,7 @@ fun ReservationCard(reservation: Reservation) {
                 Box(modifier = Modifier.size(40.dp).background(Color(0xFFE8F5E9), RoundedCornerShape(50)))
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text("User: ${reservation.userId}", fontWeight = FontWeight.Bold)
+                    Text("User reservation", fontWeight = FontWeight.Bold)
                     Text("Reserved: ${reservation.quantityNum} x ${reservation.foodName}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                     Text("${reservation.pickupDate} at ${reservation.pickupTime}", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                 }

@@ -30,6 +30,7 @@ import com.google.maps.android.compose.*
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.ui.theme.*
+import com.sharebite.app.util.formatDateTimeForDisplay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -245,7 +246,7 @@ fun FoodDetailScreen(
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(modifier = Modifier.fillMaxWidth()) {
                                     DetailStat(label = "Quantity", value = "${data.totalQuantity} ${data.unit ?: ""}", modifier = Modifier.weight(1f))
-                                    DetailStat(label = "Collect by", value = data.pickupTime ?: data.deadline, modifier = Modifier.weight(1f))
+                                    DetailStat(label = "Collect by", value = formatDateTimeForDisplay(data.pickupTime ?: data.deadline), modifier = Modifier.weight(1f))
                                 }
                                 Spacer(modifier = Modifier.height(14.dp))
                                 Row(modifier = Modifier.fillMaxWidth()) {

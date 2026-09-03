@@ -7,7 +7,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -20,6 +23,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.sharebite.app.data.repository.LoginRepository
 import com.sharebite.app.ui.charity.*
 import com.sharebite.app.ui.components.AppScaffold
@@ -32,6 +36,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun AppNavHost(
     role: String,
+    darkMode: Boolean = false,
+    onToggleDarkMode: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     val navController = rememberNavController()
@@ -44,9 +50,17 @@ fun AppNavHost(
     val coroutineScope = rememberCoroutineScope()
     val loginRepository = remember { LoginRepository() }
     var resetEmail by rememberSaveable { mutableStateOf("") }
+    var showLogoutConfirm by rememberSaveable { mutableStateOf(false) }
     val merchantViewModel: MerchantViewModel = viewModel(
         factory = MerchantViewModelFactory(application)
     )
+    val requestLogout = { showLogoutConfirm = true }
+    val roleLabel = when (role) {
+        "merchant" -> "merchant"
+        "charity" -> "charity"
+        "user" -> "user"
+        else -> "current"
+    }
 
     val titleForRoute = when {
         currentRoute == Screen.Home.route -> "ShareBite"
@@ -56,7 +70,7 @@ fun AppNavHost(
             "merchant" -> "My Listings"
             else -> "Browse"
         }
-        currentRoute == Screen.Requests.route -> when (role) {
+        currentRoute.startsWith(Screen.Requests.baseRoute) -> when (role) {
             "user" -> "My Reservations"
             "charity" -> "My Requests"
             "merchant" -> "Requests & Reservations"
@@ -102,6 +116,7 @@ fun AppNavHost(
         currentRoute == MerchantImpactRoute.route -> "Impact"
         currentRoute == MerchantPickupScheduleRoute.route -> "Pickup Schedule"
         currentRoute == AboutRoute.route -> "About ShareBite"
+        currentRoute == Screen.CharityPlaza.route -> "Charity Bazaar"
         else -> "ShareBite"
     }
 
@@ -138,7 +153,12 @@ fun AppNavHost(
             currentRoute == MerchantAllRequestsRoute.route ||
             currentRoute == MerchantUserReservationsRoute.route ||
             currentRoute == MerchantListingDetailRoute.route ||
-            currentRoute == MerchantPickupDetailsRoute.route
+            currentRoute == MerchantPickupDetailsRoute.route ||
+            currentRoute.startsWith("merchant_listing_detail/") ||
+            currentRoute.startsWith("merchant_pickup_details/") ||
+            currentRoute.startsWith("merchant_request_detail/") ||
+            currentRoute.startsWith("merchant_reservation_detail/")
+
 
     Box(modifier = Modifier.fillMaxSize()) {
         AppScaffold(
@@ -147,13 +167,16 @@ fun AppNavHost(
                 navController.navigate(route) {
                     launchSingleTop = true
                     restoreState = true
+                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                 }
             },
             topBarTitle = titleForRoute,
             showBackButton = isDetailScreen,
             onBackClick = { navController.popBackStack() },
             onNotificationClick = { navController.navigate(NotificationsRoute.route) },
-            onLogoutClick = onLogout,
+            onLogoutClick = requestLogout,
+            darkMode = darkMode,
+            onToggleDarkMode = onToggleDarkMode,
             role = role, // 传递角色
         ) { paddingValues ->
             NavHost(
@@ -173,7 +196,7 @@ fun AppNavHost(
                                     )
                                 )
                             },
-                            onViewAllReservations = { navController.navigate(Screen.Requests.route) },
+                            onViewAllReservations = { navController.navigate(Screen.Requests.createRoute()) },
                             onReservationClick = { id ->
                                 navController.navigate(UserReservationDetailRoute.createRoute(id))
                             }
@@ -182,7 +205,8 @@ fun AppNavHost(
                         "charity" -> CharityDashboardScreen(
                             paddingValues = paddingValues,
                             onCreateRequest = { navController.navigate(PostRequestRoute.route) },
-                            onViewAllClick = { navController.navigate(Screen.Requests.route) },
+                            onViewAllClick = { navController.navigate(Screen.Requests.createRoute()) },
+                            onStatusClick = { status -> navController.navigate(Screen.Requests.createRoute(status)) },
                             onActivityClick = { requestId ->
                                 navController.navigate(
                                     RequestDetailRoute.createRoute(requestId)
@@ -196,7 +220,7 @@ fun AppNavHost(
                                 navController.navigate(MerchantAddDonationRoute.route)
                             },
                             onViewAllListings = { navController.navigate(MerchantListingsRoute.route) },
-                            onViewAllRequests = { navController.navigate(Screen.Requests.route) },
+                            onViewAllRequests = { navController.navigate(Screen.Requests.createRoute()) },
                             onViewAllReservations = {
                                 navController.navigate(
                                     MerchantUserReservationsRoute.route
@@ -212,6 +236,9 @@ fun AppNavHost(
                             },
                             onViewPickupSchedule = {
                                 navController.navigate(MerchantPickupScheduleRoute.createRoute())
+                            },
+                            onListingClick = { id ->
+                                navController.navigate(MerchantListingDetailRoute.createRoute(id))
                             },
                             onRequestClick = { id -> navController.navigate("merchant_request_detail/$id") },
                             onReservationClick = { id -> navController.navigate("merchant_reservation_detail/$id") },
@@ -259,13 +286,22 @@ fun AppNavHost(
                             }
 
 
+
                         )
 
                         else -> Text("Unknown role: $role")
                     }
                 }
 
-                composable(Screen.Requests.route) {
+                composable(
+                    route = Screen.Requests.routeWithStatus,
+                    arguments = listOf(navArgument("status") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    })
+                ) { backStackEntry ->
+                    val initialStatus = backStackEntry.arguments?.getString("status")
                     when (role) {
                         "user" -> UserMyReservationsScreen(
                             paddingValues = paddingValues,
@@ -284,11 +320,15 @@ fun AppNavHost(
                                     )
                                 )
                             },
+                            onReserveAgain = { listingId ->
+                                navController.navigate(UserMakeReservationRoute.createRoute(listingId))
+                            },
                             onBrowseClick = { navController.navigate(Screen.Browse.route) }
                         )
 
                         "charity" -> MyRequestsScreen(
                             paddingValues = paddingValues,
+                            initialStatus = initialStatus,
                             onViewClick = { requestId ->
                                 navController.navigate(
                                     RequestDetailRoute.createRoute(
@@ -344,7 +384,7 @@ fun AppNavHost(
                             paddingValues = paddingValues,
                             onHelpClick = { navController.navigate(UserHelpRoute.route) },
                             onAboutClick = { navController.navigate(AboutRoute.route) },
-                            onLogout = onLogout,
+                            onLogout = requestLogout,
                             onReservationHistory = { navController.navigate(HistoryRoute.route) },
                             onEditProfile = { navController.navigate(UserEditProfileRoute.route) },
                             onSecurityClick = { navController.navigate(SecurityRoute.route) },
@@ -360,7 +400,7 @@ fun AppNavHost(
                             onHistoryClick = { navController.navigate(HistoryRoute.route) },
                             onHelpClick = { navController.navigate(CharityHelpRoute.route) },
                             onAboutClick = { navController.navigate(AboutRoute.route) },
-                            onLogout = onLogout,
+                            onLogout = requestLogout,
                             onEditProfile = { navController.navigate(CharityEditProfileRoute.route) },
                             onSecurityClick = { navController.navigate(SecurityRoute.route) },
                             onNotificationSettingsClick = {
@@ -372,7 +412,7 @@ fun AppNavHost(
 
                         "merchant" -> MerchantProfileScreen(
                             paddingValues = paddingValues,
-                            onLogout = onLogout,
+                            onLogout = requestLogout,
                             onEditProfile = { navController.navigate(MerchantEditProfileRoute.route) },
                             onDonationHistory = {
                                 navController.navigate(
@@ -669,14 +709,7 @@ fun AppNavHost(
                     )
                 }
 
-                composable(MerchantDonationHistoryRoute.route) {
-                    MerchantHistoryScreen(
-                        paddingValues = paddingValues,
-                        onBack = { navController.popBackStack() },
-                        onViewImpact = { /* TODO */ },
-                        onViewReceipt = { /* TODO */ }
-                    )
-                }
+
 
                 // 添加捐赠（无参数）
                 composable(MerchantAddDonationRoute.route) {
@@ -915,8 +948,27 @@ fun AppNavHost(
             }
         )
 
-
-
-
+        if (showLogoutConfirm) {
+            AlertDialog(
+                onDismissRequest = { showLogoutConfirm = false },
+                title = { Text("Log out?") },
+                text = { Text("Are you sure you want to log out of this $roleLabel account?") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showLogoutConfirm = false
+                            onLogout()
+                        }
+                    ) {
+                        Text("Log out")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showLogoutConfirm = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
     }
 }

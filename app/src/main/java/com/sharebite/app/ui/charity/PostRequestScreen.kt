@@ -85,7 +85,7 @@ fun PostRequestScreen(
 
     fun getTodayDate(): String {
         val calendar = Calendar.getInstance()
-        val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
         return format.format(calendar.time)
     }
 
@@ -304,7 +304,7 @@ fun PostRequestScreen(
                         repository.createMyRequest(
                             foodName = foodName,
                             category = selectedCategories.joinToString(","),
-                            quantity = quantity.toInt(),
+                            quantity = quantityValue(quantity) ?: 0,
                             pickupDate = pickupDate,
                             pickupTime = formatTimeForDb(pickupTime),  // ← 加上转换
                             organisationName = organisationName,
@@ -410,7 +410,7 @@ fun PostRequestScreen(
                             onClick = {
                                 datePickerState.selectedDateMillis?.let { millis ->
                                     val date = java.util.Date(millis)
-                                    val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                    val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
                                     pickupDate = format.format(date)
                                 }
                                 showDatePicker = false

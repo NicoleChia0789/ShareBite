@@ -228,8 +228,8 @@ private fun HistoryCard(
 ) {
     val displayDate = remember(date) {
         try {
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            val outputFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val outputFormat = SimpleDateFormat("MMM d, yyyy", Locale.US)
             val parsedDate = inputFormat.parse(date)
             if (parsedDate != null) outputFormat.format(parsedDate) else date
         } catch (e: Exception) {

@@ -18,9 +18,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.model.CharityRequest
-import com.sharebite.app.ui.theme.BgCream
-import com.sharebite.app.ui.theme.OrangeAccent
-import com.sharebite.app.ui.theme.RedCancelled
 
 @Composable
 fun MerchantAllRequestsScreen(
@@ -53,14 +50,14 @@ fun MerchantAllRequestsScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .background(BgCream)
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        Text(
-            "Charity Requests",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(16.dp)
-        )
+//        Text(
+//            "Charity Requests",
+//            style = MaterialTheme.typography.headlineSmall,
+//            fontWeight = FontWeight.Bold,
+//            modifier = Modifier.padding(16.dp)
+//        )
 
         // Tab Row
         Row(
@@ -75,7 +72,7 @@ fun MerchantAllRequestsScreen(
                 label = { Text("General Request") },
                 shape = RoundedCornerShape(50),
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = OrangeAccent,
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
                     selectedLabelColor = Color.White,
                     disabledContainerColor = Color(0xFFE0E0E0)
                 )
@@ -86,7 +83,7 @@ fun MerchantAllRequestsScreen(
                 label = { Text("Donation Request") },
                 shape = RoundedCornerShape(50),
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = OrangeAccent,
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
                     selectedLabelColor = Color.White,
                     disabledContainerColor = Color(0xFFE0E0E0)
                 )
@@ -111,7 +108,7 @@ fun MerchantAllRequestsScreen(
                     label = { Text("$label ($count)", fontWeight = FontWeight.Medium) },
                     shape = RoundedCornerShape(50),
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = OrangeAccent,
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
                         selectedLabelColor = Color.White,
                         disabledContainerColor = Color(0xFFE0E0E0)
                     )
@@ -156,12 +153,12 @@ fun RequestCardEnhanced(
     onViewDetail: () -> Unit
 ) {
     val statusColor = when (request.status) {
-        "Pending" -> OrangeAccent
+        "Pending" -> MaterialTheme.colorScheme.primary
         "Confirmed" -> Color(0xFF2E7D32)
         else -> Color.Red
     }
     val bgColor = when (request.status) {
-        "Pending" -> OrangeAccent.copy(alpha = 0.15f)
+        "Pending" -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
         "Confirmed" -> Color(0xFFE8F5E9)
         else -> Color(0xFFFFEBEE)
     }
@@ -255,7 +252,7 @@ fun RequestCardEnhanced(
                             onClick = onDecline,
                             modifier = Modifier.weight(0.6f),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = RedCancelled,
+                                containerColor = MaterialTheme.colorScheme.error,
                                 contentColor = Color.White
                             ),
                             shape = RoundedCornerShape(50)
@@ -266,7 +263,7 @@ fun RequestCardEnhanced(
                         Button(
                             onClick = onApprove,
                             modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                             shape = RoundedCornerShape(50)
                         ) {
                             Text("Approve", color = Color.White)
@@ -280,7 +277,7 @@ fun RequestCardEnhanced(
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         shape = RoundedCornerShape(50),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent)
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
                     ) {
                         Text("View Details")
                     }

@@ -1,8 +1,11 @@
 package com.sharebite.app.ui.merchant
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,6 +17,8 @@ import com.sharebite.app.ui.theme.BgCream
 import com.sharebite.app.ui.theme.GreenConfirmed
 import com.sharebite.app.ui.theme.OrangeAccent
 import com.sharebite.app.ui.theme.RedCancelled
+import com.sharebite.app.data.model.FoodListing
+import coil.compose.AsyncImage
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -30,7 +35,9 @@ fun MerchantRequestDetailScreen(
 ) {
     val requests by viewModel.requests.collectAsState()
     val generalRequests by viewModel.generalRequests.collectAsState()
+    val listings by viewModel.listings.collectAsState()
     val request = requests.find { it.id == requestId } ?: generalRequests.find { it.id == requestId }
+    val listing = request?.listingId?.toLongOrNull()?.let { id -> listings.find { it.id == id } }
     val isGeneralRequest = generalRequests.any { it.id == requestId && it.merchantId.isNullOrBlank() }
 
     var showConfirmDialog by remember { mutableStateOf(false) }
@@ -46,6 +53,11 @@ fun MerchantRequestDetailScreen(
         Text("Request Details", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
         if (request != null) {
+            FoodContextCard(
+                listing = listing,
+                foodName = request.foodName,
+                quantityLabel = "${request.quantity} portions requested"
+            )
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 shape = RoundedCornerShape(12.dp),
@@ -196,7 +208,9 @@ fun MerchantReservationDetailScreen(
 ) {
     val reservations by viewModel.reservations.collectAsState()
     val usersById by viewModel.reservationUsers.collectAsState()
+    val listings by viewModel.listings.collectAsState()
     val reservation = reservations.find { it.id == reservationId }
+    val listing = reservation?.let { current -> listings.find { it.id == current.listingId } }
 
     var showConfirmDialog by remember { mutableStateOf(false) }
     var actionType by remember { mutableStateOf("") }
@@ -211,6 +225,11 @@ fun MerchantReservationDetailScreen(
         Text("Reservation Details", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
         if (reservation != null) {
+            FoodContextCard(
+                listing = listing,
+                foodName = reservation.foodName,
+                quantityLabel = "${reservation.quantityNum} ${reservation.unit} reserved"
+            )
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 shape = RoundedCornerShape(12.dp),
@@ -372,7 +391,7 @@ private fun formatPickupDateTime(date: String, time: String): String {
         try {
             val parsed = SimpleDateFormat(pattern, Locale.US).apply { isLenient = false }.parse(raw)
             if (parsed != null) {
-                return SimpleDateFormat("d MMM yyyy · h:mm a", Locale.getDefault()).format(parsed)
+                return SimpleDateFormat("d MMM yyyy · h:mm a", Locale.US).format(parsed)
             }
         } catch (_: Exception) {
             // Try the next supported database format.
@@ -393,11 +412,49 @@ private fun formatSubmittedAt(value: String?): String {
         try {
             val parsed = SimpleDateFormat(pattern, Locale.US).apply { isLenient = false }.parse(normalized)
             if (parsed != null) {
-                return SimpleDateFormat("d MMM yyyy · h:mm a", Locale.getDefault()).format(parsed)
+                return SimpleDateFormat("d MMM yyyy · h:mm a", Locale.US).format(parsed)
             }
         } catch (_: Exception) {
             // Try the next supported Supabase timestamp precision.
         }
     }
     return "Not provided"
+}
+
+@Composable
+private fun FoodContextCard(listing: FoodListing?, foodName: String, quantityLabel: String) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+    ) {
+        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier.size(88.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFFFFE7D6)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!listing?.photoUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = listing?.photoUrl,
+                        contentDescription = foodName,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text("Food", color = OrangeAccent, fontWeight = FontWeight.Bold)
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(foodName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(quantityLabel, color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+                listing?.let {
+                    Text("${it.remainingQuantity} remaining", color = OrangeAccent, style = MaterialTheme.typography.bodySmall)
+                    if (it.pickupDate.isNotBlank() || !it.pickupTime.isNullOrBlank()) {
+                        Text("Pickup: ${formatPickupDateTime(it.pickupDate, it.pickupTime.orEmpty())}", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
+    }
 }

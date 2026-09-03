@@ -232,12 +232,15 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
     fun createListing(
         foodName: String,
         category: String,
+        dietaryType: String?,
         quantity: String,
         photoUri: Uri?,
         pickupDate: String?,
         pickupTime: String?,
         notes: String?,
         address: String?,
+        latitude: Double?,
+        longitude: Double?,
         onComplete: () -> Unit
     ) {
         if (!isUserAuthenticated()) {
@@ -282,7 +285,7 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
 
                 println("🔍 [ViewModel] Final photoUrl before repository: '$photoUrl'")
 
-                val qtyInt = quantity.toIntOrNull() ?: 10
+                val qtyInt = quantity.filter { it.isDigit() }.toIntOrNull() ?: 10
 
                 val newId = repository.createListing(
                     foodName = foodName,
@@ -294,9 +297,11 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
                     description = null,
                     address = address,
                     distanceKm = 0.0,
-                    dietaryType = null,
+                    dietaryType = dietaryType,
                     totalQuantity = qtyInt,
-                    remainingQuantity = qtyInt
+                    remainingQuantity = qtyInt,
+                    latitude = latitude,
+                    longitude = longitude
                 )
 
                 if (newId > 0) {
@@ -365,6 +370,7 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
         listingId: Long,
         foodName: String,
         category: String,
+        dietaryType: String?,
         quantity: String,
         photoUri: Uri?,
         existingPhotoUrl: String?,
@@ -372,6 +378,8 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
         pickupTime: String?,
         notes: String?,
         address: String?,
+        latitude: Double?,
+        longitude: Double?,
         onComplete: () -> Unit
     ) {
 
@@ -436,7 +444,10 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
 
                     notes = notes,
 
-                    address = address
+                    address = address,
+                    dietaryType = dietaryType,
+                    latitude = latitude,
+                    longitude = longitude
                 )
 
 

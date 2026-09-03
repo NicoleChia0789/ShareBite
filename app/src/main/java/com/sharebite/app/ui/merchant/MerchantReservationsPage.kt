@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharebite.app.ui.theme.*
 
-private enum class RecipientTab { CHARITIES, USERS }
+private enum class RecipientTab { ALL, CHARITIES, USERS }
 private enum class OrderStatusTab { PENDING, CONFIRMED, HISTORY }
 
 @Composable
@@ -47,21 +47,33 @@ fun MerchantReservationsPage(
     val statusTab = OrderStatusTab.entries[statusIndex]
 
     val visibleRequests = remember(requests, recipient, statusTab) {
-        if (recipient != RecipientTab.CHARITIES) emptyList() else requests
+        if (recipient == RecipientTab.USERS) emptyList() else requests
             .filter { it.status.belongsTo(statusTab) }.sortedByDescending { it.createdAt }
     }
     val visibleReservations = remember(reservations, recipient, statusTab) {
-        if (recipient != RecipientTab.USERS) emptyList() else reservations
+        if (recipient == RecipientTab.CHARITIES) emptyList() else reservations
             .filter { it.status.belongsTo(statusTab) }.sortedByDescending { it.createdAt.orEmpty() }
     }
-    val count = if (recipient == RecipientTab.CHARITIES) visibleRequests.size else visibleReservations.size
+    val count = visibleRequests.size + visibleReservations.size
 
     Column(Modifier.fillMaxSize().padding(paddingValues).background(BgCream)) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Requests & Reservations", fontWeight = FontWeight.Bold, color = TextDark)
+            OutlinedButton(onClick = onPickupScheduleClick, shape = RoundedCornerShape(12.dp)) {
+                Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Pickup schedule")
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            listOf("Charities", "Users").forEachIndexed { index, label ->
+            listOf("All", "Charities", "Users").forEachIndexed { index, label ->
                 FilterChip(
                     selected = recipientIndex == index,
                     onClick = { recipientIndex = index },
@@ -73,9 +85,6 @@ fun MerchantReservationsPage(
                         selectedLabelColor = Color.White
                     )
                 )
-            }
-            FilledTonalIconButton(onClick = onPickupScheduleClick) {
-                Icon(Icons.Default.CalendarMonth, contentDescription = "Open pickup schedule")
             }
         }
         Row(
@@ -100,8 +109,11 @@ fun MerchantReservationsPage(
         }
 
         Text(
-            if (recipient == RecipientTab.CHARITIES) "Charity requests ($count)"
-            else "User reservations ($count)",
+            when (recipient) {
+                RecipientTab.ALL -> "All requests and reservations ($count)"
+                RecipientTab.CHARITIES -> "Charity requests ($count)"
+                RecipientTab.USERS -> "User reservations ($count)"
+            },
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             fontWeight = FontWeight.SemiBold,
             color = TextDark
@@ -134,7 +146,7 @@ fun MerchantReservationsPage(
                     )
                 }
             }
-            else -> LazyColumn(
+            recipient == RecipientTab.USERS -> LazyColumn(
                 Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -154,6 +166,38 @@ fun MerchantReservationsPage(
                             if (statusTab == OrderStatusTab.CONFIRMED) onPickupClick("res_${reservation.id}")
                             else onReservationClick(reservation.id)
                         }
+                    )
+                }
+            }
+            else -> LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(visibleRequests, key = { "request_${it.id}" }) { request ->
+                    MerchantOrderCard(
+                        recipientName = request.organisationName.ifBlank { "Charity organisation" },
+                        foodAndQuantity = "${request.quantity} x ${request.foodName}",
+                        sourceLabel = if (request.listingId.isNullOrBlank()) "Charity need" else "Donation application",
+                        status = request.status,
+                        pickupDate = request.pickupDate,
+                        pickupTime = request.pickupTime,
+                        isCharity = true,
+                        actionLabel = statusTab.actionLabel,
+                        onClick = { if (statusTab == OrderStatusTab.CONFIRMED) onPickupClick("req_${request.id}") else onCharityClick(request.id) }
+                    )
+                }
+                items(visibleReservations, key = { "reservation_${it.id}" }) { reservation ->
+                    MerchantOrderCard(
+                        recipientName = usersById[reservation.userId]?.name?.takeIf { it.isNotBlank() } ?: "Individual user",
+                        foodAndQuantity = "${reservation.quantityNum} x ${reservation.foodName}",
+                        sourceLabel = "User reservation",
+                        status = reservation.status,
+                        pickupDate = reservation.pickupDate,
+                        pickupTime = reservation.pickupTime,
+                        isCharity = false,
+                        actionLabel = statusTab.actionLabel,
+                        onClick = { if (statusTab == OrderStatusTab.CONFIRMED) onPickupClick("res_${reservation.id}") else onReservationClick(reservation.id) }
                     )
                 }
             }
@@ -186,7 +230,7 @@ private fun EmptyOrders(recipient: RecipientTab, status: OrderStatusTab) {
             )
             Spacer(Modifier.height(12.dp))
             Text(
-                "No ${status.name.lowercase()} ${if (recipient == RecipientTab.CHARITIES) "charity requests" else "user reservations"}.",
+                "No ${status.name.lowercase()} ${when (recipient) { RecipientTab.CHARITIES -> "charity requests"; RecipientTab.USERS -> "user reservations"; RecipientTab.ALL -> "requests or reservations" }}.",
                 color = TextGrey,
                 fontSize = 15.sp
             )
