@@ -96,6 +96,7 @@ fun AppNavHost(
         currentRoute == MerchantListingDetailRoute.route -> "Donation Details"
         currentRoute == MerchantPickupDetailsRoute.route -> "Pickup Details"
         currentRoute == MerchantImpactRoute.route -> "Impact"
+        currentRoute == MerchantPickupScheduleRoute.route -> "Pickup Schedule"
         currentRoute == AboutRoute.route -> "About ShareBite"
         else -> "ShareBite"
     }
@@ -119,6 +120,7 @@ fun AppNavHost(
             currentRoute == MerchantHelpRoute.route ||
             currentRoute == MerchantDonationHistoryRoute.route ||
             currentRoute == MerchantImpactRoute.route ||
+            currentRoute == MerchantPickupScheduleRoute.route ||
             currentRoute.startsWith("food_detail/") ||
             currentRoute.startsWith("apply_for_food/") ||
             currentRoute.startsWith("edit_request/") ||
@@ -180,6 +182,12 @@ fun AppNavHost(
                         onViewAllRequests = { navController.navigate(Screen.Requests.route) },
                         onViewAllReservations = { navController.navigate(MerchantUserReservationsRoute.route) },
                         onViewImpact = { navController.navigate(MerchantImpactRoute.route) },
+                        onViewPickupHistory = {
+                            navController.navigate(MerchantPickupScheduleRoute.createRoute(showHistory = true))
+                        },
+                        onViewPickupSchedule = {
+                            navController.navigate(MerchantPickupScheduleRoute.createRoute())
+                        },
                         onRequestClick = { id -> navController.navigate("merchant_request_detail/$id") },
                         onReservationClick = { id -> navController.navigate("merchant_reservation_detail/$id") },
                         viewModel = merchantViewModel
@@ -245,7 +253,12 @@ fun AppNavHost(
                         onReservationClick = { id -> navController.navigate("merchant_reservation_detail/$id") },
                         onViewAllRequests = { /* 不再使用 */ },
                         onViewAllReservations = { /* 不再使用 */ },
-                        onPickupDetailsClick = { /* 不再使用 */ }
+                        onPickupScheduleClick = {
+                            navController.navigate(MerchantPickupScheduleRoute.createRoute())
+                        },
+                        onPickupClick = { pickupItemId ->
+                            navController.navigate(MerchantPickupDetailsRoute.createRoute(pickupItemId))
+                        }
                     )
                     else -> Text("Unknown role: $role")
                 }
@@ -618,7 +631,7 @@ fun AppNavHost(
                     viewModel = merchantViewModel,
                     onBack = { navController.popBackStack() },
                     onApprove = {
-                        merchantViewModel.updateRequestStatus(requestId, "Confirmed")
+                        merchantViewModel.approveRequest(requestId)
                         navController.popBackStack()
                     },
                     onDecline = {
@@ -639,7 +652,7 @@ fun AppNavHost(
                     viewModel = merchantViewModel,
                     onBack = { navController.popBackStack() },
                     onConfirm = {
-                        merchantViewModel.updateReservationStatus(reservationId, "Confirmed")
+                        merchantViewModel.approveReservation(reservationId)
                         navController.popBackStack()
                     },
                     onDecline = {
@@ -653,6 +666,23 @@ fun AppNavHost(
                 MerchantImpactReportScreen(
                     paddingValues = paddingValues,
                     onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(
+                route = MerchantPickupScheduleRoute.route,
+                arguments = listOf(navArgument("showHistory") {
+                    type = NavType.BoolType
+                    defaultValue = false
+                })
+            ) { backStackEntry ->
+                MerchantPickupScheduleScreen(
+                    paddingValues = paddingValues,
+                    viewModel = merchantViewModel,
+                    initialShowHistory = backStackEntry.arguments?.getBoolean("showHistory") ?: false,
+                    onPickupClick = { pickupItemId ->
+                        navController.navigate(MerchantPickupDetailsRoute.createRoute(pickupItemId))
+                    }
                 )
             }
 

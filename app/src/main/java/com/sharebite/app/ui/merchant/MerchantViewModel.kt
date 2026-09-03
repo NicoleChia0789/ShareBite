@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.sharebite.app.data.model.CharityRequest
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.model.Reservation
+import com.sharebite.app.data.model.UserSummary
 import com.sharebite.app.data.remote.SupabaseClient
 import com.sharebite.app.data.repository.ImpactStats
 import com.sharebite.app.data.repository.MerchantRepository
@@ -18,6 +19,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class MerchantViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -43,6 +46,9 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
 
     private val _reservations = MutableStateFlow<List<Reservation>>(emptyList())
     val reservations: StateFlow<List<Reservation>> = _reservations
+
+    private val _reservationUsers = MutableStateFlow<Map<String, UserSummary>>(emptyMap())
+    val reservationUsers: StateFlow<Map<String, UserSummary>> = _reservationUsers
 
     // ============================================================
     // General / unclaimed charity requests
@@ -152,6 +158,9 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
                 _reservations.value =
                     repository.getMyReservations()
 
+                _reservationUsers.value = repository.getReservationUsers()
+                    .associateBy { it.id }
+
 
                 // ------------------------------------------------
                 // General charity requests
@@ -226,6 +235,7 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
         quantity: String,
         photoUri: Uri?,
         pickupDate: String?,
+        pickupTime: String?,
         notes: String?,
         address: String?,
         onComplete: () -> Unit
@@ -246,40 +256,26 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
                 // Upload photo
                 // ------------------------------------------------
                 if (photoUri != null) {
-                    try {
-                        val context = getApplication<Application>()
-                        val bytes = withContext(Dispatchers.IO) {
-                            context.contentResolver
-                                .openInputStream(photoUri)
-                                ?.use { it.readBytes() }
-                        }
+                    val context = getApplication<Application>()
+                    val bytes = withContext(Dispatchers.IO) {
+                        context.contentResolver
+                            .openInputStream(photoUri)
+                            ?.use { it.readBytes() }
+                    } ?: throw IllegalStateException("Unable to read the selected photo")
 
-                        if (bytes != null) {
-                            val fileName = "donation_${System.currentTimeMillis()}.jpg"
+                    val fileName = "donation_${System.currentTimeMillis()}.jpg"
+                    val bucket = SupabaseClient.client.storage.from("photos")
 
-                            // ✅ 关键：上传文件到 Supabase Storage
-                            SupabaseClient.client
-                                .storage
-                                .from("photos")
-                                .upload(fileName, bytes) {
-                                    upsert = true
-                                }
-
-                            // ✅ 获取公开 URL
-                            photoUrl = SupabaseClient.client
-                                .storage
-                                .from("photos")
-                                .publicUrl(fileName)
-                                .toString()
-
-                            println("✅ [ViewModel] Photo uploaded: '$photoUrl'")
-                        } else {
-                            println("⚠️ [ViewModel] Failed to read photo bytes")
-                        }
-                    } catch (e: Exception) {
-                        println("❌ [ViewModel] Photo upload error: ${e.message}")
-                        e.printStackTrace()
+                    bucket.upload(fileName, bytes) {
+                        upsert = false
                     }
+
+                    photoUrl = bucket.publicUrl(fileName)
+                    if (photoUrl.isNullOrBlank()) {
+                        throw IllegalStateException("Supabase did not return a photo URL")
+                    }
+
+                    println("✅ [ViewModel] Photo uploaded: '$photoUrl'")
                 } else {
                     println("⚠️ [ViewModel] photoUri is null, skipping upload")
                 }
@@ -291,8 +287,9 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
                 val newId = repository.createListing(
                     foodName = foodName,
                     category = category,
-                    photoUri = photoUrl,  // ← 传入 photoUrl
+                    photoUrl = photoUrl,
                     pickupDate = pickupDate,
+                    pickupTime = pickupTime,
                     notes = notes,
                     description = null,
                     address = address,
@@ -372,6 +369,7 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
         photoUri: Uri?,
         existingPhotoUrl: String?,
         pickupDate: String?,
+        pickupTime: String?,
         notes: String?,
         address: String?,
         onComplete: () -> Unit
@@ -398,42 +396,26 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
                 // ------------------------------------------------
 
                 if (photoUri != null) {
+                    val bytes = withContext(Dispatchers.IO) {
+                        getApplication<Application>()
+                            .contentResolver
+                            .openInputStream(photoUri)
+                            ?.use { it.readBytes() }
+                    } ?: throw IllegalStateException("Unable to read the selected photo")
 
-                    try {
+                    val fileName = "donation_${System.currentTimeMillis()}.jpg"
+                    val bucket = SupabaseClient.client.storage.from("photos")
 
-                        val bytes =
-                            getApplication<Application>()
-                                .contentResolver
-                                .openInputStream(photoUri)
-                                ?.use { it.readBytes() }
-
-                        if (bytes != null) {
-
-                            val fileName =
-                                "donation_${System.currentTimeMillis()}.jpg"
-
-                            SupabaseClient.client
-                                .storage
-                                .from("photos")
-                                .upload(fileName, bytes) {
-                                    upsert = true
-                                }
-
-                            photoUrl =
-                                SupabaseClient.client
-                                    .storage
-                                    .from("photos")
-                                    .publicUrl(fileName)
-                                    .toString()
-
-                            println("✅ [ViewModel] Replacement photo uploaded: $photoUrl")
-                        }
-
-                    } catch (e: Exception) {
-
-                        println("❌ [ViewModel] Photo upload error: ${e.message}")
-                        e.printStackTrace()
+                    bucket.upload(fileName, bytes) {
+                        upsert = false
                     }
+
+                    photoUrl = bucket.publicUrl(fileName)
+                    if (photoUrl.isNullOrBlank()) {
+                        throw IllegalStateException("Supabase did not return a photo URL")
+                    }
+
+                    println("✅ [ViewModel] Replacement photo uploaded: $photoUrl")
                 }
 
 
@@ -450,6 +432,7 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
                     photoUrl = photoUrl,
 
                     pickupDate = pickupDate,
+                    pickupTime = pickupTime,
 
                     notes = notes,
 
@@ -545,6 +528,9 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
                 _reservations.value =
                     repository.getMyReservations()
 
+                _reservationUsers.value = repository.getReservationUsers()
+                    .associateBy { it.id }
+
                 _impactStats.value =
                     repository.getImpactStats()
 
@@ -552,6 +538,51 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
 
                 _saveError.value =
                     e.message ?: "Failed to update reservation"
+            }
+        }
+    }
+
+    fun approveRequest(requestId: Long) {
+        if (!isUserAuthenticated()) {
+            _saveError.value = "Please login again"
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val generalRequest = _generalRequests.value.find { it.id == requestId }
+                if (generalRequest != null && generalRequest.merchantId.isNullOrBlank()) {
+                    requireValidPickupSchedule(generalRequest.pickupDate, generalRequest.pickupTime)
+                    repository.claimRequest(requestId, CurrentUser.getUserId())
+                    _successMessage.value = "Offer accepted and pickup added to your schedule"
+                } else {
+                    val request = _requests.value.find { it.id == requestId }
+                        ?: error("Request not found")
+                    requireValidPickupSchedule(request.pickupDate, request.pickupTime)
+                    repository.approveLinkedRequest(request)
+                    _successMessage.value = "Request approved"
+                }
+                refreshData()
+            } catch (e: Exception) {
+                _saveError.value = e.message ?: "Failed to approve request"
+            }
+        }
+    }
+
+    fun approveReservation(reservationId: Long) {
+        if (!isUserAuthenticated()) {
+            _saveError.value = "Please login again"
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val reservation = _reservations.value.find { it.id == reservationId }
+                    ?: error("Reservation not found")
+                requireValidPickupSchedule(reservation.pickupDate, reservation.pickupTime)
+                repository.approveReservation(reservation)
+                _successMessage.value = "Reservation approved"
+                refreshData()
+            } catch (e: Exception) {
+                _saveError.value = e.message ?: "Failed to approve reservation"
             }
         }
     }
@@ -660,4 +691,22 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
 
         _successMessage.value = null
     }
+}
+
+private fun requireValidPickupSchedule(date: String, time: String) {
+    val normalizedTime = time.trim().substringBefore('+').removeSuffix("Z")
+    val value = "${date.trim()} $normalizedTime"
+    val acceptedPatterns = listOf(
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-dd HH:mm",
+        "yyyy-MM-dd h:mm a"
+    )
+    val valid = acceptedPatterns.any { pattern ->
+        try {
+            SimpleDateFormat(pattern, Locale.US).apply { isLenient = false }.parse(value) != null
+        } catch (_: Exception) {
+            false
+        }
+    }
+    require(valid) { "Pickup date or time is missing or invalid" }
 }

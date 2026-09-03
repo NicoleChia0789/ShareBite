@@ -14,6 +14,8 @@ import com.sharebite.app.ui.theme.BgCream
 import com.sharebite.app.ui.theme.GreenConfirmed
 import com.sharebite.app.ui.theme.OrangeAccent
 import com.sharebite.app.ui.theme.RedCancelled
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 // ─── Charity Request Detail ──────────────────────────────────────
 
@@ -29,6 +31,7 @@ fun MerchantRequestDetailScreen(
     val requests by viewModel.requests.collectAsState()
     val generalRequests by viewModel.generalRequests.collectAsState()
     val request = requests.find { it.id == requestId } ?: generalRequests.find { it.id == requestId }
+    val isGeneralRequest = generalRequests.any { it.id == requestId && it.merchantId.isNullOrBlank() }
 
     var showConfirmDialog by remember { mutableStateOf(false) }
     var actionType by remember { mutableStateOf("") }
@@ -49,17 +52,29 @@ fun MerchantRequestDetailScreen(
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    // ✅ 食物名作为标题
-                    Text(request.foodName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("Requested by: ${request.organisationName}", color = Color.Gray)
-                    Text("Quantity: ${request.quantity}", color = Color.Gray)
-                    Text("📅 Pickup Date: ${request.pickupDate}", color = Color.Gray)
-                    Text("⏰ Pickup Time: ${request.pickupTime}", color = Color.Gray)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(request.foodName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            if (isGeneralRequest) "Charity Need" else "Donation Request",
+                            color = OrangeAccent,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    DetailValueRow("Quantity", "${request.quantity} portions")
+                    DetailValueRow("Collection", formatPickupDateTime(request.pickupDate, request.pickupTime))
+                    DetailValueRow("Organization", request.organisationName.ifBlank { "Not provided" })
+                    DetailValueRow("People served", request.peopleServed.takeIf { it > 0 }?.toString() ?: "Not provided")
+                    DetailValueRow("Submitted", formatSubmittedAt(request.createdAt))
+                    DetailValueRow("Note", request.note?.takeIf { it.isNotBlank() } ?: "No additional instructions")
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(20.dp))
 
             when (request.status) {
                 "Pending" -> {
@@ -70,17 +85,21 @@ fun MerchantRequestDetailScreen(
                         // ✅ Decline 按钮：红色底白字，宽度 0.6f
                         OutlinedButton(
                             onClick = {
-                                actionType = "decline"
-                                showConfirmDialog = true
+                                if (isGeneralRequest) {
+                                    onBack()
+                                } else {
+                                    actionType = "decline"
+                                    showConfirmDialog = true
+                                }
                             },
-                            modifier = Modifier.weight(0.6f),
+                            modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 containerColor = RedCancelled,
                                 contentColor = Color.White
                             ),
                             shape = RoundedCornerShape(50)
                         ) {
-                            Text("Decline", color = Color.White)
+                            Text(if (isGeneralRequest) "Back" else "Decline", color = Color.White)
                         }
                         // ✅ Approve 按钮：橙色，宽度 1f
                         Button(
@@ -92,7 +111,7 @@ fun MerchantRequestDetailScreen(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(50)
                         ) {
-                            Text("Approve", color = Color.White)
+                            Text(if (isGeneralRequest) "Offer to Fulfil" else "Approve Request", color = Color.White)
                         }
                     }
                 }
@@ -121,14 +140,19 @@ fun MerchantRequestDetailScreen(
             onDismissRequest = { showConfirmDialog = false },
             title = {
                 Text(
-                    if (actionType == "approve") "Approve Request?" else "Decline Request?",
+                    if (actionType == "approve") {
+                        if (isGeneralRequest) "Offer to Fulfil?" else "Approve Request?"
+                    } else "Decline Request?",
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
                 Text(
                     if (actionType == "approve")
-                        "This will confirm the request. The charity will be notified."
+                        if (isGeneralRequest)
+                            "This will assign the request to you and add its pickup to your schedule."
+                        else
+                            "This will reserve the requested quantity and notify the charity."
                     else
                         "This will reject the request. This action cannot be undone."
                 )
@@ -143,7 +167,9 @@ fun MerchantRequestDetailScreen(
                         contentColor = if (actionType == "approve") GreenConfirmed else RedCancelled
                     )
                 ) {
-                    Text(if (actionType == "approve") "Approve" else "Decline")
+                    Text(if (actionType == "approve") {
+                        if (isGeneralRequest) "Offer Help" else "Approve"
+                    } else "Decline")
                 }
             },
             dismissButton = {
@@ -169,6 +195,7 @@ fun MerchantReservationDetailScreen(
     onDecline: () -> Unit
 ) {
     val reservations by viewModel.reservations.collectAsState()
+    val usersById by viewModel.reservationUsers.collectAsState()
     val reservation = reservations.find { it.id == reservationId }
 
     var showConfirmDialog by remember { mutableStateOf(false) }
@@ -190,17 +217,27 @@ fun MerchantReservationDetailScreen(
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    // ✅ 食物名作为标题
-                    Text(reservation.foodName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("Reserved by: ${reservation.userId}", color = Color.Gray)
-                    Text("Quantity: ${reservation.quantityNum} × ${reservation.unit}", color = Color.Gray)
-                    Text("📅 Pickup Date: ${reservation.pickupDate}", color = Color.Gray)
-                    Text("⏰ Pickup Time: ${reservation.pickupTime}", color = Color.Gray)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(reservation.foodName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                        Text("User Reservation", color = OrangeAccent, style = MaterialTheme.typography.labelMedium)
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    val userName = usersById[reservation.userId]?.name
+                        ?.takeIf { it.isNotBlank() }
+                        ?: "User"
+                    DetailValueRow("Reserved by", userName)
+                    DetailValueRow("Quantity", "${reservation.quantityNum} ${reservation.unit}")
+                    DetailValueRow("Collection", formatPickupDateTime(reservation.pickupDate, reservation.pickupTime))
+                    DetailValueRow("Submitted", formatSubmittedAt(reservation.createdAt))
+                    DetailValueRow("Note", reservation.note?.takeIf { it.isNotBlank() } ?: "No additional instructions")
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(20.dp))
 
             when (reservation.status) {
                 "Pending" -> {
@@ -214,7 +251,7 @@ fun MerchantReservationDetailScreen(
                                 actionType = "decline"
                                 showConfirmDialog = true
                             },
-                            modifier = Modifier.weight(0.6f),
+                            modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 containerColor = RedCancelled,
                                 contentColor = Color.White
@@ -233,7 +270,7 @@ fun MerchantReservationDetailScreen(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(50)
                         ) {
-                            Text("Confirm Pickup", color = Color.White)
+                            Text("Approve Reservation", color = Color.White)
                         }
                     }
                 }
@@ -262,14 +299,14 @@ fun MerchantReservationDetailScreen(
             onDismissRequest = { showConfirmDialog = false },
             title = {
                 Text(
-                    if (actionType == "confirm") "Confirm Pickup?" else "Decline Reservation?",
+                    if (actionType == "confirm") "Approve Reservation?" else "Decline Reservation?",
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
                 Text(
                     if (actionType == "confirm")
-                        "This will confirm the pickup. The user will be notified."
+                        "This will reserve the requested quantity and notify the user."
                     else
                         "This will reject the reservation. This action cannot be undone."
                 )
@@ -314,4 +351,53 @@ private fun StatusNotice(text: String, color: Color) {
             modifier = Modifier.padding(16.dp)
         )
     }
+}
+
+@Composable
+private fun DetailValueRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Text(label, color = Color.Gray, modifier = Modifier.weight(0.42f))
+        Text(value, modifier = Modifier.weight(0.58f), fontWeight = FontWeight.Medium)
+    }
+}
+
+private fun formatPickupDateTime(date: String, time: String): String {
+    val raw = "${date.trim()} ${time.trim().substringBefore('+').removeSuffix("Z")}".trim()
+    val patterns = listOf("yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm", "yyyy-MM-dd h:mm a")
+    for (pattern in patterns) {
+        try {
+            val parsed = SimpleDateFormat(pattern, Locale.US).apply { isLenient = false }.parse(raw)
+            if (parsed != null) {
+                return SimpleDateFormat("d MMM yyyy · h:mm a", Locale.getDefault()).format(parsed)
+            }
+        } catch (_: Exception) {
+            // Try the next supported database format.
+        }
+    }
+    return "Pickup time unavailable"
+}
+
+private fun formatSubmittedAt(value: String?): String {
+    if (value.isNullOrBlank()) return "Not provided"
+    val normalized = value.trim().substringBefore('+').removeSuffix("Z").replace('T', ' ')
+    val patterns = listOf(
+        "yyyy-MM-dd HH:mm:ss.SSSSSS",
+        "yyyy-MM-dd HH:mm:ss.SSS",
+        "yyyy-MM-dd HH:mm:ss"
+    )
+    for (pattern in patterns) {
+        try {
+            val parsed = SimpleDateFormat(pattern, Locale.US).apply { isLenient = false }.parse(normalized)
+            if (parsed != null) {
+                return SimpleDateFormat("d MMM yyyy · h:mm a", Locale.getDefault()).format(parsed)
+            }
+        } catch (_: Exception) {
+            // Try the next supported Supabase timestamp precision.
+        }
+    }
+    return "Not provided"
 }

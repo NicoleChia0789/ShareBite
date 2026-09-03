@@ -18,11 +18,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.sharebite.app.data.model.CharityRequest
 import com.sharebite.app.data.model.FoodListing
+import com.sharebite.app.data.model.UserSummary
 import com.sharebite.app.data.model.Reservation as ReservationModel
 import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.BgCream
@@ -43,6 +45,8 @@ fun MerchantDashboardScreen(
     onViewAllRequests: () -> Unit,
     onViewAllReservations: () -> Unit,
     onViewImpact: () -> Unit,
+    onViewPickupHistory: () -> Unit,
+    onViewPickupSchedule: () -> Unit,
     onRequestClick: (Long) -> Unit,
     onReservationClick: (Long) -> Unit,
     viewModel: MerchantViewModel
@@ -51,45 +55,46 @@ fun MerchantDashboardScreen(
     // 登录后立即加载数据，并每 30 秒刷新一次（可选）
     LaunchedEffect(Unit) {
         viewModel.loadMerchantData()
-        viewModel.loadGeneralRequests()
     }
 
     // 也可以添加一个手动刷新的状态
     val isLoading by viewModel.isLoading.collectAsState()
     val listings by viewModel.listings.collectAsState()
     val requests by viewModel.requests.collectAsState()
-    val generalRequests by viewModel.generalRequests.collectAsState()
     val reservations by viewModel.reservations.collectAsState()
+    val usersById by viewModel.reservationUsers.collectAsState()
     val username = CurrentUser.getUserName()
 
     // ── KPI 数据 ──────────────────────────────────────────────
-    val pendingCount = generalRequests.count { it.status == "Pending" } +
-            reservations.count { it.status == "Pending" }
+    val pendingCount = requests.count { it.status.equals("Pending", ignoreCase = true) } +
+            reservations.count { it.status.equals("Pending", ignoreCase = true) }
 
-    val inProgressCount = requests.count { it.status == "Confirmed" } +
-            reservations.count { it.status == "Confirmed" }
+    val upcomingPickupCount = requests.count { it.status.equals("Confirmed", ignoreCase = true) } +
+            reservations.count { it.status.equals("Confirmed", ignoreCase = true) }
 
-    val toShipCount = listings.count { it.status == "claimed" }
+    val completedCount = requests.count { it.status.equals("Completed", ignoreCase = true) } +
+            reservations.count { it.status.equals("Completed", ignoreCase = true) }
 
     // ── Pending Items ──────────────────────────────────────────
-    val pendingItems = remember(generalRequests, reservations) {
+    val pendingItems = remember(requests, reservations) {
         val items = mutableListOf<PendingItem>()
-        generalRequests.filter { it.status == "Pending" }.forEach { req ->
+        requests.filter { it.status.equals("Pending", ignoreCase = true) }.forEach { req ->
             items.add(PendingItem.Charity(req))
         }
-        reservations.filter { it.status == "Pending" }.forEach { res ->
+        reservations.filter { it.status.equals("Pending", ignoreCase = true) }.forEach { res ->
             items.add(PendingItem.Reservation(res))
         }
-        items.sortedByDescending { it.createdAt }.take(3)
+        items.sortedBy { it.createdAt.orEmpty() }.take(2)
     }
 
     // ── Recent Activity ────────────────────────────────────────
-    val recentItems = remember(reservations, generalRequests, requests) {
+    val recentItems = remember(reservations, requests, usersById) {
         val items = mutableListOf<ActivityItem>()
-        reservations.take(2).forEach { res ->
+        reservations.filter { it.status.equals("Completed", ignoreCase = true) }.forEach { res ->
             items.add(
                 ActivityItem.Reservation(
-                    user = res.userId.take(8),
+                    user = usersById[res.userId]?.name?.takeIf { it.isNotBlank() }
+                        ?: "Individual user",
                     food = res.foodName,
                     quantity = res.quantityNum,
                     pickupTime = res.pickupTime,
@@ -98,7 +103,7 @@ fun MerchantDashboardScreen(
                 )
             )
         }
-        requests.filter { it.status == "Confirmed" }.take(2).forEach { req ->
+        requests.filter { it.status.equals("Completed", ignoreCase = true) }.forEach { req ->
             items.add(
                 ActivityItem.Request(
                     org = req.organisationName,
@@ -110,11 +115,6 @@ fun MerchantDashboardScreen(
             )
         }
         items.sortedByDescending { it.timestamp }.take(2)
-    }
-
-    // ── Discover Needs ─────────────────────────────────────────
-    val discoverItems = remember(generalRequests) {
-        generalRequests.filter { it.status == "Pending" }.take(4)
     }
 
     // ── Recent Listings ────────────────────────────────────────
@@ -164,8 +164,11 @@ fun MerchantDashboardScreen(
                 item {
                     KPIGrid(
                         pending = pendingCount,
-                        inProgress = inProgressCount,
-                        toShip = toShipCount
+                        inProgress = upcomingPickupCount,
+                        toShip = completedCount,
+                        onPendingClick = onViewAllRequests,
+                        onUpcomingClick = onViewPickupSchedule,
+                        onCompletedClick = onViewPickupHistory
                     )
                 }
 
@@ -173,6 +176,8 @@ fun MerchantDashboardScreen(
                 item {
                     AwaitingActionSection(
                         pendingItems = pendingItems,
+                        totalPendingCount = pendingCount,
+                        usersById = usersById,
                         onViewAll = onViewAllRequests,
                         onItemClick = { item ->
                             when (item) {
@@ -183,25 +188,7 @@ fun MerchantDashboardScreen(
                     )
                 }
 
-                // 5️⃣ Recent Activity（卡片无点击，只有 “See all” 按钮）
-                item {
-                    RecentActivitySection(
-                        activities = recentItems,
-                        onSeeAllClick = onViewAllRequests
-                    )
-                }
-
-                // 6️⃣ Discover Needs（卡片无点击，只有按钮）
-                if (discoverItems.isNotEmpty()) {
-                    item {
-                        DiscoverNeedsSection(
-                            items = discoverItems,
-                            onItemClick = { request -> onRequestClick(request.id) }
-                        )
-                    }
-                }
-
-                // 7️⃣ My Listings（卡片无点击，只有按钮）
+                // 5️⃣ My Listings（保留原有设计）
                 if (recentListings.isNotEmpty()) {
                     item {
                         MyListingsSection(
@@ -212,7 +199,15 @@ fun MerchantDashboardScreen(
                     }
                 }
 
-                // 8️⃣ Impact Report（整体不可点击，只有内部按钮）
+                // 6️⃣ Recent completed pickups
+                item {
+                    RecentActivitySection(
+                        activities = recentItems,
+                        onSeeAllClick = onViewPickupHistory
+                    )
+                }
+
+                // 7️⃣ Impact Report（保留原有设计）
                 item {
                     ImpactEntryCard(onViewReport = onViewImpact)
                 }
@@ -222,34 +217,44 @@ fun MerchantDashboardScreen(
 }
 
 // ─── KPI Grid ──────────────────────────────────────────────────────
-// 3 cards in a row: Pending, In Progress, To Ship
+// 3 cards in a row: Pending Review, Upcoming Pickups, Completed
 // 图标在上，数字和标签在下，居中
 
 @Composable
-fun KPIGrid(pending: Int, inProgress: Int, toShip: Int) {
+fun KPIGrid(
+    pending: Int,
+    inProgress: Int,
+    toShip: Int,
+    onPendingClick: () -> Unit,
+    onUpcomingClick: () -> Unit,
+    onCompletedClick: () -> Unit
+) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         KPICard(
             icon = Icons.Default.Inbox,
-            label = "Pending",
+            label = "Pending Review",
             value = pending.toString(),
             iconColor = OrangeAccent,
+            onClick = onPendingClick,
             modifier = Modifier.weight(1f)
         )
         KPICard(
             icon = Icons.Default.LocalShipping,
-            label = "In Progress",
+            label = "Upcoming Pickups",
             value = inProgress.toString(),
             iconColor = Color(0xFF1976D2),
+            onClick = onUpcomingClick,
             modifier = Modifier.weight(1f)
         )
         KPICard(
             icon = Icons.Default.Inventory2,
-            label = "To Ship",
+            label = "Completed",
             value = toShip.toString(),
             iconColor = Color(0xFFF4A261),
+            onClick = onCompletedClick,
             modifier = Modifier.weight(1f)
         )
     }
@@ -261,10 +266,13 @@ fun KPICard(
     label: String,
     value: String,
     iconColor: Color,
+    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier.fillMaxHeight().then(
+            if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+        ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(2.dp)
@@ -298,12 +306,19 @@ fun KPICard(
                 color = TextDark
             )
             // 标签在下方
-            Text(
-                text = label,
-                fontSize = 12.sp,
-                color = TextGrey,
-                fontWeight = FontWeight.Medium
-            )
+            Box(
+                modifier = Modifier.fillMaxWidth().height(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = label,
+                    fontSize = 12.sp,
+                    color = TextGrey,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 2,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }
@@ -355,6 +370,8 @@ fun CreateDonationCard(onCreateClick: () -> Unit) {
 @Composable
 fun AwaitingActionSection(
     pendingItems: List<PendingItem>,
+    totalPendingCount: Int,
+    usersById: Map<String, UserSummary>,
     onViewAll: () -> Unit,
     onItemClick: (PendingItem) -> Unit
 ) {
@@ -365,7 +382,7 @@ fun AwaitingActionSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Awaiting Action (${pendingItems.size})",
+                "Awaiting Action ($totalPendingCount)",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextDark
@@ -408,17 +425,18 @@ fun AwaitingActionSection(
                             title = request.organisationName,
                             food = request.foodName,
                             quantity = "${request.quantity} ×",
-                            isUrgent = true,
+                            isCharity = true,
                             onClick = { onItemClick(item) }
                         )
                     }
                     is PendingItem.Reservation -> {
                         val reservation = item.reservation
                         AwaitingActionCard(
-                            title = "User: ${reservation.userId.take(8)}",
+                            title = usersById[reservation.userId]?.name?.takeIf { it.isNotBlank() }
+                                ?: "Individual user",
                             food = reservation.foodName,
                             quantity = "${reservation.quantityNum} ×",
-                            isUrgent = false,
+                            isCharity = false,
                             onClick = { onItemClick(item) }
                         )
                     }
@@ -433,7 +451,7 @@ fun AwaitingActionCard(
     title: String,
     food: String,
     quantity: String,
-    isUrgent: Boolean,
+    isCharity: Boolean,
     onClick: () -> Unit
 ) {
     Card(
@@ -461,7 +479,7 @@ fun AwaitingActionCard(
                             .size(44.dp)
                             .clip(CircleShape)
                             .background(
-                                if (isUrgent) OrangeAccent.copy(alpha = 0.15f)
+                                if (isCharity) OrangeAccent.copy(alpha = 0.15f)
                                 else Color(0xFFE3F2FD)
                             ),
                         contentAlignment = Alignment.Center
@@ -469,7 +487,7 @@ fun AwaitingActionCard(
                         Text(
                             text = title.take(1).uppercase(),
                             fontWeight = FontWeight.Bold,
-                            color = if (isUrgent) OrangeAccent else Color(0xFF1976D2),
+                            color = if (isCharity) OrangeAccent else Color(0xFF1976D2),
                             fontSize = 18.sp
                         )
                     }
@@ -489,7 +507,7 @@ fun AwaitingActionCard(
                     }
                 }
 
-                if (isUrgent) {
+                if (isCharity) {
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = OrangeAccent.copy(alpha = 0.12f)
@@ -500,13 +518,13 @@ fun AwaitingActionCard(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                Icons.Default.Warning,
+                                Icons.Default.Business,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp),
                                 tint = OrangeAccent
                             )
                             Text(
-                                "Urgent",
+                                "Charity",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = OrangeAccent
@@ -519,7 +537,7 @@ fun AwaitingActionCard(
                         color = Color(0xFFE3F2FD)
                     ) {
                         Text(
-                            "Standard",
+                            "User",
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
@@ -563,7 +581,7 @@ fun RecentActivitySection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Recent Activity",
+                "Recent Completed Pickups",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextDark
@@ -593,9 +611,9 @@ fun RecentActivitySection(
                     is ActivityItem.Reservation -> {
                         ActivityCard(
                             icon = Icons.Default.Person,
-                            title = "${activity.user} reserved",
+                            title = "Pickup completed with ${activity.user}",
                             subtitle = "${activity.quantity} × ${activity.food}",
-                            meta = "Pickup expected by ${activity.pickupTime}",
+                            meta = "User reservation completed.",
                             timestamp = activity.timestamp,
                             status = activity.status
                         )
@@ -603,9 +621,9 @@ fun RecentActivitySection(
                     is ActivityItem.Request -> {
                         ActivityCard(
                             icon = Icons.Default.Business,
-                            title = "${activity.org} approved",
+                            title = "Pickup completed with ${activity.org}",
                             subtitle = "${activity.quantity} × ${activity.food}",
-                            meta = "Donation receipt generated.",
+                            meta = "Charity pickup completed.",
                             timestamp = activity.timestamp,
                             status = activity.status
                         )

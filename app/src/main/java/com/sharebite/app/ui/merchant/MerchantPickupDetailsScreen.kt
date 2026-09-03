@@ -21,9 +21,13 @@ fun MerchantPickupDetailsScreen(
 ) {
     val requests by viewModel.requests.collectAsState()
     val reservations by viewModel.reservations.collectAsState()
+    val usersById by viewModel.reservationUsers.collectAsState()
 
-    val itemType = pickupItemId.split("_")[0]
-    val itemId = pickupItemId.split("_")[1].toLong()
+    val idParts = remember(pickupItemId) { pickupItemId.split("_", limit = 2) }
+    val itemType = idParts.getOrNull(0)
+    val itemId = idParts.getOrNull(1)?.toLongOrNull()
+
+    LaunchedEffect(Unit) { viewModel.loadMerchantData() }
 
     Column(
         modifier = Modifier
@@ -34,7 +38,9 @@ fun MerchantPickupDetailsScreen(
     ) {
         Text("Pickup Details", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
-        if (itemType == "req") {
+        if (itemId == null || itemType !in setOf("req", "res")) {
+            Text("Invalid pickup reference", color = Color.Red, modifier = Modifier.padding(top = 16.dp))
+        } else if (itemType == "req") {
             val request = requests.find { it.id == itemId }
             if (request != null) {
                 Card(
@@ -50,21 +56,23 @@ fun MerchantPickupDetailsScreen(
                         Text("Quantity: ${request.quantity}", color = Color.Gray)
                         Text("Pickup Date: ${request.pickupDate}", color = Color.Gray)
                         Text("Pickup Time: ${request.pickupTime}", color = Color.Gray)
-                        Text("Status: Approved", color = OrangeAccent)
+                        Text("Status: ${request.status}", color = OrangeAccent)
                     }
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                Button(
-                    onClick = {
-                        viewModel.updateRequestStatus(itemId, "Completed")
-                        onBack()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Confirm Pickup", color = Color.White, fontWeight = FontWeight.Bold)
+                if (request.status.equals("Confirmed", ignoreCase = true)) {
+                    Button(
+                        onClick = {
+                            viewModel.updateRequestStatus(itemId, "Completed")
+                            onBack()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Mark as Picked Up", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         } else {
@@ -79,25 +87,30 @@ fun MerchantPickupDetailsScreen(
                         // ✅ 食物名作为标题
                         Text(reservation.foodName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("Reserved by: ${reservation.userId}", color = Color.Gray)
+                        val userName = usersById[reservation.userId]?.name
+                            ?.takeIf { it.isNotBlank() }
+                            ?: "Individual user"
+                        Text("Reserved by: $userName", color = Color.Gray)
                         Text("Quantity: ${reservation.quantityNum} × ${reservation.unit}", color = Color.Gray)
                         Text("Pickup Date: ${reservation.pickupDate}", color = Color.Gray)
                         Text("Pickup Time: ${reservation.pickupTime}", color = Color.Gray)
-                        Text("Status: Approved", color = OrangeAccent)
+                        Text("Status: ${reservation.status}", color = OrangeAccent)
                     }
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                Button(
-                    onClick = {
-                        viewModel.updateReservationStatus(itemId, "Completed")
-                        onBack()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Confirm Pickup", color = Color.White, fontWeight = FontWeight.Bold)
+                if (reservation.status.equals("Confirmed", ignoreCase = true)) {
+                    Button(
+                        onClick = {
+                            viewModel.updateReservationStatus(itemId, "Completed")
+                            onBack()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Mark as Picked Up", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }

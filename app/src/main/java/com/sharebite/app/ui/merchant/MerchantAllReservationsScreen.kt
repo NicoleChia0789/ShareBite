@@ -22,6 +22,7 @@ fun MerchantAllReservationsScreen(
     onReservationClick: (Long) -> Unit
 ) {
     val reservations by viewModel.reservations.collectAsState()
+    val usersById by viewModel.reservationUsers.collectAsState()
     var selectedFilter by remember { mutableStateOf("Pending") }
 
     val filteredReservations = when (selectedFilter) {
@@ -50,7 +51,11 @@ fun MerchantAllReservationsScreen(
                                 Box(modifier = Modifier.size(40.dp).background(Color(0xFFE8F5E9), RoundedCornerShape(50)))
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
-                                    Text("User: ${reservation.userId.take(8)}", fontWeight = FontWeight.Bold)
+                                    Text(
+                                        usersById[reservation.userId]?.name?.takeIf { it.isNotBlank() }
+                                            ?: "Individual user",
+                                        fontWeight = FontWeight.Bold
+                                    )
                                     Text("${reservation.quantityNum} x ${reservation.foodName}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                                 }
                                 Spacer(modifier = Modifier.weight(1f))
