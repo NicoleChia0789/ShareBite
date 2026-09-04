@@ -286,9 +286,9 @@ fun UserFoodDetailScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+                          colors = CardDefaults.cardColors(containerColor = Color.White),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
+                          border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE8DED5))
                         ) {
                             Column(
                                 modifier = Modifier.fillMaxWidth().padding(16.dp),

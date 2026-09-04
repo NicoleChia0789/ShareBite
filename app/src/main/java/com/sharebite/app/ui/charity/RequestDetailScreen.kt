@@ -164,10 +164,10 @@ fun RequestDetailScreen(
     if (showWithdrawDialog) {
         WithdrawConfirmDialog(
             onKeep = { showWithdrawDialog = false },
-            onWithdraw = {
+            onWithdraw = { reason ->
                 coroutineScope.launch {
                     try {
-                        repository.withdrawMyRequest(requestId)
+                        repository.withdrawMyRequest(requestId, reason)
                         showWithdrawDialog = false
                         // 重新载入，让画面显示最新的 Cancelled 状态
                         request = repository.getMyRequestById(requestId)

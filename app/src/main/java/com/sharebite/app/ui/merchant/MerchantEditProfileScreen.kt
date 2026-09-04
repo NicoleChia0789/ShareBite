@@ -52,7 +52,6 @@ fun MerchantEditProfileScreen(
 
     // ✅ 使用 rememberSaveable
     var businessName by rememberSaveable { mutableStateOf(currentName) }
-    var category by rememberSaveable { mutableStateOf("") }
     var businessAddress by rememberSaveable { mutableStateOf("") }
     var phoneNumber by rememberSaveable { mutableStateOf("") }
     var briefDescription by rememberSaveable { mutableStateOf("") }
@@ -68,7 +67,6 @@ fun MerchantEditProfileScreen(
     var emailError by rememberSaveable { mutableStateOf<String?>(null) }
     var phoneError by rememberSaveable { mutableStateOf<String?>(null) }
     var addressError by rememberSaveable { mutableStateOf<String?>(null) }
-    var categoryError by rememberSaveable { mutableStateOf<String?>(null) }
     var descriptionError by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Load user data
@@ -130,15 +128,6 @@ fun MerchantEditProfileScreen(
         return addressError == null
     }
 
-    fun validateCategory(): Boolean {
-        categoryError = when {
-            category.isBlank() -> null
-            category.length < 2 -> "Category must be at least 2 characters"
-            else -> null
-        }
-        return categoryError == null
-    }
-
     fun validateDescription(): Boolean {
         descriptionError = when {
             briefDescription.isBlank() -> null
@@ -154,7 +143,6 @@ fun MerchantEditProfileScreen(
             validateEmail(),
             validatePhone(),
             validateAddress(),
-            validateCategory(),
             validateDescription()
         ).all { it }
     }
@@ -265,36 +253,6 @@ fun MerchantEditProfileScreen(
             supportingText = {
                 if (nameError != null) {
                     Text(nameError!!, color = RedCancelled)
-                }
-            },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = OrangeAccent,
-                unfocusedBorderColor = Color(0xFFDDC0B8),
-                focusedTextColor = TextDark,
-                unfocusedTextColor = TextDark,
-                focusedLabelColor = OrangeAccent,
-                errorBorderColor = RedCancelled,
-                errorLabelColor = RedCancelled
-            )
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = category,
-            onValueChange = {
-                category = it
-                if (categoryError != null) validateCategory()
-            },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Category", color = TextGrey) },
-            placeholder = { Text("Bakery & Cafe", color = TextGrey) },
-            shape = RoundedCornerShape(12.dp),
-            singleLine = true,
-            isError = categoryError != null,
-            supportingText = {
-                if (categoryError != null) {
-                    Text(categoryError!!, color = RedCancelled)
                 }
             },
             colors = OutlinedTextFieldDefaults.colors(

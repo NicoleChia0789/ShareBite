@@ -171,12 +171,6 @@ object MerchantCharityRequestsRoute { const val route = "merchant_charity_reques
 object MerchantAllRequestsRoute { const val route = "merchant_all_requests" }
 object MerchantUserReservationsRoute { const val route = "merchant_user_reservations" }
 object MerchantImpactRoute { const val route = "merchant_impact" }
-object MerchantPickupScheduleRoute {
-    const val route = "merchant_pickup_schedule?showHistory={showHistory}"
-    fun createRoute(showHistory: Boolean = false) = "merchant_pickup_schedule?showHistory=$showHistory"
-}
-
-
 object MerchantListingDetailRoute {
     const val route = "merchant_listing_detail/{listingId}"
     fun createRoute(id: Long) = "merchant_listing_detail/$id"

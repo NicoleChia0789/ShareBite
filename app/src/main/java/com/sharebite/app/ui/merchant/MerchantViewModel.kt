@@ -481,7 +481,8 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
 
     fun updateRequestStatus(
         requestId: Long,
-        status: String
+        status: String,
+        cancellationReason: String? = null
     ) {
 
         if (!isUserAuthenticated()) {
@@ -495,7 +496,8 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
 
                 repository.updateRequestStatus(
                     requestId,
-                    status
+                    status,
+                    cancellationReason
                 )
 
                 _requests.value =
@@ -519,7 +521,8 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
 
     fun updateReservationStatus(
         reservationId: Long,
-        status: String
+        status: String,
+        cancellationReason: String? = null
     ) {
 
         if (!isUserAuthenticated()) {
@@ -533,7 +536,8 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
 
                 repository.updateReservationStatus(
                     reservationId,
-                    status
+                    status,
+                    cancellationReason
                 )
 
                 _reservations.value =

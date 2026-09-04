@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.model.CharityRequest
@@ -32,10 +33,15 @@ fun MerchantCharityPlazaScreen(
     val generalRequests by viewModel.generalRequests.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var searchFieldValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue())
+    }
+    val searchQuery = searchFieldValue.text.trim()
 
     val pendingRequests = remember(generalRequests, searchQuery) {
-        var list = generalRequests.filter { it.status == "Pending" }
+        var list = generalRequests.filter {
+            it.status == "Pending" && !isDateTimeInPast(it.pickupDate, it.pickupTime)
+        }
         if (searchQuery.isNotBlank()) {
             list = list.filter {
                 it.organisationName.contains(searchQuery, ignoreCase = true) ||
@@ -63,8 +69,8 @@ fun MerchantCharityPlazaScreen(
         )
 
         OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
+            value = searchFieldValue,
+            onValueChange = { searchFieldValue = it },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 12.dp),

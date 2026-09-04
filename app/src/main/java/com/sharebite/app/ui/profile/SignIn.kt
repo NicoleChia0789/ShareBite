@@ -3,8 +3,10 @@ package com.sharebite.app.ui.profile
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -62,6 +64,7 @@ fun SignIn(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
                 .padding(top = 40.dp)
                 .padding(bottom = 32.dp),
@@ -189,19 +192,16 @@ fun SignIn(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    TextButton(
-                        onClick = onForgotPasswordClick,
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(0.dp)
-                    ) {
-                        Text(
-                            text = "Forgot password?",
-                            fontSize = 13.sp,
-                            color = ShareBiteOrange,
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.End
-                        )
-                    }
+                    Text(
+                        text = "Forgot password?",
+                        fontSize = 13.sp,
+                        color = ShareBiteOrange,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier
+                            .align(Alignment.End)
+                            .clickable(onClick = onForgotPasswordClick)
+                            .padding(vertical = 4.dp)
+                    )
 
                     Spacer(modifier = Modifier.height(20.dp))
 

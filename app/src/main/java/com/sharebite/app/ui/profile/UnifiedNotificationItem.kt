@@ -571,6 +571,7 @@ private suspend fun loadMerchantNotifications(
 
     // 2️⃣ User Reservations（只显示 Pending）
     val reservations = merchantRepo.getMyReservations()
+    val userNames = merchantRepo.getReservationUsers().associate { it.id to it.name }
     items.addAll(
         reservations
             .filter { it.status == "Pending" }
@@ -579,7 +580,7 @@ private suspend fun loadMerchantNotifications(
                 NotificationItem(
                     id = reservation.id,
                     title = "🧑‍🤝‍🧑 New Reservation",
-                    message = "${reservation.userId} reserved ${reservation.quantityNum} ${reservation.unit} of \"${reservation.foodName}\"",
+                    message = "${userNames[reservation.userId].orEmpty().ifBlank { "A user" }} reserved ${reservation.quantityNum} ${reservation.unit} of \"${reservation.foodName}\"",
                     time = formatTime(reservation.createdAt),
 
                     type = "reservation",

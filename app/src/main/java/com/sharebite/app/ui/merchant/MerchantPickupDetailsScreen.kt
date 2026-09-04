@@ -11,6 +11,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sharebite.app.ui.theme.BgCream
 import com.sharebite.app.ui.theme.OrangeAccent
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun MerchantPickupDetailsScreen(
@@ -26,6 +29,19 @@ fun MerchantPickupDetailsScreen(
     val idParts = remember(pickupItemId) { pickupItemId.split("_", limit = 2) }
     val itemType = idParts.getOrNull(0)
     val itemId = idParts.getOrNull(1)?.toLongOrNull()
+
+    fun isOverdue(date: String, time: String): Boolean {
+        val patterns = listOf("yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm", "yyyy-MM-dd h:mm a")
+        return patterns.any { pattern ->
+            try {
+                val scheduled = SimpleDateFormat(pattern, Locale.US).apply { isLenient = false }
+                    .parse("${date.trim()} ${time.trim()}")
+                scheduled != null && scheduled.before(Date())
+            } catch (_: Exception) {
+                false
+            }
+        }
+    }
 
     LaunchedEffect(Unit) { viewModel.loadMerchantData() }
 
@@ -62,7 +78,9 @@ fun MerchantPickupDetailsScreen(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                if (request.status.equals("Confirmed", ignoreCase = true)) {
+                if (request.status.equals("Confirmed", ignoreCase = true) &&
+                    !isOverdue(request.pickupDate, request.pickupTime)
+                ) {
                     Button(
                         onClick = {
                             viewModel.updateRequestStatus(itemId, "Completed")
@@ -73,6 +91,8 @@ fun MerchantPickupDetailsScreen(
                     ) {
                         Text("Mark as Picked Up", color = Color.White, fontWeight = FontWeight.Bold)
                     }
+                } else if (request.status.equals("Confirmed", ignoreCase = true)) {
+                    Text("Overdue pickup. This record remains Confirmed until it is handled.", color = Color(0xFFC62828))
                 }
             }
         } else {
@@ -100,7 +120,9 @@ fun MerchantPickupDetailsScreen(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                if (reservation.status.equals("Confirmed", ignoreCase = true)) {
+                if (reservation.status.equals("Confirmed", ignoreCase = true) &&
+                    !isOverdue(reservation.pickupDate, reservation.pickupTime)
+                ) {
                     Button(
                         onClick = {
                             viewModel.updateReservationStatus(itemId, "Completed")
@@ -111,6 +133,8 @@ fun MerchantPickupDetailsScreen(
                     ) {
                         Text("Mark as Picked Up", color = Color.White, fontWeight = FontWeight.Bold)
                     }
+                } else if (reservation.status.equals("Confirmed", ignoreCase = true)) {
+                    Text("Overdue pickup. This record remains Confirmed until it is handled.", color = Color(0xFFC62828))
                 }
             }
         }

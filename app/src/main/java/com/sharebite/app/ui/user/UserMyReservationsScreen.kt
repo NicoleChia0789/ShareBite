@@ -229,10 +229,10 @@ fun UserMyReservationsScreen(
     cancelTargetId?.let { targetId ->
         WithdrawConfirmDialog(
             onKeep = { cancelTargetId = null },
-            onWithdraw = {
+            onWithdraw = { reason ->
                 coroutineScope.launch {
                     try {
-                        repository.cancelMyReservation(targetId)
+                        repository.cancelMyReservation(targetId, reason)
                         allReservations = allReservations.map { reservation ->
                             if (reservation.id == targetId) {
                                 reservation.copy(status = "Cancelled")

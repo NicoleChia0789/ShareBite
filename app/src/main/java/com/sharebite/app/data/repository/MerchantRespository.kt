@@ -151,26 +151,56 @@ class MerchantRepository {
         }
     }
 
-    suspend fun updateRequestStatus(requestId: Long, status: String) {
+    suspend fun updateRequestStatus(requestId: Long, status: String, cancellationReason: String? = null) {
         val merchantId = CurrentUser.getUserId()
+        val existing = getMyAllRequests().firstOrNull { it.id == requestId }
         SupabaseClient.client.postgrest["charity_requests"]
-            .update({ set("status", status) }) {
+            .update({
+                set("status", status)
+                if (status == "Cancelled") {
+                    set("cancellation_reason", cancellationReason)
+                    set("cancelled_at", java.time.Instant.now().toString())
+                    set("cancelled_by", merchantId)
+                }
+            }) {
                 filter {
                     eq("id", requestId)
                     eq("merchant_id", merchantId)
                 }
             }
+        if (status == "Cancelled" && existing != null && existing.status != "Cancelled" && existing.status != "Completed") {
+            existing.listingId?.toLongOrNull()?.let { listingId ->
+                runCatching {
+                    val listing = getOwnedListing(listingId)
+                    updateListingInventory(listing, listing.remainingQuantity + existing.quantity)
+                }
+            }
+        }
     }
 
-    suspend fun updateReservationStatus(reservationId: Long, status: String) {
+    suspend fun updateReservationStatus(reservationId: Long, status: String, cancellationReason: String? = null) {
         val merchantId = CurrentUser.getUserId()
+        val existing = getMyReservations().firstOrNull { it.id == reservationId }
         SupabaseClient.client.postgrest["reservations"]
-            .update({ set("status", status) }) {
+            .update({
+                set("status", status)
+                if (status == "Cancelled") {
+                    set("cancellation_reason", cancellationReason)
+                    set("cancelled_at", java.time.Instant.now().toString())
+                    set("cancelled_by", merchantId)
+                }
+            }) {
                 filter {
                     eq("id", reservationId)
                     eq("merchant_id", merchantId)
                 }
             }
+        if (status == "Cancelled" && existing != null && existing.status != "Cancelled" && existing.status != "Completed") {
+            runCatching {
+                val listing = getOwnedListing(existing.listingId)
+                updateListingInventory(listing, listing.remainingQuantity + existing.quantityNum)
+            }
+        }
     }
 
     /**
@@ -310,8 +340,9 @@ class MerchantRepository {
                 set("food_name", foodName)
                 set("category", category)
 //                set("quantity", quantity)
-                set("total_quantity", quantity.toIntOrNull() ?: 0)      // ✅ Use total_quantity
-                set("remaining_quantity", quantity.toIntOrNull() ?: 0)  // ✅ Use remaining_quantity
+                val quantityValue = quantity.filter { it.isDigit() }.toIntOrNull() ?: 0
+                set("total_quantity", quantityValue)
+                set("remaining_quantity", quantityValue)
                 set("photo_url", photoUrl)
                 set("pickup_date", pickupDate)
                 set("pickup_time", pickupTime)
@@ -333,7 +364,9 @@ class MerchantRepository {
         SupabaseClient.client.postgrest["charity_requests"]
             .update({
                 set("merchant_id", merchantId)
-                set("status", "Confirmed")  // 或 "Pending"，按业务需求
+                // A Bazaar offer enters the merchant order list as pending.
+                // It becomes confirmed only when the merchant marks it as picked up.
+                set("status", "Pending")
             }) {
                 filter { eq("id", requestId) }
             }

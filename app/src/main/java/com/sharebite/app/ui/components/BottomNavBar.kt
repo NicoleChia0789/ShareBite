@@ -44,7 +44,7 @@ fun BottomNavBar(
             }
 
             NavigationBarItem(
-                selected = currentRoute == screen.route,
+                selected = currentRoute == screen.route || currentRoute.startsWith("${screen.route}?"),
                 onClick = { onNavigate(screen.route) },
                 icon = { Icon(screen.icon, contentDescription = label) },
                 label = {

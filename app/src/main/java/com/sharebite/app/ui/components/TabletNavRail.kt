@@ -2,6 +2,8 @@ package com.sharebite.app.ui.components
 
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
@@ -23,7 +25,9 @@ import com.sharebite.app.ui.theme.TextGrey
 fun TabletNavRail(
     currentRoute: String,
     onNavigate: (String) -> Unit,
-    role: String = "user"
+    role: String = "user",
+    expanded: Boolean = true,
+    onToggleExpanded: () -> Unit = {}
 ) {
     NavigationRail(
         modifier = Modifier
@@ -31,6 +35,9 @@ fun TabletNavRail(
             .padding(vertical = 12.dp),
         containerColor = Color.White
     ) {
+        androidx.compose.material3.IconButton(onClick = onToggleExpanded) {
+            Icon(Icons.Default.Menu, contentDescription = if (expanded) "Collapse navigation" else "Expand navigation")
+        }
         val items = getBottomNavItems(role)
 
         items.forEach { screen ->
@@ -53,17 +60,14 @@ fun TabletNavRail(
             }
 
             NavigationRailItem(
-                selected = currentRoute == screen.route,
+                selected = currentRoute == screen.route || currentRoute.startsWith("${screen.route}?"),
                 onClick = { onNavigate(screen.route) },
                 icon = { Icon(screen.icon, contentDescription = label) },
-                label = {
-                    Text(
-                        label,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        fontSize = 11.sp
-                    )
-                },
+                label = if (expanded) {
+                    {
+                        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 11.sp)
+                    }
+                } else null,
                 colors = NavigationRailItemDefaults.colors(
                     selectedIconColor = OrangeAccent,
                     selectedTextColor = OrangeAccent,

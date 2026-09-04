@@ -36,6 +36,7 @@ import com.sharebite.app.ui.theme.AppTextFieldDefaults
 import com.sharebite.app.ui.theme.*
 import com.sharebite.app.ui.charity.filterQuantityInput
 import com.sharebite.app.ui.charity.quantityValue
+import com.sharebite.app.ui.charity.isQuantityValid
 import com.sharebite.app.ui.charity.foodCategoryOptions
 import com.sharebite.app.util.LocationUtils
 import androidx.core.content.ContextCompat
@@ -68,7 +69,7 @@ fun MerchantAddDonationScreen(
     var category by rememberSaveable { mutableStateOf("") }
     var dietaryType by rememberSaveable { mutableStateOf("Regular") }
     var quantity by rememberSaveable { mutableStateOf("") }
-    var photoUri by remember { mutableStateOf<Uri?>(null) }
+    var photoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var existingPhotoUrl by rememberSaveable { mutableStateOf<String?>(null) }
 
     var pickupDate by rememberSaveable { mutableStateOf("") }
@@ -116,7 +117,7 @@ fun MerchantAddDonationScreen(
         println("🔍 [UI] Photo selected: $photoUri")  // ← 添加这行
     }
 
-    val step0Valid = foodName.isNotBlank() && category.isNotBlank() && quantity.isNotBlank()
+    val step0Valid = foodName.isNotBlank() && category.isNotBlank() && isQuantityValid(quantity)
     val step1Valid = pickupDate.isNotBlank() && pickupTime.isNotBlank()
             && !isDateTimeInPast(pickupDate, pickupTime)
     val context = LocalContext.current
@@ -430,7 +431,15 @@ private fun StepDetails(
             placeholder = { Text("e.g. 24 units") },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            singleLine = true
+            singleLine = true,
+            isError = quantity.isNotBlank() && !isQuantityValid(quantity),
+            supportingText = {
+                when {
+                    quantity.isBlank() -> Unit
+                    !isQuantityValid(quantity) -> Text("Quantity must be at least 1 and no more than 100,000.", color = RedCancelled)
+                    else -> Text("${quantityValue(quantity)} units")
+                }
+            }
         )
 
         Spacer(modifier = Modifier.height(16.dp))

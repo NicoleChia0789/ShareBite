@@ -29,17 +29,24 @@ fun MerchantAllRequestsScreen(
     val generalRequests by viewModel.generalRequests.collectAsState()
 
     var requestType by remember { mutableStateOf("General") }
-    var selectedFilter by remember { mutableStateOf("Pending") }
+    var selectedFilter by remember { mutableStateOf("Confirmed") }
+    var pickupRange by remember { mutableStateOf(MerchantPickupRange.TODAY) }
 
     val allRequests = when (requestType) {
-        "General" -> generalRequests
-        else -> requests
+        // A Bazaar request starts in generalRequests, then moves into requests
+        // after this merchant offers help. Keep both stages visible here.
+        "General" -> (generalRequests + requests.filter { it.listingId.isNullOrBlank() })
+            .distinctBy { it.id }
+        else -> requests.filter { !it.listingId.isNullOrBlank() }
     }
 
-    val filtered = when (selectedFilter) {
-        "Approved" -> allRequests.filter { it.status == "Confirmed" }
+    val statusFiltered = when (selectedFilter) {
+        "Confirmed" -> allRequests.filter { it.status == "Confirmed" }
         "Declined" -> allRequests.filter { it.status == "Cancelled" }
         else -> allRequests.filter { it.status == "Pending" }
+    }
+    val filtered = statusFiltered.filter {
+        matchesMerchantPickupRange(it.pickupDate, it.pickupTime, pickupRange)
     }
 
     val pendingCount = allRequests.count { it.status == "Pending" }
@@ -52,6 +59,18 @@ fun MerchantAllRequestsScreen(
             .padding(paddingValues)
             .background(MaterialTheme.colorScheme.background)
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            MerchantPickupRange.entries.forEach { range ->
+                FilterChip(
+                    selected = pickupRange == range,
+                    onClick = { pickupRange = range },
+                    label = { Text(if (range == MerchantPickupRange.TODAY) "Today" else if (range == MerchantPickupRange.THIS_WEEK) "This Week" else "Upcoming") }
+                )
+            }
+        }
 //        Text(
 //            "Charity Requests",
 //            style = MaterialTheme.typography.headlineSmall,
@@ -99,7 +118,7 @@ fun MerchantAllRequestsScreen(
         ) {
             listOf(
                 "Pending" to pendingCount,
-                "Approved" to approvedCount,
+                "Confirmed" to approvedCount,
                 "Declined" to declinedCount
             ).forEach { (label, count) ->
                 FilterChip(
@@ -131,6 +150,7 @@ fun MerchantAllRequestsScreen(
                 items(filtered) { request ->
                     RequestCardEnhanced(
                         request = request,
+                        showApprovalActions = request.listingId.isNullOrBlank(),
                         onApprove = {
                             viewModel.updateRequestStatus(request.id, "Confirmed")
                         },
@@ -148,6 +168,7 @@ fun MerchantAllRequestsScreen(
 @Composable
 fun RequestCardEnhanced(
     request: CharityRequest,
+    showApprovalActions: Boolean = true,
     onApprove: () -> Unit,
     onDecline: () -> Unit,
     onViewDetail: () -> Unit
@@ -239,8 +260,8 @@ fun RequestCardEnhanced(
             }
 
             // Actions
-            when (request.status) {
-                "Pending" -> {
+            when {
+                request.status == "Pending" && showApprovalActions -> {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -249,7 +270,7 @@ fun RequestCardEnhanced(
                     ) {
                         // ✅ Decline 按钮：红色底白字，宽度 0.6f
                         OutlinedButton(
-                            onClick = onDecline,
+                            onClick = onViewDetail,
                             modifier = Modifier.weight(0.6f),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 containerColor = MaterialTheme.colorScheme.error,
@@ -257,7 +278,7 @@ fun RequestCardEnhanced(
                             ),
                             shape = RoundedCornerShape(50)
                         ) {
-                            Text("Decline", color = Color.White)
+                            Text("View Details", color = Color.White)
                         }
                         // ✅ Approve 按钮：橙色，宽度 1f
                         Button(

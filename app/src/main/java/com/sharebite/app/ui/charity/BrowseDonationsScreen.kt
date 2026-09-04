@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,7 +41,10 @@ fun BrowseDonationsScreen(paddingValues: PaddingValues, onFoodClick: (Long) -> U
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var searchFieldValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue())
+    }
+    val searchQuery = searchFieldValue.text
     var selectedCategory by rememberSaveable { mutableStateOf("All Items") }
     // ✅ 添加 isDataLoaded 标志
     var isDataLoaded by rememberSaveable { mutableStateOf(false) }
@@ -101,8 +105,8 @@ fun BrowseDonationsScreen(paddingValues: PaddingValues, onFoodClick: (Long) -> U
                 Icon(Icons.Default.Search, contentDescription = "Search", tint = TextGrey, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 BasicTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
+                    value = searchFieldValue,
+                    onValueChange = { searchFieldValue = it },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, color = TextDark),

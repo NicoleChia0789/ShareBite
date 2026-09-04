@@ -202,11 +202,11 @@ fun MyRequestsScreen(
     withdrawTargetId?.let { targetId ->
         WithdrawConfirmDialog(
             onKeep = { withdrawTargetId = null },
-            onWithdraw = {
+            onWithdraw = { reason ->
                 coroutineScope.launch {
                     try {
                         // ✅ FIX: Use withdrawMyRequest() instead of withdrawRequest()
-                        repository.withdrawMyRequest(targetId)
+                        repository.withdrawMyRequest(targetId, reason)
                         withdrawTargetId = null
                         loadRequests()
                     } catch (e: Exception) {

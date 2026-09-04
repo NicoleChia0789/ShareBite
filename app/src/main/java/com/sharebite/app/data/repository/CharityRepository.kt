@@ -1,6 +1,7 @@
 package com.sharebite.app.data.repository
 
 import com.sharebite.app.data.model.CharityRequest
+import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.remote.SupabaseClient
 import com.sharebite.app.data.session.CurrentUser
 import io.github.jan.supabase.postgrest.postgrest
@@ -119,6 +120,7 @@ class CharityRepository {
             pickupTime = pickupTime,
             organisationName = organisationName,
             peopleServed = peopleServed,
+            // Standalone Charity Bazaar requests wait for a merchant to offer help.
             status = "Pending",
             note = note
         )
@@ -140,6 +142,12 @@ class CharityRepository {
         note: String?
     ) {
         val userId = CurrentUser.getUserId()
+        require(quantity > 0) { "Request quantity must be greater than zero" }
+        val listing = getListing(listingId.toLongOrNull() ?: error("Invalid food listing"))
+        require(listing.status == "available") { "This food listing is no longer available" }
+        require(listing.remainingQuantity >= quantity) {
+            "Only ${listing.remainingQuantity} ${listing.unit ?: "units"} remaining"
+        }
         val newRequest = CharityRequest(
             charityId = userId,
             merchantId = merchantId,
@@ -151,10 +159,22 @@ class CharityRepository {
             pickupTime = pickupTime,
             organisationName = organisationName,
             peopleServed = peopleServed,
-            status = "Pending",
+            // Requests linked to a merchant listing are confirmed immediately.
+            status = "Confirmed",
             note = note
         )
-        SupabaseClient.client.postgrest["charity_requests"].insert(newRequest)
+        val created = SupabaseClient.client.postgrest["charity_requests"]
+            .insert(newRequest) { select() }
+            .decodeList<CharityRequest>()
+            .firstOrNull() ?: error("Failed to create request")
+        try {
+            updateListingInventory(listing, listing.remainingQuantity - quantity)
+        } catch (error: Exception) {
+            SupabaseClient.client.postgrest["charity_requests"].delete {
+                filter { eq("id", created.id) }
+            }
+            throw error
+        }
     }
 
     // ✅ Update my request (only if it belongs to current user)
@@ -167,33 +187,85 @@ class CharityRepository {
         note: String?
     ) {
         val userId = CurrentUser.getUserId()
-        SupabaseClient.client.postgrest["charity_requests"].update(
-            {
-                set("quantity", quantity)
-                set("pickup_date", pickupDate)
-                set("pickup_time", pickupTime)
-                set("people_served", peopleServed)
-                set("note", note)
+        require(quantity > 0) { "Request quantity must be greater than zero" }
+        val existing = getMyRequestById(requestId) ?: error("Request not found")
+        val listing = existing.listingId?.toLongOrNull()?.let { getListing(it) }
+        val quantityDelta = quantity - existing.quantity
+        if (listing != null && quantityDelta > 0) {
+            require(listing.remainingQuantity >= quantityDelta) {
+                "Only ${listing.remainingQuantity} ${listing.unit ?: "units"} remaining"
             }
-        ) {
-            filter {
-                eq("id", requestId)
-                eq("charity_id", userId)
-                eq("status", "Pending")
+            updateListingInventory(listing, listing.remainingQuantity - quantityDelta)
+        } else if (listing != null && quantityDelta < 0) {
+            updateListingInventory(listing, listing.remainingQuantity - quantityDelta)
+        }
+        try {
+            SupabaseClient.client.postgrest["charity_requests"].update(
+                {
+                    set("quantity", quantity)
+                    set("pickup_date", pickupDate)
+                    set("pickup_time", pickupTime)
+                    set("people_served", peopleServed)
+                    set("note", note)
+                }
+            ) {
+                filter {
+                    eq("id", requestId)
+                    eq("charity_id", userId)
+                    eq("status", "Pending")
+                }
             }
+        } catch (error: Exception) {
+            if (listing != null && quantityDelta != 0) {
+                updateListingInventory(listing, listing.remainingQuantity + quantityDelta)
+            }
+            throw error
         }
     }
 
     // ✅ Withdraw my request
-    suspend fun withdrawMyRequest(requestId: Long) {
+    suspend fun withdrawMyRequest(requestId: Long, reason: String) {
         val userId = CurrentUser.getUserId()
+        val existing = getMyRequestById(requestId)
         SupabaseClient.client.postgrest["charity_requests"].update(
-            { set("status", "Cancelled") }
+            {
+                set("status", "Cancelled")
+                set("cancellation_reason", reason)
+                set("cancelled_at", java.time.Instant.now().toString())
+                set("cancelled_by", userId)
+            }
         ) {
             filter {
                 eq("id", requestId)
                 eq("charity_id", userId)
             }
+        }
+        if (existing != null && existing.status != "Cancelled" && existing.status != "Completed") {
+            existing.listingId?.toLongOrNull()?.let { listingId ->
+                getListing(listingId)?.let { listing ->
+                    updateListingInventory(listing, listing.remainingQuantity + existing.quantity)
+                }
+            }
+        }
+    }
+
+    private suspend fun getListing(listingId: Long): FoodListing {
+        return SupabaseClient.client.postgrest["food_listings"]
+            .select {
+                filter { eq("id", listingId) }
+                limit(1)
+            }
+            .decodeList<FoodListing>()
+            .firstOrNull() ?: error("Food listing not found")
+    }
+
+    private suspend fun updateListingInventory(listing: FoodListing, newRemaining: Int) {
+        val safeRemaining = newRemaining.coerceIn(0, listing.totalQuantity)
+        SupabaseClient.client.postgrest["food_listings"].update({
+            set("remaining_quantity", safeRemaining)
+            set("status", if (safeRemaining == 0) "claimed" else "available")
+        }) {
+            filter { eq("id", listing.id) }
         }
     }
 }

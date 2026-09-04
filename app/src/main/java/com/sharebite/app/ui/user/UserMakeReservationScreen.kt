@@ -298,9 +298,9 @@ fun UserMakeReservationScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+                      colors = CardDefaults.cardColors(containerColor = Color.White),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
+                      border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE8DED5))
                         ) {
                             Row(
                                 modifier = Modifier
@@ -468,7 +468,7 @@ fun UserMakeReservationScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+                      colors = CardDefaults.cardColors(containerColor = Color.White),
                             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                         ) {
                             Row(
@@ -668,7 +668,7 @@ private fun ConfirmReservationDialog(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(

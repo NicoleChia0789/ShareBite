@@ -889,12 +889,12 @@ private fun BrowseFoodCard(
             .clickable(enabled = !isExpired) { onClick() },
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isExpired) Color(0xFFE8E2D8) else Color(0xFFFBE9E7)
+            containerColor = if (isExpired) Color(0xFFE8E2D8) else Color.White
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            if (isExpired) Color(0xFFD0C8BC) else Color(0xFFFBE9E7)
+            if (isExpired) Color(0xFFD0C8BC) else Color(0xFFE8DED5)
         )
     ) {
         Column(

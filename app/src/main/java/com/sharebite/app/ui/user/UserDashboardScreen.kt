@@ -231,9 +231,9 @@ private fun FoodListingCard(listing: FoodListing, onClick: () -> Unit) {
             .width(180.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE8DED5))
     ) {
         Column {
             if (!listing.photoUrl.isNullOrBlank()) {
@@ -306,9 +306,9 @@ private fun RecentReservationCard(reservation: Reservation, onClick: () -> Unit,
         modifier = modifier.fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE8DED5))
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(14.dp),
@@ -361,9 +361,9 @@ private fun DashboardStatCard(
     Card(
         modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE8DED5))
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),

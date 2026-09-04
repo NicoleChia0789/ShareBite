@@ -35,6 +35,15 @@ data class Reservation(
 
     val note: String? = null,
 
+    @SerialName("cancellation_reason")
+    val cancellationReason: String? = null,
+
+    @SerialName("cancelled_at")
+    val cancelledAt: String? = null,
+
+    @SerialName("cancelled_by")
+    val cancelledBy: String? = null,
+
     @SerialName("created_at")
     val createdAt: String? = null
 )

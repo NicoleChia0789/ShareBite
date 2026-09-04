@@ -115,7 +115,9 @@ class ReservationRepository {
             foodName = foodName,
             pickupDate = pickupDate,
             pickupTime = pickupTime,
-            status = "Pending",
+            // A reservation is already deducted from the listing inventory,
+            // so it is confirmed immediately and needs no merchant approval.
+            status = "Confirmed",
             note = note,
             quantityNum = quantityNum,   // ✅ 传入新字段
             unit = unit                  // ✅ 传入新字段
@@ -169,12 +171,17 @@ class ReservationRepository {
     }
 
     // ✅ Cancel my reservation
-    suspend fun cancelMyReservation(reservationId: Long) {
+    suspend fun cancelMyReservation(reservationId: Long, reason: String) {
         val userId = CurrentUser.getUserId()
         val reservation = getMyReservationById(reservationId)
         SupabaseClient.client.postgrest["reservations"]
             .update(
-                { set("status", "Cancelled") }
+                {
+                    set("status", "Cancelled")
+                    set("cancellation_reason", reason)
+                    set("cancelled_at", java.time.Instant.now().toString())
+                    set("cancelled_by", userId)
+                }
             ) {
                 filter {
                     eq("id", reservationId)

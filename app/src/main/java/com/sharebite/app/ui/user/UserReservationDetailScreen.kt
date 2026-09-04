@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +47,7 @@ fun UserReservationDetailScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isCancelling by remember { mutableStateOf(false) }
     var showCancelDialog by remember { mutableStateOf(false) }
+    var cancellationReason by rememberSaveable { mutableStateOf("") }
     var foodListing by remember { mutableStateOf<FoodListing?>(null) }
 
     LaunchedEffect(reservationId) {
@@ -66,12 +68,12 @@ fun UserReservationDetailScreen(
         }
     }
 
-    fun cancelReservation() {
+    fun cancelReservation(reason: String) {
         if (isCancelling) return
         scope.launch {
             isCancelling = true
             try {
-                repository.cancelMyReservation(reservationId)
+                repository.cancelMyReservation(reservationId, reason)
                 reservation = repository.getMyReservationById(reservationId)
                 showCancelDialog = false
             } catch (e: Exception) {
@@ -241,7 +243,7 @@ fun UserReservationDetailScreen(
                                     tint = Color.White.copy(alpha = 0.8f)
                                 )
                                 Text(
-                                    text = "Merchant ID: ${item.merchantId}",
+                                    text = "Merchant: ${foodListing?.merchantName?.takeIf { it.isNotBlank() } ?: "Merchant"}",
                                     fontSize = 13.sp,
                                     color = Color.White.copy(alpha = 0.9f)
                                 )
@@ -291,9 +293,9 @@ fun UserReservationDetailScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE8DED5))
                         ) {
                             Column(
                                 modifier = Modifier
@@ -412,9 +414,9 @@ fun UserReservationDetailScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFBE9E7)),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBE9E7))
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE8DED5))
                         ) {
                             Column(
                                 modifier = Modifier
@@ -612,18 +614,30 @@ fun UserReservationDetailScreen(
                 )
             },
             text = {
-                Text(
-                    text = "Canceling this reservation will return the items to the community. This action cannot be undone.",
-                    fontSize = 14.sp,
-                    color = TextGrey
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Canceling this reservation will return the items to the community. This action cannot be undone.",
+                        fontSize = 14.sp,
+                        color = TextGrey
+                    )
+                    OutlinedTextField(
+                        value = cancellationReason,
+                        onValueChange = { cancellationReason = it },
+                        label = { Text("Cancellation reason") },
+                        placeholder = { Text("Why are you cancelling?") },
+                        minLines = 2,
+                        maxLines = 4,
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = cancellationReason.isBlank()
+                    )
+                }
             },
             confirmButton = {
                 Button(
-                    onClick = { cancelReservation() },
+                    onClick = { cancelReservation(cancellationReason.trim()) },
                     colors = ButtonDefaults.buttonColors(containerColor = RedCancelled),
                     shape = RoundedCornerShape(50),
-                    enabled = !isCancelling
+                    enabled = !isCancelling && cancellationReason.isNotBlank()
                 ) {
                     if (isCancelling) {
                         CircularProgressIndicator(

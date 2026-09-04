@@ -23,20 +23,36 @@ fun MerchantAllReservationsScreen(
 ) {
     val reservations by viewModel.reservations.collectAsState()
     val usersById by viewModel.reservationUsers.collectAsState()
-    var selectedFilter by remember { mutableStateOf("Pending") }
+    var selectedFilter by remember { mutableStateOf("Confirmed") }
+    var pickupRange by remember { mutableStateOf(MerchantPickupRange.TODAY) }
 
-    val filteredReservations = when (selectedFilter) {
-        "Approved" -> reservations.filter { it.status == "Confirmed" }
+    val statusFilteredReservations = when (selectedFilter) {
+        "Confirmed" -> reservations.filter { it.status == "Confirmed" }
         "Declined" -> reservations.filter { it.status == "Cancelled" }
         else -> reservations.filter { it.status == "Pending" }
     }
+    val filteredReservations = statusFilteredReservations.filter {
+        matchesMerchantPickupRange(it.pickupDate, it.pickupTime, pickupRange)
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(paddingValues).background(BgCream)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            MerchantPickupRange.entries.forEach { range ->
+                FilterChip(
+                    selected = pickupRange == range,
+                    onClick = { pickupRange = range },
+                    label = { Text(if (range == MerchantPickupRange.TODAY) "Today" else if (range == MerchantPickupRange.THIS_WEEK) "This Week" else "Upcoming") }
+                )
+            }
+        }
         Text("User Reservations", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
 
         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(selected = selectedFilter == "Pending", onClick = { selectedFilter = "Pending" }, label = { Text("Pending") })
-            FilterChip(selected = selectedFilter == "Approved", onClick = { selectedFilter = "Approved" }, label = { Text("Approved") })
+            FilterChip(selected = selectedFilter == "Confirmed", onClick = { selectedFilter = "Confirmed" }, label = { Text("Confirmed") })
             FilterChip(selected = selectedFilter == "Declined", onClick = { selectedFilter = "Declined" }, label = { Text("Declined") })
         }
 

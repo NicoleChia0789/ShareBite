@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -23,8 +23,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 @Composable
 fun WithdrawConfirmDialog(
     onKeep: () -> Unit,
-    onWithdraw: () -> Unit
+    onWithdraw: (String) -> Unit
 ) {
+    var reason by remember { mutableStateOf("") }
     Dialog(onDismissRequest = onKeep) {
         Card(
             shape = RoundedCornerShape(20.dp),
@@ -62,13 +63,27 @@ fun WithdrawConfirmDialog(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    "The merchant will be notified. This cannot be undone.",
+                    "Tell us why you are cancelling. This cannot be undone.",
                     fontSize = 13.sp,
                     color = TextGrey,
                     textAlign = TextAlign.Center
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
+
+                OutlinedTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Cancellation reason") },
+                    placeholder = { Text("e.g. Unable to collect") },
+                    minLines = 2,
+                    maxLines = 4,
+                    shape = RoundedCornerShape(12.dp),
+                    isError = reason.isBlank()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -83,7 +98,8 @@ fun WithdrawConfirmDialog(
                         Text("Keep")
                     }
                     OutlinedButton(
-                        onClick = onWithdraw,
+                        onClick = { if (reason.isNotBlank()) onWithdraw(reason.trim()) },
+                        enabled = reason.isNotBlank(),
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = RedCancelled),
                         shape = RoundedCornerShape(12.dp)

@@ -1,6 +1,5 @@
 package com.sharebite.app.ui.merchant
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,8 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.WarningAmber
@@ -85,6 +83,7 @@ fun MerchantPickupScheduleScreen(
     paddingValues: PaddingValues,
     viewModel: MerchantViewModel,
     initialShowHistory: Boolean = false,
+    sourceFilter: String? = null,
     onPickupClick: (String) -> Unit
 ) {
     val requests by viewModel.requests.collectAsState()
@@ -96,21 +95,24 @@ fun MerchantPickupScheduleScreen(
         mutableIntStateOf(if (initialShowHistory) 1 else 0)
     }
     var historyFilterIndex by remember { mutableIntStateOf(0) }
-    var showOverdue by remember { mutableStateOf(false) }
     val selectedPage = PickupPage.entries[selectedPageIndex]
-
-    BackHandler(enabled = showOverdue) { showOverdue = false }
 
     LaunchedEffect(Unit) { viewModel.loadMerchantData() }
 
     val confirmedRequests = remember(requests) {
-        requests.filter { it.status.equals("Confirmed", ignoreCase = true) }
+        requests.filter {
+            it.status.equals("Confirmed", ignoreCase = true) ||
+                    (it.status.equals("Pending", ignoreCase = true) && !it.listingId.isNullOrBlank())
+        }
     }
     val confirmedReservations = remember(reservations) {
-        reservations.filter { it.status.equals("Confirmed", ignoreCase = true) }
+        reservations.filter {
+            it.status.equals("Confirmed", ignoreCase = true) ||
+                    it.status.equals("Pending", ignoreCase = true)
+        }
     }
 
-    val scheduleItems = remember(confirmedRequests, confirmedReservations, usersById) {
+    val scheduleItems = remember(confirmedRequests, confirmedReservations, usersById, sourceFilter) {
         buildList {
             confirmedRequests.mapNotNullTo(this) { it.toScheduleItem() }
             confirmedReservations.mapNotNullTo(this) { reservation ->
@@ -120,7 +122,10 @@ fun MerchantPickupScheduleScreen(
                         ?: "Individual user"
                 )
             }
-        }.sortedBy { it.scheduledAt }
+        }.filter { sourceFilter == null ||
+                (sourceFilter == "request" && it.source == PickupSource.REQUEST) ||
+                (sourceFilter == "reservation" && it.source == PickupSource.RESERVATION) }
+            .sortedBy { it.scheduledAt }
     }
 
     val completedItems = remember(requests, reservations, usersById) {
@@ -136,14 +141,6 @@ fun MerchantPickupScheduleScreen(
                 }
         }.sortedByDescending { it.scheduledAt }
     }
-    val historyFilter = HistoryFilter.entries[historyFilterIndex]
-    val visibleHistoryItems = completedItems.filter {
-        historyFilter == HistoryFilter.ALL ||
-                (historyFilter == HistoryFilter.CHARITIES && it.source == PickupSource.REQUEST) ||
-                (historyFilter == HistoryFilter.USERS && it.source == PickupSource.RESERVATION)
-    }
-    val groupedHistoryItems = visibleHistoryItems.groupBy { formatDbDate(it.scheduledAt) }
-
     val invalidCount = remember(confirmedRequests, confirmedReservations) {
         confirmedRequests.count { parseSchedule(it.pickupDate, it.pickupTime) == null } +
                 confirmedReservations.count { parseSchedule(it.pickupDate, it.pickupTime) == null }
@@ -165,7 +162,19 @@ fun MerchantPickupScheduleScreen(
     val groupedItems = visibleItems.groupBy { formatDbDate(it.scheduledAt) }
     val overdueItems = scheduleItems.filter { it.scheduledAt.before(todayStart) }
         .sortedByDescending { it.scheduledAt }
-    val groupedOverdueItems = overdueItems.groupBy { formatDbDate(it.scheduledAt) }
+    val historyItems = (completedItems + overdueItems)
+        .filter { sourceFilter == null ||
+                (sourceFilter == "request" && it.source == PickupSource.REQUEST) ||
+                (sourceFilter == "reservation" && it.source == PickupSource.RESERVATION) }
+        .distinctBy { it.routeId }
+        .sortedByDescending { it.scheduledAt }
+    val historyFilter = HistoryFilter.entries[historyFilterIndex]
+    val visibleHistoryItems = historyItems.filter {
+        historyFilter == HistoryFilter.ALL ||
+                (historyFilter == HistoryFilter.CHARITIES && it.source == PickupSource.REQUEST) ||
+                (historyFilter == HistoryFilter.USERS && it.source == PickupSource.RESERVATION)
+    }
+    val groupedHistoryItems = visibleHistoryItems.groupBy { formatDbDate(it.scheduledAt) }
 
     Column(
         modifier = Modifier
@@ -179,14 +188,13 @@ fun MerchantPickupScheduleScreen(
                     selected = selectedPageIndex == index,
                     onClick = {
                         selectedPageIndex = index
-                        showOverdue = false
                     },
                     text = { Text(title, fontWeight = FontWeight.Medium) }
                 )
             }
         }
 
-        if (selectedPage == PickupPage.SCHEDULE && !showOverdue) {
+        if (selectedPage == PickupPage.SCHEDULE) {
             TabRow(selectedTabIndex = selectedTabIndex, containerColor = Color.White) {
                 listOf("Today", "This Week", "Upcoming").forEachIndexed { index, title ->
                     Tab(
@@ -201,8 +209,7 @@ fun MerchantPickupScheduleScreen(
         if (selectedPage == PickupPage.SCHEDULE && overdueItems.isNotEmpty()) {
             OverdueAlert(
                 count = overdueItems.size,
-                expanded = showOverdue,
-                onToggle = { showOverdue = !showOverdue }
+                onClick = { selectedPageIndex = PickupPage.HISTORY.ordinal }
             )
         }
 
@@ -245,43 +252,13 @@ fun MerchantPickupScheduleScreen(
                         items(itemsForDate, key = { "history_${it.routeId}" }) { item ->
                             PickupScheduleCard(
                                 item = item,
-                                isOverdue = false,
-                                statusLabel = "Completed",
+                                isOverdue = item in overdueItems,
+                                statusLabel = if (item in overdueItems) "Overdue" else "Completed",
                                 onClick = { onPickupClick(item.routeId) }
                             )
                         }
                     }
                 }
-            } else if (showOverdue && overdueItems.isNotEmpty()) {
-                item(key = "overdue_title") {
-                    Column {
-                        Text(
-                            "OVERDUE PICKUPS",
-                            color = Color(0xFFC62828),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                        Text(
-                            "Confirmed pickups from previous days that are not completed.",
-                            color = Color.Gray,
-                            fontSize = 12.sp
-                        )
-                    }
-                }
-
-                groupedOverdueItems.forEach { (date, itemsForDate) ->
-                    item(key = "overdue_header_$date") {
-                        DateHeader(date, itemsForDate.size)
-                    }
-                    items(itemsForDate, key = { "overdue_${it.routeId}" }) { item ->
-                        PickupScheduleCard(
-                            item = item,
-                            isOverdue = true,
-                            onClick = { onPickupClick(item.routeId) }
-                        )
-                    }
-                }
-
             } else {
                 item {
                     ScheduleSummaryCard(
@@ -329,12 +306,12 @@ fun MerchantPickupScheduleScreen(
 }
 
 @Composable
-private fun OverdueAlert(count: Int, expanded: Boolean, onToggle: () -> Unit) {
+private fun OverdueAlert(count: Int, onClick: () -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clickable(onClick = onToggle),
+            .clickable(onClick = onClick),
         color = Color(0xFFFFEBEE),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -345,16 +322,16 @@ private fun OverdueAlert(count: Int, expanded: Boolean, onToggle: () -> Unit) {
             Icon(Icons.Default.WarningAmber, contentDescription = null, tint = Color(0xFFC62828))
             Spacer(Modifier.width(10.dp))
             Text(
-                "$count overdue pickup${if (count == 1) "" else "s"}",
+                "$count overdue pickup${if (count == 1) "" else "s"} moved to History",
                 modifier = Modifier.weight(1f),
                 color = Color(0xFFC62828),
                 fontWeight = FontWeight.Bold
             )
-            Text(if (expanded) "Back to Schedule" else "Show", color = Color(0xFFC62828), fontSize = 13.sp)
+            Text("View", color = Color(0xFFC62828), fontSize = 13.sp)
             Spacer(Modifier.width(4.dp))
             Icon(
-                if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                contentDescription = if (expanded) "Back to schedule" else "Show overdue pickups",
+                Icons.Default.ArrowForward,
+                contentDescription = "View history",
                 tint = Color(0xFFC62828)
             )
         }
@@ -460,8 +437,8 @@ private fun EmptyHistory() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(Icons.Default.History, null, Modifier.size(44.dp), tint = Color.Gray)
             Spacer(Modifier.height(8.dp))
-            Text("No completed pickups", fontWeight = FontWeight.Bold, color = Color.Gray)
-            Text("Completed charity and user pickups appear here.", color = Color.Gray, fontSize = 13.sp)
+            Text("No pickup history", fontWeight = FontWeight.Bold, color = Color.Gray)
+            Text("Completed and overdue pickups appear here.", color = Color.Gray, fontSize = 13.sp)
         }
     }
 }

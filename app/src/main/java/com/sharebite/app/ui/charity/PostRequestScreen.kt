@@ -172,12 +172,15 @@ fun PostRequestScreen(
             label = { Text("Quantity requested") },
             placeholder = { Text("e.g. 50") },
             supportingText = {
-                if (quantity.isNotBlank()) {
-                    Text("= ${formatWithThousandSeparator(quantity)} units")
+                when {
+                    quantity.isBlank() -> Unit
+                    !isQuantityValid(quantity) -> Text("Quantity must be at least 1 and no more than 100,000.", color = RedCancelled)
+                    else -> Text("= ${formatWithThousandSeparator(quantity)} units")
                 }
             },
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
+            isError = quantity.isNotBlank() && !isQuantityValid(quantity),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = OrangeAccent,

@@ -195,9 +195,17 @@ fun ApplyForFoodScreen(
                         },
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true,
+                        isError = peopleServed.isNotBlank() && !isQuantityValid(peopleServed),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         colors = AppTextFieldDefaults.colors()
                     )
+                    if (peopleServed.isNotBlank() && !isQuantityValid(peopleServed)) {
+                        Text(
+                            "People served must be at least 1 and no more than 100,000.",
+                            fontSize = 12.sp,
+                            color = RedCancelled
+                        )
+                    }
                     if (exceedsRemaining) {
                         Text(
                             text = "Only ${formatWithThousandSeparator(data.remainingQuantity.toString())} ${data.unit ?: "units"} available.",

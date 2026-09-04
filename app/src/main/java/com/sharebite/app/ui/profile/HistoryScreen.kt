@@ -22,6 +22,7 @@ import com.sharebite.app.data.model.CharityRequest
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.repository.CharityRepository
 import com.sharebite.app.data.repository.ReservationRepository
+import com.sharebite.app.data.repository.UserRepository
 import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 import java.text.SimpleDateFormat
@@ -36,10 +37,12 @@ fun HistoryScreen(
     val userRole = CurrentUser.getUserRole()
     val reservationRepo = remember { ReservationRepository() }
     val charityRepo = remember { CharityRepository() }
+    val userRepo = remember { UserRepository() }
 
     var historyItems by remember { mutableStateOf<List<Any>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var merchantNames by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var selectedStatus by rememberSaveable { mutableStateOf("All") }
     var sortOrder by rememberSaveable { mutableStateOf("Newest") }
 
@@ -69,6 +72,12 @@ fun HistoryScreen(
             when (userRole) {
                 "user" -> {
                     val reservations = reservationRepo.getMyReservations()
+                    merchantNames = reservations
+                        .map { it.merchantId }
+                        .distinct()
+                        .associateWith { merchantId ->
+                            userRepo.getUser(merchantId)?.name.orEmpty()
+                        }
                     historyItems = reservations.filter {
                         it.status == "Completed" || it.status == "Cancelled"
                     }
@@ -180,7 +189,7 @@ fun HistoryScreen(
                             items(filteredHistoryItems.filterIsInstance<Reservation>()) { item ->
                                 HistoryCard(
                                     title = item.foodName,
-                                    merchantName = "Merchant: ${item.merchantId.take(8)}",
+                                    merchantName = "Merchant: ${merchantNames[item.merchantId].orEmpty().ifBlank { "Merchant" }}",
                                     date = item.pickupDate,
                                     time = item.pickupTime,
                                     status = item.status,

@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -57,6 +58,7 @@ fun ShareBiteApp() {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val loginRepo = remember { LoginRepository() }
+    val saveableStateHolder = rememberSaveableStateHolder()
 
     LaunchedEffect(Unit) {
         isAuthenticated = CurrentUser.isLoggedIn()
@@ -93,17 +95,17 @@ fun ShareBiteApp() {
             }
 
             showForgotPassword -> {
-                ForgotPasswordScreen(
-                    paddingValues = PaddingValues(0.dp),
-                    onBack = {
-                        showForgotPassword = false
-                    },
-                    onSendResetLink = { email ->
-                        resetEmail = email.trim()
-                        showForgotPassword = false
-                        showResetPassword = true
-                    }
-                )
+                saveableStateHolder.SaveableStateProvider("forgot_password") {
+                    ForgotPasswordScreen(
+                        paddingValues = PaddingValues(0.dp),
+                        onBack = { showForgotPassword = false },
+                        onSendResetLink = { email ->
+                            resetEmail = email.trim()
+                            showForgotPassword = false
+                            showResetPassword = true
+                        }
+                    )
+                }
             }
 
             isAuthenticated && userRole.isNotEmpty() -> {
@@ -121,48 +123,48 @@ fun ShareBiteApp() {
             }
 
             showChooseRole -> {
-                ChooseRoleScreen(
-                    onRoleSelected = { role ->
-                        selectedSignUpRole = role
-                        showChooseRole = false
-                    },
-                    onBack = {
-                        showChooseRole = false
-                        showSignIn = true
-                    }
-                )
+                saveableStateHolder.SaveableStateProvider("choose_role") {
+                    ChooseRoleScreen(
+                        onRoleSelected = { role ->
+                            selectedSignUpRole = role
+                            showChooseRole = false
+                        },
+                        onBack = {
+                            showChooseRole = false
+                            showSignIn = true
+                        }
+                    )
+                }
             }
 
             showSignIn -> {
-                SignIn(
-                    onSignInSuccess = { role ->
-                        userRole = role
-                        isAuthenticated = true
-                    },
-                    onSignUpClick = {
-                        showSignIn = false
-                        showChooseRole = true
-                    },
-                    onForgotPasswordClick = {
-                        showForgotPassword = true
-                    }
-                )
+                saveableStateHolder.SaveableStateProvider("sign_in") {
+                    SignIn(
+                        onSignInSuccess = { role ->
+                            userRole = role
+                            isAuthenticated = true
+                        },
+                        onSignUpClick = {
+                            showSignIn = false
+                            showChooseRole = true
+                        },
+                        onForgotPasswordClick = { showForgotPassword = true }
+                    )
+                }
             }
 
             else -> {
-                SignUp(
-                    selectedRole = selectedSignUpRole,
-                    onSignUpClick = { role ->
-                        userRole = role
-                        isAuthenticated = true
-                    },
-                    onLoginClick = {
-                        showSignIn = true
-                    },
-                    onChooseRoleClick = {
-                        showChooseRole = true
-                    }
-                )
+                saveableStateHolder.SaveableStateProvider("sign_up") {
+                    SignUp(
+                        selectedRole = selectedSignUpRole,
+                        onSignUpClick = { role ->
+                            userRole = role
+                            isAuthenticated = true
+                        },
+                        onLoginClick = { showSignIn = true },
+                        onChooseRoleClick = { showChooseRole = true }
+                    )
+                }
             }
         }
     }
