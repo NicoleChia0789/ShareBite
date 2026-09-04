@@ -116,7 +116,7 @@ class LocationUtils(private val activity: Activity) {
 
     @Suppress("DEPRECATION")
     suspend fun getCurrentLocation(): Location? {
-        return withTimeoutOrNull(8000L) {
+        return withTimeoutOrNull(15000L) {
             suspendCancellableCoroutine { continuation ->
                 if (!hasLocationPermission()) {
                     continuation.resume(null)
@@ -148,12 +148,6 @@ class LocationUtils(private val activity: Activity) {
                         fusedLocationClient.removeLocationUpdates(this)
                     }
 
-                    override fun onLocationAvailability(availability: LocationAvailability) {
-                        if (!availability.isLocationAvailable) {
-                            continuation.resume(null)
-                            fusedLocationClient.removeLocationUpdates(this)
-                        }
-                    }
                 }
 
                 try {

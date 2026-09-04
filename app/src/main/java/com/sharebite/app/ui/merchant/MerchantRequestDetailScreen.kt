@@ -47,6 +47,9 @@ fun MerchantRequestDetailScreen(
     // Only a request tied to a merchant listing can be an update to a
     // previously approved detail. Bazaar/general requests use a different flow.
     val isUpdatedLinkedRequest = request?.detailsChanged == true && !isGeneralRequest
+    // Charity requests use one unit per person served. Keep the old quantity as
+    // a fallback for requests created before peopleServed became the source of truth.
+    val requestedUnits = request?.peopleServed?.takeIf { it > 0 } ?: request?.quantity ?: 0
 
     var showConfirmDialog by rememberSaveable { mutableStateOf(false) }
     var actionType by rememberSaveable { mutableStateOf("") }
@@ -73,7 +76,7 @@ fun MerchantRequestDetailScreen(
             FoodContextCard(
                 listing = listing,
                 foodName = request.foodName,
-                quantityLabel = "${request.quantity} portions requested"
+                quantityLabel = "$requestedUnits units requested"
             )
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -94,10 +97,13 @@ fun MerchantRequestDetailScreen(
                         )
                     }
                     Spacer(modifier = Modifier.height(16.dp))
-                    DetailValueRow("Quantity", "${request.quantity} portions")
+                    DetailValueRow("Quantity", "$requestedUnits units")
                     DetailValueRow("Collection", formatPickupDateTime(request.pickupDate, request.pickupTime))
                     DetailValueRow("Organization", request.organisationName.ifBlank { "Not provided" })
-                    DetailValueRow("People served", request.peopleServed.takeIf { it > 0 }?.toString() ?: "Not provided")
+                    DetailValueRow(
+                        "People served",
+                        request.peopleServed.takeIf { it > 0 }?.let { "$it people" } ?: "Not provided"
+                    )
                     DetailValueRow("Submitted", formatSubmittedAt(request.createdAt))
                     DetailValueRow("Note", request.note?.takeIf { it.isNotBlank() } ?: "No additional instructions")
                     if (request.status == "Cancelled" && !request.cancellationReason.isNullOrBlank()) {

@@ -9,6 +9,19 @@ import kotlinx.serialization.Serializable
 
 class LoginRepository {
 
+    suspend fun isEmailRegistered(email: String): Boolean {
+        val normalizedEmail = email.trim()
+        if (normalizedEmail.isBlank()) return false
+
+        return SupabaseClient.client.postgrest["users"]
+            .select {
+                filter { eq("email", normalizedEmail) }
+                limit(1)
+            }
+            .decodeList<AppUser>()
+            .isNotEmpty()
+    }
+
     // ---------- 注册 ----------
     suspend fun register(
         email: String,

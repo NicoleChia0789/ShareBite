@@ -219,7 +219,13 @@ fun ApplyForFoodScreen(
                                             selected -> OrangeAccent
                                             available -> Color.White
                                             else -> Color(0xFFE9E0DB)
-                                        })
+                                        }),
+                                        border = if (available && !selected) {
+                                            androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDDC0B8))
+                                        } else null,
+                                        elevation = CardDefaults.cardElevation(
+                                            defaultElevation = if (selected) 4.dp else 0.dp
+                                        )
                                     ) {
                                         Column(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                             Text(day, fontSize = 11.sp, color = if (selected) Color.White else TextGrey)

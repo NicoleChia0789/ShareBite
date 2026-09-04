@@ -384,10 +384,10 @@ fun UserReservationDetailScreen(
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(8.dp),
-                                color = Color(0xFFFFF8EE),
+                                color = Color.White,
                                 border = androidx.compose.foundation.BorderStroke(
-                                    4.dp,
-                                    OrangeAccent
+                                    1.dp,
+                                    Color(0xFFE8DED5)
                                 )
                             ) {
                                 Column(

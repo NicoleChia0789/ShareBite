@@ -18,7 +18,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sharebite.app.data.repository.LoginRepository
+import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,9 +30,16 @@ fun ForgotPasswordScreen(
     onBack: () -> Unit,
     onSendResetLink: (String) -> Unit
 ) {
-    var email by rememberSaveable { mutableStateOf("") }
+    val currentUserEmail = CurrentUser.getUserEmail().trim()
+    var email by rememberSaveable { mutableStateOf(currentUserEmail) }
+    var emailError by rememberSaveable { mutableStateOf<String?>(null) }
+    var isCheckingEmail by rememberSaveable { mutableStateOf(false) }
+    val loginRepository = remember { LoginRepository() }
+    val scope = rememberCoroutineScope()
     val normalizedEmail = email.trim()
     val isEmailValid = Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()
+    val matchesCurrentUser = currentUserEmail.isBlank() ||
+            normalizedEmail.equals(currentUserEmail, ignoreCase = true)
 
     Scaffold(
         containerColor = BgCream,
@@ -78,12 +88,20 @@ fun ForgotPasswordScreen(
             // ── Email Address ──
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = {
+                    email = it
+                    emailError = null
+                },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Email Address", color = TextGrey) },
                 placeholder = { Text("neighbor@example.com", color = TextGrey) },
                 shape = RoundedCornerShape(12.dp),
                 singleLine = true,
+                readOnly = currentUserEmail.isNotBlank(),
+                isError = emailError != null,
+                supportingText = emailError?.let { message ->
+                    { Text(message, color = MaterialTheme.colorScheme.error) }
+                },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = OrangeAccent,
                     unfocusedBorderColor = Color(0xFFDDC0B8),
@@ -97,7 +115,28 @@ fun ForgotPasswordScreen(
 
             // ── Continue to password reset ──
             Button(
-                onClick = { onSendResetLink(normalizedEmail) },
+                onClick = {
+                    if (!matchesCurrentUser) {
+                        emailError = "Please enter your current account email."
+                        return@Button
+                    }
+
+                    scope.launch {
+                        isCheckingEmail = true
+                        emailError = null
+                        try {
+                            if (loginRepository.isEmailRegistered(normalizedEmail)) {
+                                onSendResetLink(normalizedEmail)
+                            } else {
+                                emailError = "No account was found with this email address."
+                            }
+                        } catch (_: Exception) {
+                            emailError = "Unable to verify this email. Please try again."
+                        } finally {
+                            isCheckingEmail = false
+                        }
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
@@ -106,13 +145,21 @@ fun ForgotPasswordScreen(
                     contentColor = Color.White
                 ),
                 shape = RoundedCornerShape(12.dp),
-                enabled = isEmailValid
+                enabled = isEmailValid && matchesCurrentUser && !isCheckingEmail
             ) {
-                Text(
-                    text = "Continue",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (isCheckingEmail) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = "Continue",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

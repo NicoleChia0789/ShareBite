@@ -318,29 +318,6 @@ fun ChangePasswordScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1))
-        ) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                Text(
-                    text = "📋 Password Requirements:",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextDark
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "• Minimum 6 characters",
-                    fontSize = 12.sp,
-                    color = TextGrey
-                )
-            }
-        }
-
         Spacer(modifier = Modifier.height(24.dp))
     }
 }

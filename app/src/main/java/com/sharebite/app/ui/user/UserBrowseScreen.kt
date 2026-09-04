@@ -35,16 +35,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.*
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.ui.theme.*
 import com.sharebite.app.util.LocationUtils
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -97,13 +102,9 @@ fun UserBrowseScreen(
     var locationError by remember { mutableStateOf<String?>(null) }
     var isGettingLocation by remember { mutableStateOf(false) }
     var hasLocationPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        )
+        mutableStateOf(locationUtils.hasLocationPermission())
     }
+    var awaitingGpsResolution by rememberSaveable { mutableStateOf(false) }
 
     fun fetchLocation() {
         if (isGettingLocation) return
@@ -115,7 +116,10 @@ fun UserBrowseScreen(
 
                 val settingsOk = locationUtils.checkLocationSettings()
                 if (!settingsOk) {
-                    locationError = "GPS is required. Please enable it in settings."
+                    // LocationUtils launches Android's native GPS settings prompt.
+                    // Retry after the user returns from that prompt.
+                    awaitingGpsResolution = true
+                    locationError = null
                     isLocationLoading = false
                     isGettingLocation = false
                     return@launch
@@ -146,8 +150,31 @@ fun UserBrowseScreen(
         if (isGranted) {
             fetchLocation()
         } else {
-            locationError = "Location permission denied. Please enable in settings."
+            locationError = null
         }
+    }
+
+    fun requestLocation() {
+        if (locationUtils.hasLocationPermission()) {
+            fetchLocation()
+        } else {
+            permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && awaitingGpsResolution) {
+                awaitingGpsResolution = false
+                scope.launch {
+                    delay(500)
+                    fetchLocation()
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     // ── 列表状态（✅ 全部使用 rememberSaveable） ──
@@ -196,11 +223,7 @@ fun UserBrowseScreen(
 
     // ── 2️⃣ 权限和位置（只执行一次） ──
     LaunchedEffect(Unit) {
-        if (ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
+        if (locationUtils.hasLocationPermission()) {
             fetchLocation()
         } else {
             permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -309,6 +332,20 @@ fun UserBrowseScreen(
                         FilterChip(selected = isListView, onClick = { isListView = true }, label = { Text("List") }, modifier = Modifier.weight(1f))
                         FilterChip(selected = !isListView, onClick = { isListView = false }, label = { Text("Map") }, modifier = Modifier.weight(1f))
                     }
+                    OutlinedButton(
+                        onClick = { requestLocation() },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(21.dp)
+                    ) {
+                        Icon(Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Use GPS to calculate distance")
+                    }
+                    Text(
+                        text = if (userLocation == null) "Current location: Not detected" else "Current location: Detected",
+                        fontSize = 12.sp,
+                        color = if (userLocation == null) TextGrey else GreenConfirmed
+                    )
                     if (categories.isNotEmpty()) {
                         Text("Category", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextGrey)
                         LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -351,21 +388,19 @@ fun UserBrowseScreen(
                     Text("Getting your location...", fontSize = 12.sp, color = TextGrey)
                 }
             }
-            if (locationError != null) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFFFF3E0)
-                ) {
-                    Text(
-                        text = "⚠️ $locationError",
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        fontSize = 12.sp,
-                        color = Color(0xFFE65100)
-                    )
-                }
+            Text(
+                text = if (userLocation == null) "Current location: Not detected" else "Current location: Detected",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                fontSize = 12.sp,
+                color = if (userLocation == null) TextGrey else GreenConfirmed
+            )
+            TextButton(
+                onClick = { requestLocation() },
+                modifier = Modifier.padding(horizontal = 16.dp)
+            ) {
+                Icon(Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Use GPS to calculate distance")
             }
 
             // ── Search Bar + Filter ──
@@ -539,9 +574,22 @@ fun UserBrowseScreen(
                         ) listing else null
                     }
 
-                    LaunchedEffect(filteredListings, userLocation) {
-                        try {
+                        LaunchedEffect(filteredListings, userLocation) {
+                            try {
+                            val mapPoints = buildList {
+                                userLocation?.let { add(LatLng(it.latitude, it.longitude)) }
+                                locations.forEach { add(LatLng(it.latitude!!, it.longitude!!)) }
+                            }
                             when {
+                                mapPoints.size > 1 -> {
+                                    val bounds = LatLngBounds.builder().apply {
+                                        mapPoints.forEach { include(it) }
+                                    }.build()
+                                    cameraPositionState.animate(
+                                        CameraUpdateFactory.newLatLngBounds(bounds, 96),
+                                        500
+                                    )
+                                }
                                 userLocation != null -> {
                                     cameraPositionState.animate(
                                         CameraUpdateFactory.newLatLngZoom(
@@ -633,17 +681,7 @@ fun UserBrowseScreen(
         if (!isListView) {
             FloatingActionButton(
                 onClick = {
-                    if (ContextCompat.checkSelfPermission(
-                            context,
-                            Manifest.permission.ACCESS_FINE_LOCATION
-                        ) == PackageManager.PERMISSION_GRANTED
-                    ) {
-                        if (!isGettingLocation) {
-                            fetchLocation()
-                        }
-                    } else {
-                        permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-                    }
+                    requestLocation()
                 },
                 modifier = Modifier
                     .padding(16.dp)

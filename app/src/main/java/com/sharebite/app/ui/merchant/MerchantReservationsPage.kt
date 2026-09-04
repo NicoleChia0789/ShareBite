@@ -254,7 +254,61 @@ fun MerchantReservationsPage(
             isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = OrangeAccent)
             }
-            else -> HorizontalPager(
+            else -> if (isLandscape) {
+                val landscapeListState = rememberLazyListState()
+                LaunchedEffect(recipient, statusTab, pickupRange) {
+                    landscapeListState.scrollToItem(0)
+                }
+                val landscapeRequests = if (recipient == RecipientTab.USERS) emptyList() else requests
+                    .map { request ->
+                        resolvedUpdatedRequestStatuses[request.id]?.let { request.copy(status = it) } ?: request
+                    }
+                    .filter { statusTab == OrderStatusTab.ALL || it.status.belongsTo(statusTab) }
+                    .filter { matchesMerchantPickupRange(it.pickupDate, it.pickupTime, pickupRange) }
+                    .sortedWith(compareBy<CharityRequest> { merchantStatusPriority(it.status) }.thenByDescending { it.createdAt })
+                val landscapeReservations = if (recipient == RecipientTab.CHARITIES) emptyList() else reservations
+                    .filter { statusTab == OrderStatusTab.ALL || it.status.belongsTo(statusTab) }
+                    .filter { matchesMerchantPickupRange(it.pickupDate, it.pickupTime, pickupRange) }
+                    .sortedWith(compareBy<Reservation> { merchantStatusPriority(it.status) }.thenByDescending { it.createdAt.orEmpty() })
+
+                LazyColumn(
+                    state = landscapeListState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(landscapeRequests, key = { "landscape_request_${it.id}" }) { request ->
+                        MerchantOrderCard(
+                            recipientName = request.organisationName.ifBlank { "Charity organisation" },
+                            foodAndQuantity = "${request.quantity} × ${request.foodName}",
+                            sourceLabel = if (request.listingId.isNullOrBlank()) "Charity need" else "Donation application",
+                            status = request.status,
+                            hasChanges = request.detailsChanged && request.id !in resolvedUpdatedRequestIds,
+                            pickupDate = request.pickupDate,
+                            pickupTime = request.pickupTime,
+                            onClick = {
+                                if (request.detailsChanged && request.id !in resolvedUpdatedRequestIds) {
+                                    updatedRequest = request
+                                } else {
+                                    onCharityClick(request.id)
+                                }
+                            }
+                        )
+                    }
+                    items(landscapeReservations, key = { "landscape_reservation_${it.id}" }) { reservation ->
+                        MerchantOrderCard(
+                            recipientName = usersById[reservation.userId]?.name?.takeIf { it.isNotBlank() } ?: "Individual user",
+                            foodAndQuantity = "${reservation.quantityNum} × ${reservation.foodName}",
+                            sourceLabel = "User reservation",
+                            status = reservation.status,
+                            hasChanges = false,
+                            pickupDate = reservation.pickupDate,
+                            pickupTime = reservation.pickupTime,
+                            onClick = { onReservationClick(reservation.id) }
+                        )
+                    }
+                }
+            } else HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
             ) { page ->

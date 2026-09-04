@@ -342,17 +342,23 @@ fun GlobalNotificationBanner(
     val charityRepo = remember { CharityRepository() }
     val merchantRepo = remember { MerchantRepository() }
     val dismissedRepo = remember { DismissedNotificationRepository() }
+    val notificationPrefs = remember {
+        context.getSharedPreferences("notification_prefs", android.content.Context.MODE_PRIVATE)
+    }
+    val seenKeysPref = "seen_notification_keys_${CurrentUser.getUserId()}_$role"
+    val initializedPref = "notifications_initialized_${CurrentUser.getUserId()}_$role"
 
     var popupNotification by remember { mutableStateOf<NotificationItem?>(null) }
-    var knownKeys by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var hasCompletedInitialRefresh by remember { mutableStateOf(false) }
+    var knownKeys by remember(role) {
+        mutableStateOf(notificationPrefs.getStringSet(seenKeysPref, emptySet()).orEmpty())
+    }
+    var hasCompletedInitialRefresh by remember(role) {
+        mutableStateOf(notificationPrefs.getBoolean(initializedPref, false))
+    }
 
     LaunchedEffect(role) {
         while (true) {
-            val prefs = context.getSharedPreferences(
-                "notification_prefs",
-                android.content.Context.MODE_PRIVATE
-            )
+            val prefs = notificationPrefs
             val pushEnabled = prefs.getBoolean("push_notifications", true)
 
             if (pushEnabled && popupNotification == null) {
@@ -383,6 +389,10 @@ fun GlobalNotificationBanner(
                     }
                     knownKeys = knownKeys + currentKeys
                     hasCompletedInitialRefresh = true
+                    notificationPrefs.edit()
+                        .putStringSet(seenKeysPref, knownKeys)
+                        .putBoolean(initializedPref, true)
+                        .apply()
                 } catch (_: Exception) {
                     // A failed background refresh should not interrupt the current screen.
                 }

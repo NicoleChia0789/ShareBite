@@ -1,7 +1,13 @@
 package com.sharebite.app.ui.merchant
 
+import android.Manifest
+import android.app.Activity
+import android.content.pm.PackageManager
+import android.location.Geocoder
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -25,10 +31,14 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.sharebite.app.data.repository.UserRepository
 import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 import com.sharebite.app.ui.profile.ProfilePhotoPicker
+import com.sharebite.app.util.searchAddressSuggestions
+import com.sharebite.app.util.LocationUtils
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -41,6 +51,7 @@ fun MerchantEditProfileScreen(
     val userId = CurrentUser.getUserId()
     val userRepo = remember { UserRepository() }
     val scope = rememberCoroutineScope()
+    val locationUtils = remember { LocationUtils(context as Activity) }
 
     // 键盘控制
     val scrollState = rememberScrollState()
@@ -61,6 +72,54 @@ fun MerchantEditProfileScreen(
     var isLoading by rememberSaveable { mutableStateOf(true) }
     var isSaving by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var addressSuggestions by remember { mutableStateOf(emptyList<String>()) }
+    var showAddressSuggestions by rememberSaveable { mutableStateOf(false) }
+    var addressVerified by rememberSaveable { mutableStateOf(false) }
+    var addressLocationMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var showGpsPrompt by rememberSaveable { mutableStateOf(false) }
+    var hasLocationPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    fun detectBusinessAddress() {
+        scope.launch {
+            addressLocationMessage = "Detecting your address..."
+            if (!locationUtils.checkLocationSettings()) {
+                addressLocationMessage = "Please enable GPS and try again."
+                return@launch
+            }
+            val location = locationUtils.getCurrentLocation() ?: locationUtils.getLastKnownLocation()
+            if (location == null) {
+                addressLocationMessage = "Could not detect your address. Please try again."
+                return@launch
+            }
+            @Suppress("DEPRECATION")
+            val detectedAddress = Geocoder(context, java.util.Locale.ENGLISH)
+                .getFromLocation(location.latitude, location.longitude, 1)
+                ?.firstOrNull()
+                ?.getAddressLine(0)
+                ?.trim()
+            if (!detectedAddress.isNullOrBlank()) {
+                businessAddress = detectedAddress
+                addressVerified = true
+                showAddressSuggestions = false
+                addressSuggestions = emptyList()
+                addressLocationMessage = "Address detected from GPS."
+            } else {
+                addressLocationMessage = "Could not convert your location into an address."
+            }
+        }
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasLocationPermission = granted
+        if (granted) showGpsPrompt = true
+        else addressLocationMessage = "Location permission denied."
+    }
 
     // 验证错误状态
     var nameError by rememberSaveable { mutableStateOf<String?>(null) }
@@ -78,12 +137,22 @@ fun MerchantEditProfileScreen(
                 email = user.email.ifBlank { currentEmail }
                 phoneNumber = user.phone ?: ""
                 businessAddress = user.address ?: ""
+                addressVerified = true
                 avatarUrl = user.avatarUrl
             }
         } catch (e: Exception) {
             errorMessage = e.message
         } finally {
             isLoading = false
+        }
+    }
+
+    LaunchedEffect(businessAddress, showAddressSuggestions) {
+        if (!showAddressSuggestions || businessAddress.trim().length < 3) {
+            addressSuggestions = emptyList()
+        } else {
+            delay(400)
+            addressSuggestions = searchAddressSuggestions(context, businessAddress)
         }
     }
 
@@ -123,6 +192,7 @@ fun MerchantEditProfileScreen(
         addressError = when {
             businessAddress.isBlank() -> null
             businessAddress.length < 5 -> "Please enter a more complete address"
+            !addressVerified -> "Select a real address from the search results"
             else -> null
         }
         return addressError == null
@@ -268,33 +338,84 @@ fun MerchantEditProfileScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
-            value = businessAddress,
-            onValueChange = {
-                businessAddress = it
-                if (addressError != null) validateAddress()
-            },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Business Address", color = TextGrey) },
-            placeholder = { Text("123 Doughnut Lane, Breadville", color = TextGrey) },
-            shape = RoundedCornerShape(12.dp),
-            singleLine = true,
-            isError = addressError != null,
-            supportingText = {
-                if (addressError != null) {
-                    Text(addressError!!, color = RedCancelled)
-                }
-            },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = OrangeAccent,
-                unfocusedBorderColor = Color(0xFFDDC0B8),
-                focusedTextColor = TextDark,
-                unfocusedTextColor = TextDark,
-                focusedLabelColor = OrangeAccent,
-                errorBorderColor = RedCancelled,
-                errorLabelColor = RedCancelled
+        Column {
+            OutlinedTextField(
+                value = businessAddress,
+                onValueChange = {
+                    businessAddress = it
+                    addressVerified = false
+                    showAddressSuggestions = true
+                    if (addressError != null) validateAddress()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Business Address", color = TextGrey) },
+                placeholder = { Text("Search your business address", color = TextGrey) },
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true,
+                isError = addressError != null,
+                supportingText = {
+                    when {
+                        addressError != null -> Text(addressError!!, color = RedCancelled)
+                        !addressVerified && businessAddress.isNotBlank() -> Text(
+                            "Select a real address from the search results",
+                            color = OrangeAccent
+                        )
+                    }
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = OrangeAccent,
+                    unfocusedBorderColor = Color(0xFFDDC0B8),
+                    focusedTextColor = TextDark,
+                    unfocusedTextColor = TextDark,
+                    focusedLabelColor = OrangeAccent,
+                    errorBorderColor = RedCancelled,
+                    errorLabelColor = RedCancelled
+                )
             )
-        )
+            if (showAddressSuggestions && addressSuggestions.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Column {
+                        addressSuggestions.forEach { suggestion ->
+                            Text(
+                                text = suggestion,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        businessAddress = suggestion
+                                        addressVerified = true
+                                        showAddressSuggestions = false
+                                        addressSuggestions = emptyList()
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                color = TextDark,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+            }
+            TextButton(
+                onClick = {
+                    if (hasLocationPermission) showGpsPrompt = true
+                    else locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Use current GPS location", color = OrangeAccent)
+            }
+            addressLocationMessage?.let {
+                Text(
+                    text = it,
+                    color = if (it.contains("detected")) GreenConfirmed else OrangeAccent,
+                    fontSize = 12.sp
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -440,5 +561,22 @@ fun MerchantEditProfileScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+    }
+
+    if (showGpsPrompt) {
+        AlertDialog(
+            onDismissRequest = { showGpsPrompt = false },
+            title = { Text("Enable GPS?") },
+            text = { Text("Use your current location to fill in the business address.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showGpsPrompt = false
+                    detectBusinessAddress()
+                }) { Text("Enable") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showGpsPrompt = false }) { Text("Not now") }
+            }
+        )
     }
 }

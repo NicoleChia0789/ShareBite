@@ -39,6 +39,8 @@ import com.sharebite.app.ui.charity.quantityValue
 import com.sharebite.app.ui.charity.isQuantityValid
 import com.sharebite.app.ui.charity.foodCategoryOptions
 import com.sharebite.app.util.LocationUtils
+import com.sharebite.app.util.geocodeAddress
+import com.sharebite.app.data.session.CurrentUser
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -123,6 +125,22 @@ fun MerchantAddDonationScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val locationUtils = remember { LocationUtils(context as Activity) }
+
+    LaunchedEffect(Unit) {
+        if (!isEditMode && address.isBlank()) {
+            address = CurrentUser.user?.address.orEmpty()
+        }
+    }
+
+    LaunchedEffect(address) {
+        if (address.length >= 5 && latitude == null && longitude == null) {
+            val coordinates = geocodeAddress(context, address)
+            if (coordinates != null) {
+                latitude = coordinates.first
+                longitude = coordinates.second
+            }
+        }
+    }
     var locationMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var hasLocationPermission by remember {
         mutableStateOf(

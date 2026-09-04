@@ -29,6 +29,8 @@ import com.sharebite.app.data.repository.UserRepository
 import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 import com.sharebite.app.ui.profile.ProfilePhotoPicker
+import com.sharebite.app.util.searchAddressSuggestions
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -61,6 +63,9 @@ fun CharityEditProfileScreen(
     var isLoading by rememberSaveable { mutableStateOf(true) }
     var isSaving by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var addressSuggestions by remember { mutableStateOf(emptyList<String>()) }
+    var showAddressSuggestions by rememberSaveable { mutableStateOf(false) }
+    var addressVerified by rememberSaveable { mutableStateOf(false) }
 
     // 验证错误状态
     var nameError by rememberSaveable { mutableStateOf<String?>(null) }
@@ -78,12 +83,22 @@ fun CharityEditProfileScreen(
                 email = user.email.ifBlank { currentEmail }
                 phoneNumber = user.phone ?: ""
                 organisationAddress = user.address ?: ""
+                addressVerified = true
                 avatarUrl = user.avatarUrl
             }
         } catch (e: Exception) {
             errorMessage = e.message
         } finally {
             isLoading = false
+        }
+    }
+
+    LaunchedEffect(organisationAddress, showAddressSuggestions) {
+        if (!showAddressSuggestions || organisationAddress.trim().length < 3) {
+            addressSuggestions = emptyList()
+        } else {
+            delay(400)
+            addressSuggestions = searchAddressSuggestions(context, organisationAddress)
         }
     }
 
@@ -123,6 +138,7 @@ fun CharityEditProfileScreen(
         addressError = when {
             organisationAddress.isBlank() -> null
             organisationAddress.length < 5 -> "Please enter a more complete address"
+            !addressVerified -> "Select a real address from the search results"
             else -> null
         }
         return addressError == null
@@ -268,25 +284,60 @@ fun CharityEditProfileScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         // ✅ Organization Address - 使用 AppTextFieldDefaults
-        OutlinedTextField(
-            value = organisationAddress,
-            onValueChange = {
-                organisationAddress = it
-                if (addressError != null) validateAddress()
-            },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Organization Address") },
-            placeholder = { Text("123 Charity Lane, City, State, ZIP") },
-            shape = RoundedCornerShape(12.dp),
-            singleLine = true,
-            isError = addressError != null,
-            supportingText = {
-                if (addressError != null) {
-                    Text(addressError!!, color = RedCancelled)
+        Column {
+            OutlinedTextField(
+                value = organisationAddress,
+                onValueChange = {
+                    organisationAddress = it
+                    addressVerified = false
+                    showAddressSuggestions = true
+                    if (addressError != null) validateAddress()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Organization Address") },
+                placeholder = { Text("Search your organization address") },
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true,
+                isError = addressError != null,
+                supportingText = {
+                    when {
+                        addressError != null -> Text(addressError!!, color = RedCancelled)
+                        !addressVerified && organisationAddress.isNotBlank() -> Text(
+                            "Select a real address from the search results",
+                            color = OrangeAccent
+                        )
+                    }
+                },
+                colors = AppTextFieldDefaults.colors()
+            )
+            if (showAddressSuggestions && addressSuggestions.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Column {
+                        addressSuggestions.forEach { suggestion ->
+                            Text(
+                                text = suggestion,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        organisationAddress = suggestion
+                                        addressVerified = true
+                                        showAddressSuggestions = false
+                                        addressSuggestions = emptyList()
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                color = TextDark,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
                 }
-            },
-            colors = AppTextFieldDefaults.colors()
-        )
+            }
+        }
 
         Spacer(modifier = Modifier.height(12.dp))
 
