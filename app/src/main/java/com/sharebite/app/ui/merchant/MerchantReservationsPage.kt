@@ -26,7 +26,7 @@ import com.sharebite.app.ui.theme.*
 import kotlinx.coroutines.launch
 
 private enum class RecipientTab { ALL, CHARITIES, USERS }
-private enum class OrderStatusTab { ALL, PENDING, CONFIRMED, COMPLETED, CANCELLED }
+private enum class OrderStatusTab { ALL, PENDING, COMPLETED, CANCELLED }
 
 @Composable
 fun MerchantReservationsPage(
@@ -188,8 +188,7 @@ fun MerchantReservationsPage(
                                 pickupDate = request.pickupDate,
                                 pickupTime = request.pickupTime,
                                 onClick = {
-                                    if (pageStatus == OrderStatusTab.CONFIRMED) onPickupClick("req_${request.id}")
-                                    else onCharityClick(request.id)
+                                    onCharityClick(request.id)
                                 }
                             )
                         }
@@ -202,8 +201,7 @@ fun MerchantReservationsPage(
                                 pickupDate = reservation.pickupDate,
                                 pickupTime = reservation.pickupTime,
                                 onClick = {
-                                    if (pageStatus == OrderStatusTab.CONFIRMED) onPickupClick("res_${reservation.id}")
-                                    else onReservationClick(reservation.id)
+                                    onReservationClick(reservation.id)
                                 }
                             )
                         }
@@ -216,21 +214,13 @@ fun MerchantReservationsPage(
 
 private fun String.belongsTo(tab: OrderStatusTab): Boolean = when (tab) {
     OrderStatusTab.ALL -> true
-    OrderStatusTab.PENDING -> equals("Pending", true)
-    OrderStatusTab.CONFIRMED -> equals("Confirmed", true)
+    OrderStatusTab.PENDING -> equals("Pending", true) || equals("Confirmed", true)
     OrderStatusTab.COMPLETED -> equals("Completed", true)
     OrderStatusTab.CANCELLED -> equals("Cancelled", true) || equals("Declined", true)
 }
 
 private val OrderStatusTab.displayLabel: String
     get() = name.lowercase().replaceFirstChar { it.uppercase() }
-
-private val OrderStatusTab.actionLabel: String
-    get() = when (this) {
-        OrderStatusTab.PENDING -> "View details"
-        OrderStatusTab.CONFIRMED -> "View pickup"
-        OrderStatusTab.COMPLETED, OrderStatusTab.CANCELLED, OrderStatusTab.ALL -> "View details"
-    }
 
 @Composable
 private fun EmptyOrders(recipient: RecipientTab, status: OrderStatusTab) {
@@ -262,23 +252,22 @@ private fun MerchantOrderCard(
     pickupTime: String,
     onClick: () -> Unit
 ) {
+    val displayStatus = if (status.equals("Confirmed", true)) "Pending" else status
     val statusColor = when {
-        status.equals("Pending", true) -> Color(0xFFE65100)
-        status.equals("Confirmed", true) -> GreenConfirmed
-        status.equals("Completed", true) -> GreyCompleted
-        status.equals("Cancelled", true) || status.equals("Declined", true) -> RedCancelled
+        displayStatus.equals("Pending", true) -> Color(0xFFE65100)
+        displayStatus.equals("Completed", true) -> GreyCompleted
+        displayStatus.equals("Cancelled", true) || displayStatus.equals("Declined", true) -> RedCancelled
         else -> TextGrey
     }
     val statusBackground = when {
-        status.equals("Pending", true) -> Color(0xFFFFF3E0)
-        status.equals("Confirmed", true) -> Color(0xFFE8F5E9)
-        status.equals("Completed", true) -> Color(0xFFF5F5F5)
-        status.equals("Cancelled", true) || status.equals("Declined", true) -> Color(0xFFFFEBEE)
+        displayStatus.equals("Pending", true) -> Color(0xFFFFF3E0)
+        displayStatus.equals("Completed", true) -> Color(0xFFF5F5F5)
+        displayStatus.equals("Cancelled", true) || displayStatus.equals("Declined", true) -> Color(0xFFFFEBEE)
         else -> Color(0xFFF5F5F5)
     }
     val pickupHeadline = when {
-        status.equals("Completed", true) -> "COLLECTED ON $pickupDate"
-        status.equals("Cancelled", true) || status.equals("Declined", true) -> "CANCELLED"
+        displayStatus.equals("Completed", true) -> "COLLECTED ON $pickupDate"
+        displayStatus.equals("Cancelled", true) || displayStatus.equals("Declined", true) -> "CANCELLED"
         else -> "PICK UP ON $pickupDate"
     }
     Card(
@@ -296,7 +285,7 @@ private fun MerchantOrderCard(
                 Text(pickupHeadline, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = statusColor)
                 Surface(shape = RoundedCornerShape(20.dp), color = statusBackground) {
                     Text(
-                        status.uppercase(),
+                        displayStatus.uppercase(),
                         Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -310,6 +299,15 @@ private fun MerchantOrderCard(
             Text(recipientName, fontSize = 14.sp, color = TextGrey, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("$pickupDate · $pickupTime", fontSize = 13.sp, color = TextGrey)
             Text(sourceLabel, fontSize = 12.sp, color = TextGrey)
+            Spacer(Modifier.height(10.dp))
+            OutlinedButton(
+                onClick = onClick,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = OrangeAccent)
+            ) {
+                Text("View", fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

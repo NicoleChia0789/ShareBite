@@ -98,9 +98,17 @@ fun MerchantRequestDetailScreen(
             when {
                 request.status == "Pending" && !isGeneralRequest -> {
                     StatusNotice(
-                        text = "This listing request was confirmed automatically and is ready for pickup.",
-                        color = Color(0xFF2E7D32)
+                        text = "This request is pending pickup confirmation.",
+                        color = OrangeAccent
                     )
+                    Button(
+                        onClick = { viewModel.updateRequestStatus(request.id, "Completed") },
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                        shape = RoundedCornerShape(50)
+                    ) {
+                        Text("Mark as Picked Up", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
                     OutlinedButton(
                         onClick = { actionType = "decline"; cancellationReason = ""; showConfirmDialog = true },
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -114,7 +122,7 @@ fun MerchantRequestDetailScreen(
                         color = OrangeAccent
                     )
                     Button(
-                        onClick = { viewModel.updateRequestStatus(request.id, "Confirmed") },
+                        onClick = { viewModel.updateRequestStatus(request.id, "Completed") },
                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
                         shape = RoundedCornerShape(50)
@@ -337,9 +345,17 @@ fun MerchantReservationDetailScreen(
             when {
                 reservation.status == "Pending" -> {
                     StatusNotice(
-                        text = "This reservation is confirmed automatically and is ready for pickup.",
-                        color = Color(0xFF2E7D32)
+                        text = "This reservation is pending pickup confirmation.",
+                        color = OrangeAccent
                     )
+                    Button(
+                        onClick = { viewModel.updateReservationStatus(reservation.id, "Completed") },
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                        shape = RoundedCornerShape(50)
+                    ) {
+                        Text("Mark as Picked Up", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
                     OutlinedButton(
                         onClick = { actionType = "decline"; cancellationReason = ""; showConfirmDialog = true },
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
