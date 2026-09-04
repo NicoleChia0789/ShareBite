@@ -28,6 +28,10 @@ import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.repository.LoginRepository
 import com.sharebite.app.data.session.CurrentUser
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import android.widget.Toast
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.navigation.NavController
@@ -46,7 +50,11 @@ fun SignIn(
 ) {
     val context = LocalContext.current
     val authRepository = remember { LoginRepository() }
-    val coroutineScope = rememberCoroutineScope()
+    val loginJob = remember { SupervisorJob() }
+    val loginScope = remember { CoroutineScope(Dispatchers.Main.immediate + loginJob) }
+    DisposableEffect(Unit) {
+        onDispose { loginJob.cancel() }
+    }
 
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
@@ -213,7 +221,7 @@ fun SignIn(
                             }
                             isLoading = true
                             errorMessage = null
-                            coroutineScope.launch {
+                            loginScope.launch {
                                 try {
                                     val user = authRepository.login(email, password)
                                     CurrentUser.user = user

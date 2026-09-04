@@ -70,6 +70,7 @@ fun MerchantAddDonationScreen(
     var foodName by rememberSaveable { mutableStateOf("") }
     var category by rememberSaveable { mutableStateOf("") }
     var dietaryType by rememberSaveable { mutableStateOf("Regular") }
+    var description by rememberSaveable { mutableStateOf("") }
     var quantity by rememberSaveable { mutableStateOf("") }
     var photoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var existingPhotoUrl by rememberSaveable { mutableStateOf<String?>(null) }
@@ -83,6 +84,8 @@ fun MerchantAddDonationScreen(
 
     var prefilled by rememberSaveable { mutableStateOf(false) }
     var dateTimeError by rememberSaveable { mutableStateOf<String?>(null) }
+    var isGenerating by rememberSaveable { mutableStateOf(false) }
+    var aiError by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(pickupDate, pickupTime) {
         dateTimeError = when {
@@ -101,6 +104,7 @@ fun MerchantAddDonationScreen(
             foodName = existingListing.foodName
             category = existingListing.category
             dietaryType = existingListing.dietaryType ?: "Regular"
+            description = existingListing.description.orEmpty()
             quantity = filterQuantityInput(existingListing.totalQuantity.toString())
             pickupDate = existingListing.pickupDate
             pickupTime = existingListing.pickupTime.orEmpty()
@@ -158,7 +162,7 @@ fun MerchantAddDonationScreen(
                 if (address.isBlank()) {
                     address = "${location.latitude}, ${location.longitude}"
                 }
-                locationMessage = "Location added for distance detection."
+                locationMessage = "Location added."
             } else {
                 locationMessage = "Could not detect location. Please enable GPS and try again."
             }
@@ -199,11 +203,38 @@ fun MerchantAddDonationScreen(
                     onCategoryChange = { category = it },
                     dietaryType = dietaryType,
                     onDietaryTypeChange = { dietaryType = it },
+                    description = description,
+                    onDescriptionChange = { description = it },
                     quantity = quantity,
                     onQuantityChange = { quantity = filterQuantityInput(it) },
                     photoUri = photoUri,
                     existingPhotoUrl = existingPhotoUrl,
-                    onPickImage = { imagePicker.launch("image/*") }
+                    onPickImage = { imagePicker.launch("image/*") },
+                    onGenerate = {
+                        val selectedPhoto = photoUri
+                        if (selectedPhoto == null) {
+                            aiError = "Add a food photo first."
+                        } else {
+                            isGenerating = true
+                            aiError = null
+                            viewModel.generateListingDetails(
+                                photoUri = selectedPhoto,
+                                onSuccess = { suggestion ->
+                                    foodName = suggestion.foodName
+                                    description = suggestion.description
+                                    category = suggestion.category
+                                    dietaryType = suggestion.dietaryType
+                                    isGenerating = false
+                                },
+                                onError = {
+                                    aiError = it
+                                    isGenerating = false
+                                }
+                            )
+                        }
+                    },
+                    isGenerating = isGenerating,
+                    aiError = aiError
                 )
                 1 -> StepPickup(
                     pickupDate = pickupDate,
@@ -258,6 +289,7 @@ fun MerchantAddDonationScreen(
                     pickupDate = pickupDate,
                     pickupTime = pickupTime,
                     notes = notes,
+                    description = description,
                     photoUri = photoUri,
                     existingPhotoUrl = existingPhotoUrl,
                     address = address
@@ -302,6 +334,7 @@ fun MerchantAddDonationScreen(
                                     existingPhotoUrl = existingPhotoUrl,
                                     pickupDate = pickupDate,
                                     pickupTime = pickupTime,
+                                    description = description.ifBlank { null },
                                     notes = notes.ifBlank { null },
                                     address = address.ifBlank { null },
                                     latitude = latitude,
@@ -317,6 +350,7 @@ fun MerchantAddDonationScreen(
                                     photoUri = photoUri,
                                     pickupDate = pickupDate,
                                     pickupTime = pickupTime,
+                                    description = description.ifBlank { null },
                                     notes = notes.ifBlank { null },
                                     address = address.ifBlank { null },
                                     latitude = latitude,
@@ -406,11 +440,16 @@ private fun StepDetails(
     onCategoryChange: (String) -> Unit,
     dietaryType: String,
     onDietaryTypeChange: (String) -> Unit,
+    description: String,
+    onDescriptionChange: (String) -> Unit,
     quantity: String,
     onQuantityChange: (String) -> Unit,
     photoUri: Uri?,
     existingPhotoUrl: String?,
-    onPickImage: () -> Unit
+    onPickImage: () -> Unit,
+    onGenerate: () -> Unit,
+    isGenerating: Boolean,
+    aiError: String?
 ) {
     Column {
         Text("Food Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -424,6 +463,18 @@ private fun StepDetails(
             colors = AppTextFieldDefaults.colors(),
             shape = RoundedCornerShape(12.dp),
             singleLine = true
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        OutlinedTextField(
+            value = description,
+            onValueChange = onDescriptionChange,
+            label = { Text("Description") },
+            placeholder = { Text("Describe the donated food") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = AppTextFieldDefaults.colors(),
+            shape = RoundedCornerShape(12.dp),
+            minLines = 2,
+            maxLines = 4
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text("Category", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
@@ -494,6 +545,24 @@ private fun StepDetails(
                 }
             }
         }
+        Spacer(modifier = Modifier.height(10.dp))
+        Button(
+            onClick = onGenerate,
+            enabled = !isGenerating,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            if (isGenerating) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text("Generating...")
+            } else {
+                Text("Generate details with AI")
+            }
+        }
+        if (aiError != null) {
+            Text(aiError, color = RedCancelled, style = MaterialTheme.typography.bodySmall)
+        }
     }
 }
 
@@ -553,12 +622,6 @@ private fun StepPickup(
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
-        TextButton(onClick = onUseCurrentLocation, modifier = Modifier.fillMaxWidth()) {
-            Text("Use current GPS location")
-        }
-        if (locationMessage != null) {
-            Text(locationMessage, fontSize = 12.sp, color = Color.Gray)
-        }
         Spacer(modifier = Modifier.height(12.dp))
         OutlinedTextField(
             value = notes,
@@ -578,6 +641,7 @@ private fun StepReview(
     foodName: String,
     category: String,
     dietaryType: String,
+    description: String,
     quantity: String,
     pickupDate: String,
     pickupTime: String,
@@ -609,6 +673,7 @@ private fun StepReview(
                     Spacer(modifier = Modifier.height(12.dp))
                 }
                 ReviewRow("Food Name", foodName)
+                ReviewRow("Description", description)
                 ReviewRow("Category", category)
                 ReviewRow("Dietary Needs", dietaryType)
                 ReviewRow("Quantity", quantity)

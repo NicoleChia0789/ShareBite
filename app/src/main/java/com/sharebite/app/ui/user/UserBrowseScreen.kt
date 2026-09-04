@@ -1,10 +1,5 @@
 package com.sharebite.app.ui.user
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.location.Location
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -35,9 +30,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -47,9 +39,6 @@ import com.google.maps.android.compose.*
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.ui.theme.*
-import com.sharebite.app.util.LocationUtils
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -58,7 +47,7 @@ import java.util.*
 private data class FilterState(
     val categories: Set<String> = emptySet(),
     val dietaryTypes: Set<String> = emptySet(),
-    val sortBy: String = "distance"
+    val sortBy: String = "expiry"
 )
 
 // ✅ FilterState 的 Saver（用于 rememberSaveable）
@@ -74,7 +63,7 @@ private val FilterStateSaver = Saver<FilterState, Map<String, Any>>(
         FilterState(
             categories = (it["categories"] as? List<String>)?.toSet() ?: emptySet(),
             dietaryTypes = (it["dietaryTypes"] as? List<String>)?.toSet() ?: emptySet(),
-            sortBy = it["sortBy"] as? String ?: "distance"
+            sortBy = it["sortBy"] as? String ?: "expiry"
         )
     }
 )
@@ -88,94 +77,10 @@ fun UserBrowseScreen(
     paddingValues: PaddingValues,
     onFoodClick: (Long) -> Unit
 ) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val repository = remember { FoodListingRepository() }
     val configuration = LocalConfiguration.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-
-    // ── 位置相关 ──
-    val locationUtils = remember { LocationUtils(context as android.app.Activity) }
-    var userLocation by remember { mutableStateOf<Location?>(null) }
-    var isLocationLoading by remember { mutableStateOf(false) }
-    var locationError by remember { mutableStateOf<String?>(null) }
-    var isGettingLocation by remember { mutableStateOf(false) }
-    var hasLocationPermission by remember {
-        mutableStateOf(locationUtils.hasLocationPermission())
-    }
-    var awaitingGpsResolution by rememberSaveable { mutableStateOf(false) }
-
-    fun fetchLocation() {
-        if (isGettingLocation) return
-        isGettingLocation = true
-        scope.launch {
-            try {
-                isLocationLoading = true
-                locationError = null
-
-                val settingsOk = locationUtils.checkLocationSettings()
-                if (!settingsOk) {
-                    // LocationUtils launches Android's native GPS settings prompt.
-                    // Retry after the user returns from that prompt.
-                    awaitingGpsResolution = true
-                    locationError = null
-                    isLocationLoading = false
-                    isGettingLocation = false
-                    return@launch
-                }
-
-                userLocation = locationUtils.getCurrentLocation()
-                if (userLocation == null) {
-                    userLocation = locationUtils.getLastKnownLocation()
-                }
-                if (userLocation == null) {
-                    locationError = "Cannot get your location. Please try again."
-                } else {
-                    locationError = null
-                }
-            } catch (e: Exception) {
-                locationError = "Location error: ${e.message}"
-            } finally {
-                isLocationLoading = false
-                isGettingLocation = false
-            }
-        }
-    }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        hasLocationPermission = isGranted  // ✅ 更新权限状态
-        if (isGranted) {
-            fetchLocation()
-        } else {
-            locationError = null
-        }
-    }
-
-    fun requestLocation() {
-        if (locationUtils.hasLocationPermission()) {
-            fetchLocation()
-        } else {
-            permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-        }
-    }
-
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME && awaitingGpsResolution) {
-                awaitingGpsResolution = false
-                scope.launch {
-                    delay(500)
-                    fetchLocation()
-                }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
 
     // ── 列表状态（✅ 全部使用 rememberSaveable） ──
     var allListings by remember { mutableStateOf<List<FoodListing>>(emptyList()) }
@@ -221,21 +126,11 @@ fun UserBrowseScreen(
         }
     }
 
-    // ── 2️⃣ 权限和位置（只执行一次） ──
-    LaunchedEffect(Unit) {
-        if (locationUtils.hasLocationPermission()) {
-            fetchLocation()
-        } else {
-            permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-        }
-    }
-
     // ── 3️⃣ 过滤逻辑（✅ 使用 remember 缓存，避免重复计算） ──
     val filteredListings = remember(
-        searchQuery, selectedCategory, filterState, allListings, userLocation
+        searchQuery, selectedCategory, filterState, allListings
     ) {
         val baseListings = allListings
-        val currentLocation = userLocation
 
         // 1. 过滤过期食物
         val validListings = baseListings.filter { listing ->
@@ -261,26 +156,10 @@ fun UserBrowseScreen(
             filteredBySearchAndCategory
         }
 
-        // 4. 动态计算距离
-        val listingsWithDistance = filteredByDietary.map { listing ->
-            val distance = if (currentLocation != null && listing.latitude != null && listing.longitude != null) {
-                locationUtils.calculateDistance(
-                    currentLocation.latitude.toDouble(),
-                    currentLocation.longitude.toDouble(),
-                    listing.latitude.toDouble(),
-                    listing.longitude.toDouble()
-                )
-            } else {
-                listing.distanceKm
-            }
-            listing.copy(distanceKm = distance)
-        }
-
-        // 5. 排序
+        // 4. Sort
         when (filterState.sortBy) {
-            "distance" -> listingsWithDistance.sortedBy { it.distanceKm }
-            "expiry" -> listingsWithDistance.sortedBy { it.deadline }
-            else -> listingsWithDistance
+            "expiry" -> filteredByDietary.sortedBy { it.deadline }
+            else -> filteredByDietary
         }
     }
 
@@ -332,20 +211,6 @@ fun UserBrowseScreen(
                         FilterChip(selected = isListView, onClick = { isListView = true }, label = { Text("List") }, modifier = Modifier.weight(1f))
                         FilterChip(selected = !isListView, onClick = { isListView = false }, label = { Text("Map") }, modifier = Modifier.weight(1f))
                     }
-                    OutlinedButton(
-                        onClick = { requestLocation() },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(21.dp)
-                    ) {
-                        Icon(Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Use GPS to calculate distance")
-                    }
-                    Text(
-                        text = if (userLocation == null) "Current location: Not detected" else "Current location: Detected",
-                        fontSize = 12.sp,
-                        color = if (userLocation == null) TextGrey else GreenConfirmed
-                    )
                     if (categories.isNotEmpty()) {
                         Text("Category", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextGrey)
                         LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -375,34 +240,6 @@ fun UserBrowseScreen(
             modifier = if (configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) Modifier.weight(1f).fillMaxHeight() else Modifier.fillMaxWidth()
         ) {
         if (configuration.orientation != android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
-            // ── 位置状态 ──
-            if (isLocationLoading) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = OrangeAccent)
-                    Text("Getting your location...", fontSize = 12.sp, color = TextGrey)
-                }
-            }
-            Text(
-                text = if (userLocation == null) "Current location: Not detected" else "Current location: Detected",
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                fontSize = 12.sp,
-                color = if (userLocation == null) TextGrey else GreenConfirmed
-            )
-            TextButton(
-                onClick = { requestLocation() },
-                modifier = Modifier.padding(horizontal = 16.dp)
-            ) {
-                Icon(Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("Use GPS to calculate distance")
-            }
-
             // ── Search Bar + Filter ──
             Row(
                 modifier = Modifier
@@ -574,10 +411,9 @@ fun UserBrowseScreen(
                         ) listing else null
                     }
 
-                        LaunchedEffect(filteredListings, userLocation) {
+                        LaunchedEffect(filteredListings) {
                             try {
                             val mapPoints = buildList {
-                                userLocation?.let { add(LatLng(it.latitude, it.longitude)) }
                                 locations.forEach { add(LatLng(it.latitude!!, it.longitude!!)) }
                             }
                             when {
@@ -587,15 +423,6 @@ fun UserBrowseScreen(
                                     }.build()
                                     cameraPositionState.animate(
                                         CameraUpdateFactory.newLatLngBounds(bounds, 96),
-                                        500
-                                    )
-                                }
-                                userLocation != null -> {
-                                    cameraPositionState.animate(
-                                        CameraUpdateFactory.newLatLngZoom(
-                                            LatLng(userLocation!!.latitude, userLocation!!.longitude),
-                                            14f
-                                        ),
                                         500
                                     )
                                 }
@@ -626,7 +453,7 @@ fun UserBrowseScreen(
                             myLocationButtonEnabled = false
                         ),
                         properties = MapProperties(
-                            isMyLocationEnabled = hasLocationPermission  // ✅ 根据权限状态动态设置
+                            isMyLocationEnabled = false
                         )
                     ) {
                         locations.forEach { listing ->
@@ -634,7 +461,7 @@ fun UserBrowseScreen(
                             Marker(
                                 state = MarkerState(position = location),
                                 title = listing.foodName,
-                                snippet = "${listing.merchantName} · ${formatDistance(listing.distanceKm)}",
+                                snippet = listing.merchantName,
                                 onClick = {
                                     onFoodClick(listing.id)
                                     true
@@ -677,27 +504,6 @@ fun UserBrowseScreen(
             }
         }
 
-        // ── FAB 定位按钮 ──
-        if (!isListView) {
-            FloatingActionButton(
-                onClick = {
-                    requestLocation()
-                },
-                modifier = Modifier
-                    .padding(16.dp)
-                    .size(56.dp),
-                containerColor = Color.White,
-                contentColor = OrangeAccent,
-                shape = RoundedCornerShape(50),
-                elevation = FloatingActionButtonDefaults.elevation(4.dp)
-            ) {
-                Icon(
-                    imageVector = if (userLocation != null) Icons.Default.MyLocation else Icons.Default.GpsNotFixed,
-                    contentDescription = "My Location",
-                    tint = OrangeAccent
-                )
-            }
-        }
         }
     }
 
@@ -869,12 +675,6 @@ private fun FilterBottomSheet(
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            SortOption(
-                label = "Distance (Closest)",
-                description = "Show items nearest to your location first",
-                isSelected = localFilterState.sortBy == "distance",
-                onClick = { localFilterState = localFilterState.copy(sortBy = "distance") }
-            )
             SortOption(
                 label = "Expiry (Soonest)",
                 description = "Prioritize items that need to be rescued quickly",
@@ -1104,13 +904,6 @@ private fun BrowseFoodCard(
                     }
 
                     Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = formatDistance(listing.distanceKm),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = if (isExpired) TextGrey else OrangeAccent
-                        )
-
                         when {
                             daysRemaining >= 1 -> {
                                 Text(
@@ -1202,6 +995,3 @@ private fun isListingExpired(deadline: String): Boolean {
 }
 
 // ── 辅助函数：格式化距离 ──
-private fun formatDistance(distance: Double): String {
-    return String.format(Locale.US, "%.1f km", distance)
-}

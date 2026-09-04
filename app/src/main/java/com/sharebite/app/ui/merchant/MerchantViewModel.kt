@@ -9,6 +9,8 @@ import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.model.UserSummary
 import com.sharebite.app.data.remote.SupabaseClient
+import com.sharebite.app.data.remote.GeminiListingService
+import com.sharebite.app.data.remote.ListingSuggestion
 import com.sharebite.app.data.repository.ImpactStats
 import com.sharebite.app.data.repository.MerchantRepository
 import com.sharebite.app.data.session.CurrentUser
@@ -25,6 +27,26 @@ import java.util.Locale
 class MerchantViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = MerchantRepository()
+    private val geminiListingService = GeminiListingService()
+
+    fun generateListingDetails(
+        photoUri: Uri,
+        onSuccess: (ListingSuggestion) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val bytes = withContext(Dispatchers.IO) {
+                    getApplication<Application>().contentResolver
+                        .openInputStream(photoUri)
+                        ?.use { it.readBytes() }
+                } ?: throw IllegalStateException("Unable to read the selected photo")
+                onSuccess(geminiListingService.generate(bytes))
+            } catch (e: Exception) {
+                onError(e.message ?: "Unable to generate listing details")
+            }
+        }
+    }
 
     // ============================================================
     // Listings
@@ -237,6 +259,7 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
         photoUri: Uri?,
         pickupDate: String?,
         pickupTime: String?,
+        description: String?,
         notes: String?,
         address: String?,
         latitude: Double?,
@@ -294,7 +317,7 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
                     pickupDate = pickupDate,
                     pickupTime = pickupTime,
                     notes = notes,
-                    description = null,
+                    description = description,
                     address = address,
                     distanceKm = 0.0,
                     dietaryType = dietaryType,
@@ -376,6 +399,7 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
         existingPhotoUrl: String?,
         pickupDate: String?,
         pickupTime: String?,
+        description: String?,
         notes: String?,
         address: String?,
         latitude: Double?,
@@ -441,6 +465,7 @@ class MerchantViewModel(application: Application) : AndroidViewModel(application
 
                     pickupDate = pickupDate,
                     pickupTime = pickupTime,
+                    description = description,
 
                     notes = notes,
 

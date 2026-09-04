@@ -11,3 +11,10 @@ Status: complete
 
 ## Phase 4 - Verify and record results
 Status: complete
+
+## Phase 5 - Add Gemini listing assistant
+Status: in_progress
+
+- Add a Supabase Edge Function that reads `gemini_api_key` and returns structured English listing suggestions from a food image. Status: complete.
+- Add a Merchant Add Donation action that sends the selected image and fills the existing listing fields. Status: complete.
+- Compile the Android project and document the one-time Edge Function deployment step. Android compile: complete; deployment: pending.

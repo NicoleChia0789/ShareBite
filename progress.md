@@ -10,3 +10,4 @@
 - Removed SplashScreen from the app flow while keeping Choose Role for registration.
 - Confirmed Merchant dashboard My Listings cards are clickable and added previous-value initialization for Edit Request date/time pickers.
 - Searched user-visible text for Chinese characters; remaining matches are comments/debug labels only.
+- Added Gemini listing assistant Edge Function and Android service. Add Donation now generates English food name, description, category, and dietary type from the selected photo; Android compile passed. Supabase function still needs deployment before end-to-end testing.

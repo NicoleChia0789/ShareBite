@@ -9,9 +9,12 @@ import io.github.jan.supabase.storage.Storage
 
 object SupabaseClient {
 
+    const val url = "https://hhmdaejxdnjdtjmicvpx.supabase.co"
+    const val publishableKey = "sb_publishable_nvP6EyqHfZ71GSOVnFSYjg_AQyG_0Jc"
+
     val client = createSupabaseClient(
-        supabaseUrl = "https://hhmdaejxdnjdtjmicvpx.supabase.co",
-        supabaseKey = "sb_publishable_nvP6EyqHfZ71GSOVnFSYjg_AQyG_0Jc"
+        supabaseUrl = url,
+        supabaseKey = publishableKey
     ) {
         install(Postgrest)
         install(Storage)

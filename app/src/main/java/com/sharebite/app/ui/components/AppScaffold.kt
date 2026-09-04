@@ -6,8 +6,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,8 +29,6 @@ fun AppScaffold(
     showBackButton: Boolean = false,
     onBackClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
-    darkMode: Boolean = false,
-    onToggleDarkMode: () -> Unit = {},
     role: String = "user", // ✅ 新增 role 参数
     content: @Composable (PaddingValues) -> Unit
 ) {
@@ -48,12 +44,6 @@ fun AppScaffold(
             },
             actions = {
                 if (!showBackButton) {
-                    IconButton(onClick = onToggleDarkMode) {
-                        Icon(
-                            imageVector = if (darkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
-                            contentDescription = if (darkMode) "Switch to light mode" else "Switch to dark mode"
-                        )
-                    }
                     IconButton(onClick = onNotificationClick) {
                         Icon(Icons.Default.Notifications, contentDescription = "Notifications")
                     }

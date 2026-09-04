@@ -399,15 +399,6 @@ fun MerchantEditProfileScreen(
                     }
                 }
             }
-            TextButton(
-                onClick = {
-                    if (hasLocationPermission) showGpsPrompt = true
-                    else locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Use current GPS location", color = OrangeAccent)
-            }
             addressLocationMessage?.let {
                 Text(
                     text = it,
@@ -563,20 +554,4 @@ fun MerchantEditProfileScreen(
         Spacer(modifier = Modifier.height(24.dp))
     }
 
-    if (showGpsPrompt) {
-        AlertDialog(
-            onDismissRequest = { showGpsPrompt = false },
-            title = { Text("Enable GPS?") },
-            text = { Text("Use your current location to fill in the business address.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showGpsPrompt = false
-                    detectBusinessAddress()
-                }) { Text("Enable") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showGpsPrompt = false }) { Text("Not now") }
-            }
-        )
-    }
 }

@@ -329,6 +329,7 @@ class MerchantRepository {
         photoUrl: String?,
         pickupDate: String?,
         pickupTime: String?,
+        description: String?,
         notes: String?,
         address: String?,
         dietaryType: String?,
@@ -348,6 +349,7 @@ class MerchantRepository {
                 set("pickup_date", pickupDate)
                 set("pickup_time", pickupTime)
                 set("deadline", if (pickupDate != null && pickupTime != null) "$pickupDate $pickupTime" else null)
+                set("description", description)
                 set("notes", notes)
                 set("address", address)
                 set("dietary_type", dietaryType)

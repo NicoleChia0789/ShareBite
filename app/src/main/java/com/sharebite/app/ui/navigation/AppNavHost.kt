@@ -36,8 +36,6 @@ import kotlinx.coroutines.launch
 @Composable
 fun AppNavHost(
     role: String,
-    darkMode: Boolean = false,
-    onToggleDarkMode: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     val navController = rememberNavController()
@@ -189,8 +187,6 @@ fun AppNavHost(
             onBackClick = { navController.popBackStack() },
             onNotificationClick = { navController.navigate(NotificationsRoute.route) },
             onLogoutClick = requestLogout,
-            darkMode = darkMode,
-            onToggleDarkMode = onToggleDarkMode,
             role = role, // 传递角色
         ) { paddingValues ->
             NavHost(

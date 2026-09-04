@@ -53,7 +53,6 @@ fun ShareBiteApp() {
     var showForgotPassword by rememberSaveable { mutableStateOf(false) }
     var showResetPassword by rememberSaveable { mutableStateOf(false) }
     var resetEmail by rememberSaveable { mutableStateOf("") }
-    var darkMode by rememberSaveable { mutableStateOf(false) }
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -65,7 +64,7 @@ fun ShareBiteApp() {
         userRole = CurrentUser.user?.role ?: ""
     }
 
-    ShareBiteTheme(darkTheme = darkMode) {
+    ShareBiteTheme {
         when {
             showResetPassword -> {
                 ResetPasswordScreen(
@@ -111,8 +110,6 @@ fun ShareBiteApp() {
             isAuthenticated && userRole.isNotEmpty() -> {
                 AppNavHost(
                     role = userRole,
-                    darkMode = darkMode,
-                    onToggleDarkMode = { darkMode = !darkMode },
                     onLogout = {
                         CurrentUser.logout()
                         isAuthenticated = false

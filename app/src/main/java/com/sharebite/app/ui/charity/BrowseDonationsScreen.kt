@@ -262,17 +262,6 @@ private fun FoodListingCard(listing: FoodListing, onCardClick: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.LocationOn,
-                        contentDescription = null,
-                        tint = TextGrey,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("${listing.distanceKm}km", fontSize = 12.sp, color = TextGrey)
-                }
-
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(

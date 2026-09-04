@@ -182,23 +182,6 @@ fun FoodDetailScreen(
                                 )
                             }
 
-                            // ---------- 右上角：距离 ----------
-                            Surface(
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(8.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                color = Color.White.copy(alpha = 0.92f)
-                            ) {
-                                Text(
-                                    "${String.format("%.1f", data.distanceKm)} km",
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = OrangeAccent
-                                )
-                            }
-
                             // ---------- 左下角：导航按钮 ----------
                             Surface(
                                 modifier = Modifier
@@ -250,9 +233,8 @@ fun FoodDetailScreen(
                                 }
                                 Spacer(modifier = Modifier.height(14.dp))
                                 Row(modifier = Modifier.fillMaxWidth()) {
-                                    DetailStat(label = "Distance", value = "${String.format("%.1f", data.distanceKm)} km", modifier = Modifier.weight(1f))
                                     Row(
-                                        modifier = Modifier.weight(1f),
+                                        modifier = Modifier.fillMaxWidth(),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Icon(
