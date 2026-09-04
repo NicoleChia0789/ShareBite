@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -62,7 +64,8 @@ fun UserMyReservationsScreen(
 
     var cancelTargetId by remember { mutableStateOf<Long?>(null) }
 
-    val statuses = listOf("All", "Pending", "Confirmed", "Completed", "Cancelled")
+    val statuses = listOf("All", "Confirmed", "Completed", "Cancelled")
+    val pagerState = rememberPagerState(pageCount = { statuses.size })
 
     suspend fun loadReservations() {
         try {
@@ -92,12 +95,91 @@ fun UserMyReservationsScreen(
         filteredReservations = filtered.sortedBy { getStatusPriority(it.status) }
     }
 
-    Column(
+    LaunchedEffect(pagerState.currentPage) {
+        selectedStatus = if (pagerState.currentPage == 0) null else statuses[pagerState.currentPage]
+    }
+
+    @Composable
+    fun ReservationCardsPager(modifier: Modifier) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = modifier.fillMaxWidth()
+        ) { page ->
+            val pageStatus = statuses[page]
+            val pageReservations = allReservations
+                .filter {
+                    pageStatus == "All" ||
+                        (pageStatus == "Confirmed" && (it.status == "Confirmed" || it.status == "Pending")) ||
+                        it.status == pageStatus
+                }
+                .sortedBy { getStatusPriority(it.status) }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(pageReservations, key = { it.id }) { reservation ->
+                    ReservationCard(
+                        reservation = reservation,
+                        onViewClick = { onViewClick(reservation.id) },
+                        onCancelClick = { cancelTargetId = reservation.id },
+                        onDirectionsClick = {
+                            coroutineScope.launch {
+                                try {
+                                    val listing = listingRepository.getListingById(reservation.listingId)
+                                    val uri = if (listing.latitude != null && listing.longitude != null) {
+                                        android.net.Uri.parse("geo:${listing.latitude},${listing.longitude}?q=${listing.latitude},${listing.longitude}(${android.net.Uri.encode(listing.merchantName)})")
+                                    } else {
+                                        android.net.Uri.parse("geo:0,0?q=${android.net.Uri.encode(listing.address)}")
+                                    }
+                                    context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, uri))
+                                } catch (_: Exception) {
+                                }
+                            }
+                        },
+                        onReserveAgain = { onReserveAgain(reservation.listingId) },
+                        locale = locale
+                    )
+                }
+            }
+        }
+    }
+
+    Row(
         modifier = Modifier
             .fillMaxSize()
             .background(BgCream)
             .padding(paddingValues)
     ) {
+        if (configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
+            Column(
+                modifier = Modifier.width(270.dp).fillMaxHeight().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("Track and manage your community food pickups.", fontSize = 13.sp, color = TextGrey)
+                Text("Status", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextGrey)
+                LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(statuses) { status ->
+                        FilterChip(
+                            onClick = {
+                                selectedStatus = if (status == "All") null else status
+                                coroutineScope.launch { pagerState.animateScrollToPage(statuses.indexOf(status)) }
+                            },
+                            label = { Text(status) },
+                            selected = if (status == "All") selectedStatus == null else selectedStatus == status,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = OrangeAccent, selectedLabelColor = Color.White)
+                        )
+            }
+        }
+    }
+        }
+        Column(
+            modifier = if (configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
+                Modifier.weight(1f).fillMaxHeight()
+            } else Modifier.fillMaxWidth()
+        ) {
+        if (configuration.orientation != android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Text(
                 text = "My Reservations",
@@ -125,6 +207,7 @@ fun UserMyReservationsScreen(
                 FilterChip(
                     onClick = {
                         selectedStatus = if (status == "All") null else status
+                        coroutineScope.launch { pagerState.animateScrollToPage(statuses.indexOf(status)) }
                     },
                     label = { Text(text = status, fontSize = 13.sp) },
                     selected = isSelected,
@@ -190,40 +273,23 @@ fun UserMyReservationsScreen(
                 }
             }
 
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(
-                    items = filteredReservations,
-                    key = { it.id }
-                ) { reservation ->
-                    ReservationCard(
-                        reservation = reservation,
-                        onViewClick = { onViewClick(reservation.id) },
-                        onEditClick = { onEditReservation(reservation.listingId, reservation.id) },
-                        onCancelClick = { cancelTargetId = reservation.id },
-                        onDirectionsClick = {
-                            coroutineScope.launch {
-                                try {
-                                    val listing = listingRepository.getListingById(reservation.listingId)
-                                    val uri = if (listing.latitude != null && listing.longitude != null) {
-                                        android.net.Uri.parse("geo:${listing.latitude},${listing.longitude}?q=${listing.latitude},${listing.longitude}(${android.net.Uri.encode(listing.merchantName)})")
-                                    } else {
-                                        android.net.Uri.parse("geo:0,0?q=${android.net.Uri.encode(listing.address)}")
-                                    }
-                                    context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, uri))
-                                } catch (_: Exception) {
-                                }
-                            }
-                        },
-                        onReserveAgain = { onReserveAgain(reservation.listingId) },
-                        locale = locale
-                    )
+            else -> ReservationCardsPager(Modifier.weight(1f))
+        }
+        } else {
+            when {
+                isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    CircularProgressIndicator(color = OrangeAccent)
                 }
+                errorMessage != null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    Text(text = "Error: $errorMessage", color = RedCancelled)
+                }
+                filteredReservations.isEmpty() -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    Text("No reservations yet", color = TextGrey)
+                }
+                else -> ReservationCardsPager(Modifier.weight(1f))
             }
         }
+    }
     }
 
     cancelTargetId?.let { targetId ->
@@ -264,14 +330,13 @@ fun UserMyReservationsScreen(
 private fun ReservationCard(
     reservation: Reservation,
     onViewClick: () -> Unit,
-    onEditClick: () -> Unit,
     onCancelClick: () -> Unit,
     onDirectionsClick: () -> Unit,
     onReserveAgain: () -> Unit,
     locale: Locale
 ) {
-    val isPending = reservation.status == "Pending"
-    val isConfirmed = reservation.status == "Confirmed"
+    val isPending = false
+    val isConfirmed = reservation.status == "Confirmed" || reservation.status == "Pending"
     val isCompleted = reservation.status == "Completed"
     val isCancelled = reservation.status == "Cancelled"
 
@@ -332,7 +397,7 @@ private fun ReservationCard(
                     color = statusBg
                 ) {
                     Text(
-                        text = reservation.status.uppercase(),
+                        text = if (isConfirmed) "CONFIRMED" else reservation.status.uppercase(),
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -382,12 +447,6 @@ private fun ReservationCard(
                             Text("View", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = OrangeAccent)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(
-                                onClick = onEditClick,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = GreenConfirmed)
-                            }
                             IconButton(onClick = onCancelClick, modifier = Modifier.size(40.dp)) {
                                 Icon(Icons.Default.Delete, contentDescription = "Cancel", tint = RedCancelled)
                             }
@@ -460,8 +519,8 @@ private fun ReservationCard(
                 }
             }
         }
+        }
     }
-}
 
 private fun formatUserShortDate(dateStr: String): String {
     return try {

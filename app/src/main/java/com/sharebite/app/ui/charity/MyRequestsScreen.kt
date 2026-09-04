@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -29,11 +31,20 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import com.sharebite.app.data.repository.FoodListingRepository
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material.icons.filled.Add
 
 private val statusTabs = listOf("All", "Pending", "Confirmed", "Completed", "Cancelled")
+
+private fun charityStatusPriority(status: String): Int = when (status) {
+    "Pending" -> 0
+    "Confirmed" -> 1
+    "Completed" -> 2
+    "Cancelled" -> 3
+    else -> 99
+}
 
 @Composable
 fun MyRequestsScreen(
@@ -48,12 +59,23 @@ fun MyRequestsScreen(
     val repository = remember { CharityRepository() }
     val listingRepository = remember { FoodListingRepository() }
     val context = LocalContext.current
+    val isLandscape = LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val coroutineScope = rememberCoroutineScope()
 
     var allRequests by remember { mutableStateOf<List<CharityRequest>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var selectedStatus by rememberSaveable(initialStatus) { mutableStateOf(initialStatus ?: "All") }
+    val initialStatusIndex = remember(initialStatus) {
+        statusTabs.indexOfFirst { it.equals(initialStatus, ignoreCase = true) }
+            .takeIf { it >= 0 } ?: 0
+    }
+    var selectedStatus by rememberSaveable(initialStatus) {
+        mutableStateOf(statusTabs[initialStatusIndex])
+    }
+    val pagerState = rememberPagerState(
+        initialPage = initialStatusIndex,
+        pageCount = { statusTabs.size }
+    )
     var withdrawTargetId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     suspend fun loadRequests() {
@@ -70,19 +92,48 @@ fun MyRequestsScreen(
         loadRequests()
     }
 
+    LaunchedEffect(pagerState.currentPage) {
+        selectedStatus = statusTabs[pagerState.currentPage]
+    }
+
     val filteredRequests = if (selectedStatus == "All") {
-        allRequests
+        allRequests.sortedBy { charityStatusPriority(it.status) }
     } else {
-        allRequests.filter { it.status == selectedStatus }
+        allRequests.filter { it.status == selectedStatus }.sortedBy { charityStatusPriority(it.status) }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BgCream)
                 .padding(paddingValues)
         ) {
+            if (isLandscape) {
+                Column(
+                    modifier = Modifier.width(270.dp).fillMaxHeight().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text("Track and manage your community food requests.", fontSize = 13.sp, color = TextGrey)
+                    Text("Status", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextGrey)
+                    LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(statusTabs) { status ->
+                            FilterChip(
+                                selected = selectedStatus == status,
+                                onClick = {
+                                    selectedStatus = status
+                                    coroutineScope.launch { pagerState.animateScrollToPage(statusTabs.indexOf(status)) }
+                                },
+                                label = { Text(status) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = OrangeAccent, selectedLabelColor = Color.White)
+                            )
+                        }
+                    }
+                }
+            }
+            Column(modifier = if (isLandscape) Modifier.weight(1f).fillMaxHeight() else Modifier.fillMaxWidth()) {
+            if (!isLandscape) {
             Text(
                 "Track and manage your community food requests.",
                 fontSize = 13.sp,
@@ -99,7 +150,10 @@ fun MyRequestsScreen(
                 items(statusTabs) { status ->
                     FilterChip(
                         selected = selectedStatus == status,
-                        onClick = { selectedStatus = status },
+                        onClick = {
+                            selectedStatus = status
+                            coroutineScope.launch { pagerState.animateScrollToPage(statusTabs.indexOf(status)) }
+                        },
                         label = { Text(status) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = OrangeAccent,
@@ -107,6 +161,7 @@ fun MyRequestsScreen(
                         )
                     )
                 }
+            }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -128,11 +183,19 @@ fun MyRequestsScreen(
                     }
                 }
                 else -> {
-                    LazyColumn(
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(filteredRequests) { request ->
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize()
+                    ) { page ->
+                        val pageStatus = statusTabs[page]
+                        val pageRequests = allRequests
+                            .filter { pageStatus == "All" || it.status == pageStatus }
+                            .sortedBy { charityStatusPriority(it.status) }
+                        LazyColumn(
+                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                        items(pageRequests) { request ->
                             RequestCard(
                                 request = request,
                                 onViewClick = { onViewClick(request.id) },
@@ -182,7 +245,9 @@ fun MyRequestsScreen(
                             )
                         }
                     }
+                    }
                 }
+            }
             }
         }
         FloatingActionButton(
@@ -230,6 +295,7 @@ private fun RequestCard(
 ) {
     val isPending = request.status == "Pending"
     val isConfirmed = request.status == "Confirmed"
+    val isEditableConfirmed = isConfirmed && request.listingId.isNullOrBlank()
     val isCompleted = request.status == "Completed"
     val isCancelled = request.status == "Cancelled"
 
@@ -283,7 +349,11 @@ private fun RequestCard(
                     color = statusBgColor
                 ) {
                     Text(
-                        text = request.status.uppercase(),
+                        text = when {
+                            isEditableConfirmed -> "CONFIRMED · EDITABLE"
+                            isConfirmed -> "CONFIRMED · LISTING"
+                            else -> request.status.uppercase()
+                        },
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -326,7 +396,7 @@ private fun RequestCard(
             Spacer(modifier = Modifier.height(10.dp))
 
             when {
-                isPending -> {
+                isPending || isEditableConfirmed -> {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,

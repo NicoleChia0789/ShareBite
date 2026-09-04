@@ -46,7 +46,7 @@ fun UserReservationDetailScreen(
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isCancelling by remember { mutableStateOf(false) }
-    var showCancelDialog by remember { mutableStateOf(false) }
+    var showCancelDialog by rememberSaveable { mutableStateOf(false) }
     var cancellationReason by rememberSaveable { mutableStateOf("") }
     var foodListing by remember { mutableStateOf<FoodListing?>(null) }
 
@@ -125,8 +125,7 @@ fun UserReservationDetailScreen(
 
             val step1Completed = true
             val step2Completed = item.status == "Confirmed" || item.status == "Completed"
-            val step3Completed = item.status == "Confirmed" || item.status == "Completed"
-            val step4Completed = item.status == "Completed"
+            val step3Completed = item.status == "Completed"
 
             Box(
                 modifier = Modifier
@@ -440,23 +439,16 @@ fun UserReservationDetailScreen(
                                     icon = Icons.Default.CheckCircle
                                 )
                                 TimelineStep(
-                                    title = "Merchant Reviewed",
-                                    time = if (step2Completed) "Review completed" else "Awaiting...",
-                                    isCompleted = step2Completed,
-                                    isLast = false,
-                                    icon = Icons.Default.Visibility
-                                )
-                                TimelineStep(
                                     title = "Reservation Accepted",
                                     time = if (step3Completed) "Accepted by merchant" else "Pending...",
-                                    isCompleted = step3Completed,
+                                    isCompleted = step2Completed,
                                     isLast = false,
                                     icon = Icons.Default.TaskAlt
                                 )
                                 TimelineStep(
                                     title = "Ready for Pickup",
-                                    time = if (step4Completed) "Pickup completed" else "Awaiting collection",
-                                    isCompleted = step4Completed,
+                                    time = if (step3Completed) "Pickup completed" else "Awaiting collection",
+                                    isCompleted = step3Completed,
                                     isLast = true,
                                     icon = Icons.Default.Storefront
                                 )
@@ -509,65 +501,33 @@ fun UserReservationDetailScreen(
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        if (item.status == "Pending") {
+                        if (item.status == "Pending" || item.status == "Confirmed") {
                             Button(
-                                onClick = {
-                                    // ✅ 传递 listingId 和 reservationId
-                                    onEditClick(item.listingId, item.id)
-                                },
+                                onClick = { openReservationDirections(context, foodListing) },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = OrangeAccent,
-                                    contentColor = Color.White
-                                ),
+                                colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent, contentColor = Color.White),
+                                shape = RoundedCornerShape(50),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Directions,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Directions", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            }
+                            OutlinedButton(
+                                onClick = { showCancelDialog = true },
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = RedCancelled),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, RedCancelled),
                                 shape = RoundedCornerShape(50)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.EditCalendar,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                                Icon(Icons.Default.Cancel, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Edit Time",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-
-                        if (item.status == "Pending" || item.status == "Confirmed") {
-                            Button(
-                                onClick = {
-                                    if (item.status == "Confirmed") {
-                                        openReservationDirections(context, foodListing)
-                                    } else {
-                                        showCancelDialog = true
-                                    }
-                                },
-                                modifier = Modifier
-                                    .weight(if (item.status == "Pending") 1f else 1f)
-                                    .height(48.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (item.status == "Confirmed") OrangeAccent else Color.Transparent,
-                                    contentColor = if (item.status == "Confirmed") Color.White else RedCancelled
-                                ),
-                                shape = RoundedCornerShape(50),
-                                border = if (item.status == "Confirmed") null else androidx.compose.foundation.BorderStroke(1.dp, RedCancelled)
-                            ) {
-                                Icon(
-                                    imageVector = if (item.status == "Confirmed") Icons.Default.Directions else Icons.Default.Cancel,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = if (item.status == "Confirmed") "Directions" else "Cancel",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Text("Cancel", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             }
                         }
 

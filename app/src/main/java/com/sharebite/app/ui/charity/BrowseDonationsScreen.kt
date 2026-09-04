@@ -20,12 +20,14 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalConfiguration
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.repository.FoodListingRepository
 import com.sharebite.app.ui.theme.OrangeAccent
 import com.sharebite.app.ui.theme.TextDark
 import com.sharebite.app.ui.theme.TextGrey
 import com.sharebite.app.ui.theme.RedCancelled
+import com.sharebite.app.ui.theme.AppTextFieldDefaults
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.text.BasicTextField
@@ -46,6 +48,7 @@ fun BrowseDonationsScreen(paddingValues: PaddingValues, onFoodClick: (Long) -> U
     }
     val searchQuery = searchFieldValue.text
     var selectedCategory by rememberSaveable { mutableStateOf("All Items") }
+    val isLandscape = LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     // ✅ 添加 isDataLoaded 标志
     var isDataLoaded by rememberSaveable { mutableStateOf(false) }
 
@@ -74,18 +77,53 @@ fun BrowseDonationsScreen(paddingValues: PaddingValues, onFoodClick: (Long) -> U
         matchesCategory && matchesSearch
     }
 
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
     ) {
+        if (isLandscape) {
+            Column(
+                modifier = Modifier.width(270.dp).fillMaxHeight().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("Find fresh surplus food from merchants near you.", fontSize = 13.sp, color = TextGrey)
+                OutlinedTextField(
+                    value = searchFieldValue,
+                    onValueChange = { searchFieldValue = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Search merchant, food...", fontSize = 13.sp) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = TextGrey) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(21.dp),
+                    colors = AppTextFieldDefaults.colors(),
+                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp)
+                )
+                Text("Category", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextGrey)
+                LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(categoryTabs) { category ->
+                        FilterChip(
+                            selected = selectedCategory == category,
+                            onClick = { selectedCategory = category },
+                            label = { Text(category) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = OrangeAccent, selectedLabelColor = Color.White)
+                        )
+                    }
+                }
+            }
+        }
+
+        Column(
+            modifier = if (isLandscape) Modifier.weight(1f).fillMaxHeight() else Modifier.fillMaxWidth()
+        ) {
+        if (!isLandscape) {
         Text(
             "Find fresh surplus food from merchants near you.",
             fontSize = 13.sp,
             color = TextGrey,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
         )
-
         // ---------- SEARCH BAR ----------
         Surface(
             modifier = Modifier
@@ -122,11 +160,12 @@ fun BrowseDonationsScreen(paddingValues: PaddingValues, onFoodClick: (Long) -> U
                 )
             }
         }
+        }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         // ---------- CATEGORY FILTER CHIPS ----------
-        LazyRow(
+        if (!isLandscape) LazyRow(
             contentPadding = PaddingValues(horizontal = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -138,7 +177,7 @@ fun BrowseDonationsScreen(paddingValues: PaddingValues, onFoodClick: (Long) -> U
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = OrangeAccent,
                         selectedLabelColor = Color.White
-                    )
+        )
                 )
             }
         }
@@ -172,6 +211,7 @@ fun BrowseDonationsScreen(paddingValues: PaddingValues, onFoodClick: (Long) -> U
                     }
                 }
             }
+        }
         }
     }
 }

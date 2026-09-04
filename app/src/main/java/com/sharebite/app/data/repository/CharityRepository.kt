@@ -4,6 +4,8 @@ import com.sharebite.app.data.model.CharityRequest
 import com.sharebite.app.data.model.FoodListing
 import com.sharebite.app.data.remote.SupabaseClient
 import com.sharebite.app.data.session.CurrentUser
+import com.sharebite.app.ui.charity.MAX_QUANTITY
+import com.sharebite.app.ui.charity.formatWithThousandSeparator
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
 
@@ -142,7 +144,9 @@ class CharityRepository {
         note: String?
     ) {
         val userId = CurrentUser.getUserId()
-        require(quantity > 0) { "Request quantity must be greater than zero" }
+        require(quantity in 1..MAX_QUANTITY) {
+            "Request quantity must be between 1 and ${formatWithThousandSeparator(MAX_QUANTITY)}"
+        }
         val listing = getListing(listingId.toLongOrNull() ?: error("Invalid food listing"))
         require(listing.status == "available") { "This food listing is no longer available" }
         require(listing.remainingQuantity >= quantity) {
@@ -190,6 +194,9 @@ class CharityRepository {
         require(quantity > 0) { "Request quantity must be greater than zero" }
         val existing = getMyRequestById(requestId) ?: error("Request not found")
         val listing = existing.listingId?.toLongOrNull()?.let { getListing(it) }
+        require(existing.status == "Pending" || (existing.status == "Confirmed" && listing == null)) {
+            "Only pending requests or accepted standalone requests can be edited"
+        }
         val quantityDelta = quantity - existing.quantity
         if (listing != null && quantityDelta > 0) {
             require(listing.remainingQuantity >= quantityDelta) {
@@ -207,12 +214,16 @@ class CharityRepository {
                     set("pickup_time", pickupTime)
                     set("people_served", peopleServed)
                     set("note", note)
+                    set("details_changed", true)
+                    set("previous_quantity", existing.quantity)
+                    set("previous_pickup_date", existing.pickupDate)
+                    set("previous_pickup_time", existing.pickupTime)
+                    set("previous_note", existing.note)
                 }
             ) {
                 filter {
                     eq("id", requestId)
                     eq("charity_id", userId)
-                    eq("status", "Pending")
                 }
             }
         } catch (error: Exception) {

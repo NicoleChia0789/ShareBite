@@ -157,6 +157,7 @@ class MerchantRepository {
         SupabaseClient.client.postgrest["charity_requests"]
             .update({
                 set("status", status)
+                if (status == "Confirmed" || status == "Cancelled") set("details_changed", false)
                 if (status == "Cancelled") {
                     set("cancellation_reason", cancellationReason)
                     set("cancelled_at", java.time.Instant.now().toString())
@@ -367,6 +368,7 @@ class MerchantRepository {
                 // A Bazaar offer enters the merchant order list as pending.
                 // It becomes confirmed only when the merchant marks it as picked up.
                 set("status", "Pending")
+                set("details_changed", false)
             }) {
                 filter { eq("id", requestId) }
             }

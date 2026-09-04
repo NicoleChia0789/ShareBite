@@ -1,7 +1,10 @@
 package com.sharebite.app.ui.charity
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -23,6 +26,10 @@ import com.sharebite.app.data.session.CurrentUser
 import com.sharebite.app.ui.theme.*
 import com.sharebite.app.util.formatDateTimeForDisplay
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun ApplyForFoodScreen(
@@ -43,10 +50,35 @@ fun ApplyForFoodScreen(
 
     var peopleServed by rememberSaveable { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf("") }
+    var selectedDate by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedTime by rememberSaveable { mutableStateOf<String?>(null) }
 
     var isSubmitting by rememberSaveable { mutableStateOf(false) }
     var showErrorDialog by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf("") }
+
+    val dateList = remember {
+        val calendar = Calendar.getInstance()
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val displayFormat = SimpleDateFormat("EEE d", Locale.US)
+        buildList {
+            repeat(7) {
+                add(Triple(dateFormat.format(calendar.time), displayFormat.format(calendar.time), displayFormat.format(calendar.time).split(" ").first()))
+                calendar.add(Calendar.DAY_OF_YEAR, 1)
+            }
+        }
+    }
+    val allTimeSlots = remember(listing?.pickupTime) { buildCharityPickupSlots(listing?.pickupTime) }
+    val deadline = remember(listing?.deadline) { parseCharityDeadline(listing?.deadline.orEmpty()) }
+    val availableDates = remember(dateList, deadline) {
+        dateList.filter { deadline == null || parseCharityDate(it.first)?.let { date -> !date.after(deadline) } == true }
+    }
+    val availableTimeSlots = remember(selectedDate, deadline) {
+        allTimeSlots.filter { time ->
+            val dateTime = parseCharityDateTime(selectedDate, time)
+            dateTime != null && (deadline == null || !dateTime.after(deadline))
+        }
+    }
 
     LaunchedEffect(listingId, Unit) {
         isLoadingListing = true
@@ -60,10 +92,17 @@ fun ApplyForFoodScreen(
         }
     }
 
+    LaunchedEffect(availableDates, availableTimeSlots) {
+        if (selectedDate == null || availableDates.none { it.first == selectedDate }) selectedDate = availableDates.firstOrNull()?.first
+        if (selectedTime == null || selectedTime !in availableTimeSlots) selectedTime = availableTimeSlots.firstOrNull()
+    }
+
     fun validateForm(): List<String> {
         val errors = mutableListOf<String>()
         if (organisationName.isBlank()) errors.add("Organisation name")
-        if (peopleServed.isBlank()) errors.add("People served")
+        if (!isQuantityValid(peopleServed)) errors.add("People served must be between 1 and ${formatWithThousandSeparator(MAX_QUANTITY)}")
+        if (selectedDate == null) errors.add("Collection date")
+        if (selectedTime == null || selectedTime !in availableTimeSlots) errors.add("Collection time must be before the merchant deadline")
         val requestedUnits = quantityValue(peopleServed) ?: 0
         val remainingUnits = listing?.remainingQuantity ?: 0
         if (requestedUnits > remainingUnits) {
@@ -85,8 +124,21 @@ fun ApplyForFoodScreen(
                 }
             }
             loadError != null -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Error: $loadError", color = RedCancelled)
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text("Request Again unavailable", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        if (loadError.orEmpty().contains("deadline", true))
+                            "This food listing has expired."
+                        else
+                            "This food listing is no longer available or has no quantity remaining.",
+                        color = RedCancelled,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
                 }
             }
             listing == null -> {
@@ -106,6 +158,22 @@ fun ApplyForFoodScreen(
                         .padding(bottom = 40.dp)
                 ) {
                     Spacer(modifier = Modifier.height(8.dp))
+
+                    if (data.remainingQuantity <= 0) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                "Request Again unavailable: no quantity remaining.",
+                                modifier = Modifier.padding(14.dp),
+                                color = RedCancelled,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
 
                     // ---------- APPLYING FROM BANNER ----------
                     Card(
@@ -135,15 +203,56 @@ fun ApplyForFoodScreen(
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                "Set by donor · cannot be changed",
-                                fontSize = 11.sp,
-                                color = TextGrey
-                            )
+                            Text("Pickup schedule", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextDark)
                             Spacer(modifier = Modifier.height(10.dp))
                             FixedDetailRow(label = "Available quantity", value = "${data.remainingQuantity} ${data.unit ?: "units"}")
-                            FixedDetailRow(label = "Collection date", value = data.pickupDate)
-                            FixedDetailRow(label = "Collection time", value = formatDateTimeForDisplay(data.pickupTime ?: data.deadline))
+                            Text("Select collection date", fontSize = 12.sp, color = TextGrey)
+                            Spacer(modifier = Modifier.height(6.dp))
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(dateList) { (date, display, day) ->
+                                    val available = date in availableDates.map { it.first }
+                                    val selected = date == selectedDate
+                                    Card(
+                                        modifier = Modifier.width(68.dp).clickable(enabled = available) { selectedDate = date },
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(containerColor = when {
+                                            selected -> OrangeAccent
+                                            available -> Color.White
+                                            else -> Color(0xFFE9E0DB)
+                                        })
+                                    ) {
+                                        Column(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text(day, fontSize = 11.sp, color = if (selected) Color.White else TextGrey)
+                                            Text(display.split(" ").last(), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = if (selected) Color.White else TextDark)
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text("Select pickup time", fontSize = 12.sp, color = TextGrey)
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                allTimeSlots.chunked(2).forEach { row ->
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        row.forEach { time ->
+                                            val available = time in availableTimeSlots
+                                            val selected = time == selectedTime
+                                            Card(
+                                                modifier = Modifier.weight(1f).clickable(enabled = available) { selectedTime = time },
+                                                shape = RoundedCornerShape(50),
+                                                colors = CardDefaults.cardColors(containerColor = when {
+                                                    selected -> OrangeAccent
+                                                    available -> Color.White
+                                                    else -> Color(0xFFE9E0DB)
+                                                })
+                                            ) {
+                                                Text(time, Modifier.fillMaxWidth().padding(10.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center, color = if (selected) Color.White else if (available) TextDark else TextGrey)
+                                            }
+                                        }
+                                        if (row.size == 1) Spacer(Modifier.weight(1f))
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -244,15 +353,14 @@ fun ApplyForFoodScreen(
                             isSubmitting = true
                             coroutineScope.launch {
                                 try {
-                                    val rawPickupTime = data.pickupTime ?: data.deadline
                                     charityRepository.createMyRequestFromListing(
                                         merchantId = data.merchantId,
                                         listingId = data.id.toString(),
                                         foodName = data.foodName,
                                         category = data.category,
                                         quantity = quantityValue(peopleServed) ?: 0,
-                                        pickupDate = data.pickupDate,
-                                        pickupTime = formatTimeForDb(rawPickupTime),  // ← 加上转换
+                                        pickupDate = selectedDate!!,
+                                        pickupTime = formatTimeForDb(selectedTime!!),
                                         organisationName = organisationName,
                                         peopleServed = quantityValue(peopleServed) ?: 0,
                                         note = note.ifBlank { null }
@@ -271,7 +379,7 @@ fun ApplyForFoodScreen(
                             .height(52.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
                         shape = RoundedCornerShape(12.dp),
-                        enabled = !isSubmitting && !exceedsRemaining
+                        enabled = !isSubmitting && !exceedsRemaining && isQuantityValid(peopleServed) && selectedDate != null && selectedTime in availableTimeSlots
                     ) {
                         if (isSubmitting) {
                             CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
@@ -315,4 +423,41 @@ private fun FixedDetailRow(label: String, value: String) {
         Text(label, fontSize = 13.sp, color = TextGrey)
         Text(value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextDark)
     }
+}
+
+private fun buildCharityPickupSlots(value: String?): List<String> {
+    val slots = value.orEmpty().split(',', ';', '|', '\n')
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .map { formatCharityTimeSlot(it) }
+        .distinct()
+    return slots.ifEmpty { listOf("10:00 AM", "12:30 PM", "02:00 PM", "04:30 PM") }
+}
+
+private fun formatCharityTimeSlot(value: String): String {
+    val normalized = value.trim().substringBefore('+').removeSuffix("Z")
+    listOf("HH:mm:ss", "HH:mm", "hh:mm a").forEach { pattern ->
+        runCatching {
+            val parsed = SimpleDateFormat(pattern, Locale.US).apply { isLenient = false }.parse(normalized)
+            if (parsed != null) return SimpleDateFormat("hh:mm a", Locale.US).format(parsed)
+        }
+    }
+    return normalized
+}
+
+private fun parseCharityDeadline(value: String): Date? {
+    val normalized = value.trim().substringBefore('+').removeSuffix("Z").replace('T', ' ')
+    return listOf("yyyy-MM-dd HH:mm:ss.SSS", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm")
+        .firstNotNullOfOrNull { pattern -> runCatching { SimpleDateFormat(pattern, Locale.US).apply { isLenient = false }.parse(normalized) }.getOrNull() }
+}
+
+private fun parseCharityDate(value: String): Date? = runCatching {
+    SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }.parse(value)
+}.getOrNull()
+
+private fun parseCharityDateTime(date: String?, time: String?): Date? {
+    if (date.isNullOrBlank() || time.isNullOrBlank()) return null
+    return runCatching {
+        SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.US).apply { isLenient = false }.parse("$date $time")
+    }.getOrNull()
 }

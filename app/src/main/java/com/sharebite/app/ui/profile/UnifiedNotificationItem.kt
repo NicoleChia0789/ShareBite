@@ -7,6 +7,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.input.pointer.pointerInput
 import com.sharebite.app.data.model.CharityRequest
 import com.sharebite.app.data.model.Reservation
 import com.sharebite.app.data.repository.CharityRepository
@@ -47,10 +49,11 @@ private data class NotificationItem(
     val time: String,
     val type: String,  // "reservation", "request"
     val status: String,
-    val isGeneral: Boolean = false  // ✅ 标记是否 General Request
+    val isGeneral: Boolean = false,
+    val eventKey: String = status
 ) {
     val uniqueKey: String
-        get() = "$type:$id"
+        get() = "$type:$id:$eventKey"
 
     // Request IDs remain positive for compatibility with existing dismissed rows.
     // Reservation IDs use the negative namespace so equal IDs cannot collide.
@@ -270,6 +273,11 @@ private fun TopNotificationBanner(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(10.dp, RoundedCornerShape(16.dp))
+            .pointerInput(Unit) {
+                detectVerticalDragGestures { _, dragAmount ->
+                    if (dragAmount < -18f) onClose()
+                }
+            }
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -360,11 +368,11 @@ fun GlobalNotificationBanner(
                         it.dismissedId !in dismissed && isNotificationEnabled(it, role, prefs)
                     }
                     val currentKeys = eligibleItems
-                        .map { "${it.type}:${it.id}:${it.status}" }
+                        .map { "${it.type}:${it.id}:${it.eventKey}" }
                         .toSet()
                     val nextNotification = if (hasCompletedInitialRefresh) {
                         eligibleItems.firstOrNull { item ->
-                            "${item.type}:${item.id}:${item.status}" !in knownKeys
+                            "${item.type}:${item.id}:${item.eventKey}" !in knownKeys
                         }
                     } else {
                         eligibleItems.firstOrNull()
@@ -490,25 +498,30 @@ private suspend fun loadCharityNotifications(
 ): List<NotificationItem> {
     val requests = charityRepo.getMyRequests()
     return requests
-        .filter { it.status != "Pending" }
+        .filter { it.detailsChanged || it.status != "Pending" }
         .map { request ->
-            val (title, message) = when (request.status) {
-                "Confirmed" -> Pair(
+            val (title, message, eventKey) = when {
+                request.detailsChanged -> Triple(
+                    "Request Updated",
+                    "Your request for \"${request.foodName}\" is waiting for merchant approval.",
+                    "updated"
+                )
+                request.status == "Confirmed" -> Triple(
                     "Request Confirmed 🎉",
-                    "Your request for \"${request.foodName}\" has been confirmed!"
+                    "Your request for \"${request.foodName}\" has been confirmed!",
+                    request.status
                 )
-                "Completed" -> Pair(
+                request.status == "Completed" -> Triple(
                     "Pickup Completed ✅",
-                    "\"${request.foodName}\" has been successfully collected."
+                    "\"${request.foodName}\" has been successfully collected.",
+                    request.status
                 )
-                "Cancelled" -> Pair(
-                    "Request Cancelled ❌",
-                    "Your request for \"${request.foodName}\" was cancelled."
+                request.status == "Cancelled" -> Triple(
+                    "Request Rejected ❌",
+                    "Your request for \"${request.foodName}\" was rejected or cancelled by the merchant.",
+                    request.status
                 )
-                else -> Pair(
-                    "Update",
-                    "\"${request.foodName}\" status: ${request.status}"
-                )
+                else -> Triple("Update", "\"${request.foodName}\" status: ${request.status}", request.status)
             }
             NotificationItem(
                 id = request.id,
@@ -516,7 +529,8 @@ private suspend fun loadCharityNotifications(
                 message = message,
                 time = formatTime(request.createdAt),
                 type = "request",
-                status = request.status
+                status = request.status,
+                eventKey = eventKey
             )
         }
 }
@@ -535,9 +549,24 @@ private suspend fun loadMerchantNotifications(
             merchantRepo.getAllGeneralRequests() + merchantRepo.getMyAllRequests()
             ).distinctBy { it.id }
 
+    items.addAll(
+        allRequests.filter { it.detailsChanged }.map { request ->
+            NotificationItem(
+                id = request.id,
+                title = "Request Updated",
+                message = "${request.organisationName} changed the request details. Review and approve the update.",
+                time = formatTime(request.createdAt),
+                type = "request",
+                status = "Pending",
+                isGeneral = request.merchantId.isNullOrBlank(),
+                eventKey = "updated"
+            )
+        }
+    )
+
     // 1a) General Request（公开请求，merchant_id 为 NULL）
     val generalRequests = allRequests
-        .filter { it.merchantId.isNullOrBlank() && it.status == "Pending" }
+        .filter { it.merchantId.isNullOrBlank() && it.status == "Pending" && !it.detailsChanged }
         .sortedByDescending { it.createdAt }
         .map { request ->
             NotificationItem(
@@ -554,7 +583,7 @@ private suspend fun loadMerchantNotifications(
 
     // 1b) Direct Request（针对特定商家的请求，merchant_id 不为 NULL）
     val directRequests = allRequests
-        .filter { !it.merchantId.isNullOrBlank() && it.status == "Pending" }
+        .filter { !it.merchantId.isNullOrBlank() && it.status == "Pending" && !it.detailsChanged }
         .sortedByDescending { it.createdAt }
         .map { request ->
             NotificationItem(

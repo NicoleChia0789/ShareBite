@@ -22,8 +22,14 @@ sealed class Screen(
     object Browse : Screen("browse", "Browse", Icons.Default.Storefront)
     object Requests : Screen("requests", "Requests", Icons.Default.Assignment) {
         const val baseRoute = "requests"
-        const val routeWithStatus = "requests?status={status}"
-        fun createRoute(status: String? = null) = if (status.isNullOrBlank()) baseRoute else "$baseRoute?status=$status"
+        const val routeWithFilters = "requests?status={status}&time={time}"
+        fun createRoute(status: String? = null, time: String? = null): String {
+            val params = buildList {
+                if (!status.isNullOrBlank()) add("status=$status")
+                if (!time.isNullOrBlank()) add("time=$time")
+            }
+            return if (params.isEmpty()) baseRoute else "$baseRoute?${params.joinToString("&")}"
+        }
     }
     object Profile : Screen("profile", "Profile", Icons.Default.Person)
 

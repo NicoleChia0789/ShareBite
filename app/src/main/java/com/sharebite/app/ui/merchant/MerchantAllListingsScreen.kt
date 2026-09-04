@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -18,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -36,6 +39,7 @@ fun MerchantAllListingsScreen(
     onAddDonationClick: () -> Unit
 ) {
     val listings by viewModel.listings.collectAsState()
+    val isLandscape = LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     var deadlineOrder by rememberSaveable { mutableStateOf("Ascending") }
     val listingListState = rememberLazyListState()
 
@@ -58,68 +62,64 @@ fun MerchantAllListingsScreen(
             .padding(paddingValues)
             .background(MaterialTheme.colorScheme.background)
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // ── Header ──
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-//                Text(
-//                    "My Listings",
-//                    style = MaterialTheme.typography.headlineSmall,
-//                    fontWeight = FontWeight.Bold,
-//                    color = Color(0xFF1E1B16)
-//                )
-                Text(
-                    "Manage your community food contributions.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
-                )
-            }
-
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                Text("Filter by deadline", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = deadlineOrder == "Ascending", onClick = { deadlineOrder = "Ascending" }, label = { Text("Deadline ↑") })
-                    FilterChip(selected = deadlineOrder == "Descending", onClick = { deadlineOrder = "Descending" }, label = { Text("Deadline ↓") })
-                }
-            }
-
-            if (filteredListings.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("📭", fontSize = 48.sp)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("No listings found.", color = Color.Gray)
-                        Text(
-                            "Tap the + button to add your first donation.",
-                            color = Color.Gray,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-            } else {
-                // ── Section Header with count ──
-                Text(
-                    "YOUR ACTIVE DONATIONS (${filteredListings.size})",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    state = listingListState,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        if (isLandscape) {
+            Row(Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(260.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(filteredListings, key = { it.id }) { listing ->
-                        ListingCardSimplified(
-                            listing = listing,
-                            onClick = { onListingClick(listing.id) }
-                        )
+                    Text(
+                        "Manage your community food contributions.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
+                    )
+                    Text("Filter by deadline", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    FilterChip(
+                        selected = deadlineOrder == "Ascending",
+                        onClick = { deadlineOrder = "Ascending" },
+                        label = { Text("Deadline ↑") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    FilterChip(
+                        selected = deadlineOrder == "Descending",
+                        onClick = { deadlineOrder = "Descending" },
+                        label = { Text("Deadline ↓") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                ListingResults(
+                    listings = filteredListings,
+                    listState = listingListState,
+                    onListingClick = onListingClick,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        } else {
+            Column(Modifier.fillMaxSize()) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text(
+                        "Manage your community food contributions.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
+                    )
+                }
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                    Text("Filter by deadline", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = deadlineOrder == "Ascending", onClick = { deadlineOrder = "Ascending" }, label = { Text("Deadline ↑") })
+                        FilterChip(selected = deadlineOrder == "Descending", onClick = { deadlineOrder = "Descending" }, label = { Text("Deadline ↓") })
                     }
                 }
+                ListingResults(
+                    listings = filteredListings,
+                    listState = listingListState,
+                    onListingClick = onListingClick,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
 
@@ -132,6 +132,44 @@ fun MerchantAllListingsScreen(
                 .padding(24.dp)
         ) {
             Icon(Icons.Default.Add, contentDescription = "Add Donation", tint = Color.White)
+        }
+    }
+}
+
+@Composable
+private fun ListingResults(
+    listings: List<FoodListing>,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    onListingClick: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (listings.isEmpty()) {
+        Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("No listings found.", color = Color.Gray)
+                Spacer(Modifier.height(8.dp))
+                Text("Tap the + button to add your first donation.", color = Color.Gray, fontSize = 14.sp)
+            }
+        }
+    } else {
+        Column(modifier) {
+            Text(
+                "YOUR ACTIVE DONATIONS (${listings.size})",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                state = listState,
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(listings, key = { it.id }) { listing ->
+                    ListingCardSimplified(listing = listing, onClick = { onListingClick(listing.id) })
+                }
+            }
         }
     }
 }

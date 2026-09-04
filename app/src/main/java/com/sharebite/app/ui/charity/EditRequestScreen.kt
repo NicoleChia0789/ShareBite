@@ -59,6 +59,7 @@ fun EditRequestScreen(
     var showTimePicker by rememberSaveable { mutableStateOf(false) }
     var showErrorDialog by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf("") }
+    var timeError by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(requestId) {
         try {
@@ -119,10 +120,10 @@ fun EditRequestScreen(
                     Text("Request not found.", color = TextGrey)
                 }
             }
-            original?.status != "Pending" -> {
+            original?.let { it.status != "Pending" && !(it.status == "Confirmed" && it.listingId.isNullOrBlank()) } == true -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        "Only pending requests can be edited.",
+                        "This request cannot be edited.",
                         color = TextGrey,
                         modifier = Modifier.padding(24.dp)
                     )
@@ -157,7 +158,7 @@ fun EditRequestScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                "Only pending requests can be edited",
+                                "Pending requests and accepted standalone requests can be edited",
                                 fontSize = 13.sp,
                                 color = Color(0xFFE65100),
                                 fontWeight = FontWeight.Medium
@@ -230,8 +231,11 @@ fun EditRequestScreen(
                         onValueChange = { peopleServed = filterQuantityInput(it) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("People served") },
+                        isError = peopleServed.isNotBlank() && !isQuantityValid(peopleServed),
                         supportingText = {
-                            if (peopleServed.isNotBlank()) {
+                            if (peopleServed.isNotBlank() && !isQuantityValid(peopleServed)) {
+                                Text("Enter a quantity from 1 to ${formatWithThousandSeparator(MAX_QUANTITY)}", color = RedCancelled)
+                            } else if (peopleServed.isNotBlank()) {
                                 Text("= ${formatWithThousandSeparator(peopleServed)} units")
                             }
                         },
@@ -302,7 +306,9 @@ fun EditRequestScreen(
                             .height(52.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
                         shape = RoundedCornerShape(12.dp),
-                        enabled = !isSaving
+                        enabled = !isSaving && isQuantityValid(peopleServed) &&
+                            pickupDate.isNotBlank() && pickupTime.isNotBlank() &&
+                            timeError.isBlank()
                     ) {
                         if (isSaving) {
                             CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
@@ -335,7 +341,8 @@ fun EditRequestScreen(
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = parseEditDateMillis(pickupDate) ?: System.currentTimeMillis(),
-            selectableDates = FutureOnlySelectableDates
+            selectableDates = if (merchantDeadline.isBlank()) FutureOnlySelectableDates
+            else DeadlineSelectableDates(merchantDeadline)
         )
         Dialog(
             onDismissRequest = { showDatePicker = false },
@@ -375,6 +382,7 @@ fun EditRequestScreen(
                                     val date = Date(millis)
                                     val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
                                     pickupDate = format.format(date)
+                                    timeError = ""
                                 }
                                 showDatePicker = false
                             },
@@ -414,6 +422,15 @@ fun EditRequestScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
+                    if (timeError.isNotBlank()) {
+                        Text(
+                            text = timeError,
+                            color = RedCancelled,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 6.dp)
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         TextButton(onClick = { showTimePicker = false }) { Text("Cancel", color = TextGrey) }
@@ -423,8 +440,16 @@ fun EditRequestScreen(
                                 val minute = timePickerState.minute
                                 val amPm = if (hour < 12) "AM" else "PM"
                                 val displayHour = if (hour % 12 == 0) 12 else hour % 12
-                                pickupTime = String.format(Locale.getDefault(), "%d:%02d %s", displayHour, minute, amPm)
-                                showTimePicker = false
+                                val candidate = String.format(Locale.US, "%d:%02d %s", displayHour, minute, amPm)
+                                if (pickupDate.isNotBlank() && merchantDeadline.isNotBlank() &&
+                                    !isDateTimeWithinDeadline(pickupDate, candidate, merchantDeadline)
+                                ) {
+                                    timeError = "Selected time must be on or before the merchant deadline"
+                                } else {
+                                    pickupTime = candidate
+                                    timeError = ""
+                                    showTimePicker = false
+                                }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent)
                         ) { Text("OK", color = Color.White) }

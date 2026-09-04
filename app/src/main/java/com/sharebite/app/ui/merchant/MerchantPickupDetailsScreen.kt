@@ -2,7 +2,9 @@ package com.sharebite.app.ui.merchant
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -50,6 +52,7 @@ fun MerchantPickupDetailsScreen(
             .fillMaxSize()
             .padding(paddingValues)
             .background(BgCream)
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         Text("Pickup Details", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -76,7 +79,7 @@ fun MerchantPickupDetailsScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 if (request.status.equals("Confirmed", ignoreCase = true) &&
                     !isOverdue(request.pickupDate, request.pickupTime)
@@ -118,7 +121,7 @@ fun MerchantPickupDetailsScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 if (reservation.status.equals("Confirmed", ignoreCase = true) &&
                     !isOverdue(reservation.pickupDate, reservation.pickupTime)

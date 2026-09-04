@@ -4,8 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Storefront
@@ -19,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharebite.app.data.model.CharityRequest
@@ -37,6 +40,7 @@ fun MerchantCharityPlazaScreen(
         mutableStateOf(TextFieldValue())
     }
     val searchQuery = searchFieldValue.text.trim()
+    val isLandscape = LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
     val pendingRequests = remember(generalRequests, searchQuery) {
         var list = generalRequests.filter {
@@ -51,45 +55,70 @@ fun MerchantCharityPlazaScreen(
         list
     }
 
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
-        Text(
-            "Browse food requests from charities and offer help.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
-            textAlign = TextAlign.Center
-        )
-
-        OutlinedTextField(
-            value = searchFieldValue,
-            onValueChange = { searchFieldValue = it },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
-            placeholder = { Text("Search by charity or food...", fontSize = 13.sp) },
-            leadingIcon = {
-                Icon(
-                    Icons.Default.Search,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+        if (isLandscape) {
+            Column(
+                modifier = Modifier
+                    .width(280.dp)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+                    .padding(end = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    "Browse food requests from charities and offer help.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            },
-            shape = RoundedCornerShape(50),
-            singleLine = true,
-            colors = AppTextFieldDefaults.colors(),
-            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp)
-        )
+                OutlinedTextField(
+                    value = searchFieldValue,
+                    onValueChange = { searchFieldValue = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Search by charity or food...", fontSize = 13.sp) },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = "Search", modifier = Modifier.size(18.dp))
+                    },
+                    shape = RoundedCornerShape(50),
+                    singleLine = true,
+                    colors = AppTextFieldDefaults.colors(),
+                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp)
+                )
+            }
+        }
 
-        if (isLoading) {
+        Column(
+            modifier = if (isLandscape) Modifier.weight(1f) else Modifier.fillMaxWidth()
+        ) {
+            if (!isLandscape) {
+                Text(
+                    "Browse food requests from charities and offer help.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    textAlign = TextAlign.Center
+                )
+                OutlinedTextField(
+                    value = searchFieldValue,
+                    onValueChange = { searchFieldValue = it },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    placeholder = { Text("Search by charity or food...", fontSize = 13.sp) },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = "Search", modifier = Modifier.size(18.dp))
+                    },
+                    shape = RoundedCornerShape(50),
+                    singleLine = true,
+                    colors = AppTextFieldDefaults.colors(),
+                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp)
+                )
+            }
+
+            if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
@@ -107,7 +136,7 @@ fun MerchantCharityPlazaScreen(
                     Text("Check back later for new opportunities.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                 }
             }
-        } else {
+            } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -118,6 +147,7 @@ fun MerchantCharityPlazaScreen(
                         onOfferHelp = { onRequestClick(request.id) }
                     )
                 }
+            }
             }
         }
     }

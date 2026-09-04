@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,7 +26,7 @@ fun WithdrawConfirmDialog(
     onKeep: () -> Unit,
     onWithdraw: (String) -> Unit
 ) {
-    var reason by remember { mutableStateOf("") }
+    var reason by rememberSaveable { mutableStateOf("") }
     Dialog(onDismissRequest = onKeep) {
         Card(
             shape = RoundedCornerShape(20.dp),

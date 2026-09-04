@@ -182,7 +182,7 @@ fun UserBrowseScreen(
 
     // ── 1️⃣ 数据加载（只执行一次） ──
     LaunchedEffect(Unit) {
-        if (!isDataLoaded) {
+        if (!isDataLoaded || allListings.isEmpty()) {
             isDataLoaded = true
             try {
                 allListings = repository.getAvailableListings()
@@ -273,12 +273,71 @@ fun UserBrowseScreen(
                 }
             )
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BgCream)
                 .padding(paddingValues)
         ) {
+            if (configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
+                Column(
+                    modifier = Modifier.width(285.dp).fillMaxHeight().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("Find available food near you.", fontSize = 13.sp, color = TextGrey)
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Search for food near you...", color = TextGrey, fontSize = 12.sp) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = TextGrey) },
+                        shape = RoundedCornerShape(21.dp),
+                        singleLine = true,
+                        colors = AppTextFieldDefaults.colors()
+                    )
+                    Button(
+                        onClick = { showFilterScreen = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                        shape = RoundedCornerShape(21.dp)
+                    ) {
+                        Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Filters")
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(selected = isListView, onClick = { isListView = true }, label = { Text("List") }, modifier = Modifier.weight(1f))
+                        FilterChip(selected = !isListView, onClick = { isListView = false }, label = { Text("Map") }, modifier = Modifier.weight(1f))
+                    }
+                    if (categories.isNotEmpty()) {
+                        Text("Category", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextGrey)
+                        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            item {
+                                FilterChip(
+                                    selected = selectedCategory == null,
+                                    onClick = { selectedCategory = null },
+                                    label = { Text("All") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = OrangeAccent, selectedLabelColor = Color.White)
+                                )
+                            }
+                            items(categories) { category ->
+                                FilterChip(
+                                    selected = selectedCategory == category,
+                                    onClick = { selectedCategory = if (selectedCategory == category) null else category },
+                                    label = { Text(category) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = OrangeAccent, selectedLabelColor = Color.White)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        Column(
+            modifier = if (configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) Modifier.weight(1f).fillMaxHeight() else Modifier.fillMaxWidth()
+        ) {
+        if (configuration.orientation != android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
             // ── 位置状态 ──
             if (isLocationLoading) {
                 Row(
@@ -461,6 +520,7 @@ fun UserBrowseScreen(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
             }
+        }
 
             // ── Content ──
             when {
@@ -586,7 +646,6 @@ fun UserBrowseScreen(
                     }
                 },
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
                     .padding(16.dp)
                     .size(56.dp),
                 containerColor = Color.White,
@@ -600,6 +659,7 @@ fun UserBrowseScreen(
                     tint = OrangeAccent
                 )
             }
+        }
         }
     }
 

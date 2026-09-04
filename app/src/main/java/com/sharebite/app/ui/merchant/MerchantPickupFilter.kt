@@ -4,7 +4,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-enum class MerchantPickupRange { TODAY, THIS_WEEK, UPCOMING }
+enum class MerchantPickupRange { ALL, TODAY, THIS_WEEK, UPCOMING }
 
 fun matchesMerchantPickupRange(dateText: String, timeText: String, range: MerchantPickupRange): Boolean {
     val date = runCatching {
@@ -24,6 +24,7 @@ fun matchesMerchantPickupRange(dateText: String, timeText: String, range: Mercha
         set(Calendar.MILLISECOND, 0)
     }
     return when (range) {
+        MerchantPickupRange.ALL -> true
         MerchantPickupRange.TODAY ->
             pickupDay.timeInMillis == today.timeInMillis && !isDateTimeInPast(dateText, timeText)
         MerchantPickupRange.THIS_WEEK -> {

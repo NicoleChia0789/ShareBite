@@ -80,6 +80,24 @@ fun formatTimeForDb(input: String): String {
     return trimmed
 }
 
+// DatePicker uses UTC-midnight values. Keep dates on or before the merchant deadline selectable.
+@OptIn(ExperimentalMaterial3Api::class)
+class DeadlineSelectableDates(private val deadline: String) : SelectableDates {
+    override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+        if (!FutureOnlySelectableDates.isSelectableDate(utcTimeMillis)) return false
+        val deadlineDate = deadline.trim()
+            .substringBefore('T')
+            .substringBefore(' ')
+        val deadlineMillis = runCatching {
+            SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+                isLenient = false
+                timeZone = TimeZone.getTimeZone("UTC")
+            }.parse(deadlineDate)?.time
+        }.getOrNull()
+        return deadlineMillis == null || utcTimeMillis <= deadlineMillis
+    }
+}
+
 fun isDateTimeWithinDeadline(dateStr: String, timeStr: String, deadline: String): Boolean {
     if (dateStr.isBlank() || timeStr.isBlank() || deadline.isBlank()) return true
     val normalizedDeadline = deadline.trim()

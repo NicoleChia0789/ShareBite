@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +26,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import com.sharebite.app.ui.components.WithdrawConfirmDialog
 import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Directions
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.net.Uri
+import com.sharebite.app.data.repository.FoodListingRepository
 
 @Composable
 fun RequestDetailScreen(
@@ -34,18 +40,22 @@ fun RequestDetailScreen(
     onWithdrawClick: () -> Unit
 ) {
     val repository = remember { CharityRepository() }
+    val listingRepository = remember { FoodListingRepository() }
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     var request by remember { mutableStateOf<CharityRequest?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var listing by remember { mutableStateOf<com.sharebite.app.data.model.FoodListing?>(null) }
 
     // 新增：控制 Withdraw 弹窗
-    var showWithdrawDialog by remember { mutableStateOf(false) }
+    var showWithdrawDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(requestId) {
         try {
             request = repository.getMyRequestById(requestId)
+            request?.listingId?.toLongOrNull()?.let { listing = listingRepository.getListingById(it) }
         } catch (e: Exception) {
             errorMessage = e.message
         } finally {
@@ -121,7 +131,8 @@ fun RequestDetailScreen(
 
                     // ---------- 操作按钮 ----------
                     // 只有 Pending 状态才显示编辑和撤回按钮
-                    if (data.status == "Pending") {
+                    val canEdit = data.status == "Pending" || (data.status == "Confirmed" && data.listingId.isNullOrBlank())
+                    if (canEdit) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -143,6 +154,42 @@ fun RequestDetailScreen(
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 Text("Withdraw")
+                            }
+                        }
+                    } else if (data.status == "Confirmed") {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    val currentListing = listing
+                                    if (currentListing != null) {
+                                        val uri = if (currentListing.latitude != null && currentListing.longitude != null) {
+                                            Uri.parse("geo:${currentListing.latitude},${currentListing.longitude}?q=${currentListing.latitude},${currentListing.longitude}(${Uri.encode(currentListing.merchantName)})")
+                                        } else {
+                                            Uri.parse("geo:0,0?q=${Uri.encode(currentListing.address)}")
+                                        }
+                                        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Default.Directions, contentDescription = null)
+                                Spacer(Modifier.width(6.dp))
+                                Text("Directions", color = Color.White)
+                            }
+                            OutlinedButton(
+                                onClick = { showWithdrawDialog = true },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = RedCancelled),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Default.Cancel, contentDescription = null)
+                                Spacer(Modifier.width(6.dp))
+                                Text("Cancel")
                             }
                         }
                     } else {
@@ -360,7 +407,6 @@ private fun generateTimeline(status: String, createdAt: String): List<TimelineIt
     }
 
     val isSubmitted = true
-    val isViewed = status == "Confirmed" || status == "Completed"
     val isApproved = status == "Confirmed" || status == "Completed"
     val isCollected = status == "Completed"
 
@@ -370,12 +416,6 @@ private fun generateTimeline(status: String, createdAt: String): List<TimelineIt
             time = createdShort,
             description = "Request has been successfully logged into our system.",
             isCompleted = isSubmitted
-        ),
-        TimelineItem(
-            title = "Merchant viewed",
-            time = if (isViewed) createdShort else "Awaiting...",
-            description = if (isViewed) "Merchant has reviewed your request." else "Waiting for merchant to review.",
-            isCompleted = isViewed
         ),
         TimelineItem(
             title = "Approved",

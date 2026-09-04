@@ -162,10 +162,26 @@ fun AppNavHost(
         AppScaffold(
             currentRoute = currentRoute,
             onNavigate = { route ->
-                navController.navigate(route) {
-                    launchSingleTop = true
-                    restoreState = true
-                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                if (route == Screen.Home.route) {
+                    // Return to the existing dashboard entry. Route-based popping also
+                    // handles nested/detail destinations whose destination id differs.
+                    val returnedToHome = navController.popBackStack(
+                        Screen.Home.route,
+                        inclusive = false
+                    )
+                    if (!returnedToHome) {
+                        navController.navigate(Screen.Home.route) {
+                            launchSingleTop = true
+                            restoreState = true
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        }
+                    }
+                } else {
+                    navController.navigate(route) {
+                        launchSingleTop = true
+                        restoreState = true
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    }
                 }
             },
             topBarTitle = titleForRoute,
@@ -218,7 +234,9 @@ fun AppNavHost(
                                 navController.navigate(MerchantAddDonationRoute.route)
                             },
                             onViewAllListings = { navController.navigate(MerchantListingsRoute.route) },
-                            onViewAllRequests = { navController.navigate(Screen.Requests.createRoute()) },
+                            onViewAllRequests = {
+                                navController.navigate(Screen.Requests.createRoute(status = "Pending", time = "all"))
+                            },
                             onViewAllReservations = {
                                 navController.navigate(
                                     MerchantUserReservationsRoute.route
@@ -226,10 +244,10 @@ fun AppNavHost(
                             },
                             onViewImpact = { navController.navigate(MerchantImpactRoute.route) },
                             onViewPickupHistory = {
-                                navController.navigate(MerchantUserReservationsRoute.route)
+                                navController.navigate(Screen.Requests.createRoute(status = "Completed", time = "all"))
                             },
                             onViewPickupSchedule = {
-                                navController.navigate(MerchantUserReservationsRoute.route)
+                                navController.navigate(Screen.Requests.createRoute(time = "upcoming"))
                             },
                             onListingClick = { id ->
                                 navController.navigate(MerchantListingDetailRoute.createRoute(id))
@@ -288,14 +306,19 @@ fun AppNavHost(
                 }
 
                 composable(
-                    route = Screen.Requests.routeWithStatus,
+                    route = Screen.Requests.routeWithFilters,
                     arguments = listOf(navArgument("status") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }, navArgument("time") {
                         type = NavType.StringType
                         nullable = true
                         defaultValue = null
                     })
                 ) { backStackEntry ->
                     val initialStatus = backStackEntry.arguments?.getString("status")
+                    val initialTime = backStackEntry.arguments?.getString("time")
                     when (role) {
                         "user" -> UserMyReservationsScreen(
                             paddingValues = paddingValues,
@@ -351,6 +374,8 @@ fun AppNavHost(
 
                         "merchant" -> MerchantReservationsPage(
                             paddingValues = paddingValues,
+                            initialStatus = initialStatus,
+                            initialTimeFilter = initialTime,
                             viewModel = merchantViewModel,
                             onCharityClick = { id -> navController.navigate("merchant_request_detail/$id") },
                             onReservationClick = { id -> navController.navigate("merchant_reservation_detail/$id") },

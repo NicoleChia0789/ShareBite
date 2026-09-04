@@ -3,7 +3,9 @@ package com.sharebite.app.ui.merchant
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.material3.*
@@ -42,9 +44,12 @@ fun MerchantRequestDetailScreen(
     val listing = request?.listingId?.toLongOrNull()?.let { id -> listings.find { it.id == id } }
     val isGeneralRequest = request != null && request.listingId.isNullOrBlank()
     val isClaimedBazaarRequest = isGeneralRequest && !request?.merchantId.isNullOrBlank()
+    // Only a request tied to a merchant listing can be an update to a
+    // previously approved detail. Bazaar/general requests use a different flow.
+    val isUpdatedLinkedRequest = request?.detailsChanged == true && !isGeneralRequest
 
-    var showConfirmDialog by remember { mutableStateOf(false) }
-    var actionType by remember { mutableStateOf("") }
+    var showConfirmDialog by rememberSaveable { mutableStateOf(false) }
+    var actionType by rememberSaveable { mutableStateOf("") }
     var cancellationReason by rememberSaveable { mutableStateOf("") }
 
     Column(
@@ -52,11 +57,19 @@ fun MerchantRequestDetailScreen(
             .fillMaxSize()
             .padding(paddingValues)
             .background(BgCream)
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         Text("Request Details", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
         if (request != null) {
+            if (isUpdatedLinkedRequest) {
+                StatusNotice(
+                    text = "Charity has changed this confirmed request. Review the new quantity and pickup time before approving.",
+                    color = OrangeAccent
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
             FoodContextCard(
                 listing = listing,
                 foodName = request.foodName,
@@ -96,6 +109,42 @@ fun MerchantRequestDetailScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             when {
+                // An edited request must be reviewed again before it can return
+                // to the pickup flow, even when its previous status was Confirmed.
+                isUpdatedLinkedRequest -> {
+                    StatusNotice(
+                        text = "Review the updated request and choose whether to approve or reject it.",
+                        color = OrangeAccent
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                actionType = "decline"
+                                cancellationReason = ""
+                                showConfirmDialog = true
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = RedCancelled),
+                            shape = RoundedCornerShape(50)
+                        ) {
+                            Text("Reject", fontWeight = FontWeight.Bold)
+                        }
+                        Button(
+                            onClick = {
+                                actionType = "approve"
+                                showConfirmDialog = true
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = OrangeAccent),
+                            shape = RoundedCornerShape(50)
+                        ) {
+                            Text("Approve", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
                 request.status == "Pending" && !isGeneralRequest -> {
                     StatusNotice(
                         text = "This request is pending pickup confirmation.",
@@ -292,8 +341,8 @@ fun MerchantReservationDetailScreen(
     val reservation = reservations.find { it.id == reservationId }
     val listing = reservation?.let { current -> listings.find { it.id == current.listingId } }
 
-    var showConfirmDialog by remember { mutableStateOf(false) }
-    var actionType by remember { mutableStateOf("") }
+    var showConfirmDialog by rememberSaveable { mutableStateOf(false) }
+    var actionType by rememberSaveable { mutableStateOf("") }
     var cancellationReason by rememberSaveable { mutableStateOf("") }
 
     Column(

@@ -67,7 +67,12 @@ fun MerchantAllRequestsScreen(
                 FilterChip(
                     selected = pickupRange == range,
                     onClick = { pickupRange = range },
-                    label = { Text(if (range == MerchantPickupRange.TODAY) "Today" else if (range == MerchantPickupRange.THIS_WEEK) "This Week" else "Upcoming") }
+                    label = { Text(when (range) {
+                        MerchantPickupRange.ALL -> "All"
+                        MerchantPickupRange.TODAY -> "Today"
+                        MerchantPickupRange.THIS_WEEK -> "This Week"
+                        MerchantPickupRange.UPCOMING -> "Upcoming"
+                    }) }
                 )
             }
         }

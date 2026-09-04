@@ -37,6 +37,21 @@ data class CharityRequest(
     val status: String = "Pending",
     val note: String? = null,
 
+    @SerialName("details_changed")
+    val detailsChanged: Boolean = false,
+
+    @SerialName("previous_quantity")
+    val previousQuantity: Int? = null,
+
+    @SerialName("previous_pickup_date")
+    val previousPickupDate: String? = null,
+
+    @SerialName("previous_pickup_time")
+    val previousPickupTime: String? = null,
+
+    @SerialName("previous_note")
+    val previousNote: String? = null,
+
     @SerialName("cancellation_reason")
     val cancellationReason: String? = null,
 
